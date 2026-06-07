@@ -71,12 +71,14 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 		}
 	}
 
-	for _, dep := range t.Requires {
-		if lang.FindTarget(f, dep) == nil {
-			return fmt.Errorf("dependency target %q not found for %q", dep, name)
-		}
-		if err := runTargetWithDeps(f, dep, opts, visited, done); err != nil {
-			return err
+	if !opts.Clean {
+		for _, dep := range t.Requires {
+			if lang.FindTarget(f, dep) == nil {
+				return fmt.Errorf("dependency target %q not found for %q", dep, name)
+			}
+			if err := runTargetWithDeps(f, dep, opts, visited, done); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -121,9 +123,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 			if t.Bin != "" {
 				bp := lang.Expand(t.Bin, cv, 0)
 				cv["bin"] = &lang.Var{Name: "bin", Value: bp}
-				if _, err := os.Stat(bp); err == nil {
-					if err := os.Remove(bp); err == nil && opts.Verbose {
-						fmt.Printf("  Removed %s\n", bp)
+				if len(t.Cmds) > 0 {
+					if _, err := os.Stat(bp); err == nil {
+						if err := os.Remove(bp); err == nil && opts.Verbose {
+							fmt.Printf("  Removed %s\n", bp)
+						}
 					}
 				}
 			}
