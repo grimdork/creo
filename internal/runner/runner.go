@@ -274,7 +274,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 
 			if t.Bin != "" {
 				comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
-				if opts.Rebuild {
+				if opts.Rebuild && len(t.Cmds) > 0 {
 					os.Remove(c.bin)
 				}
 			}
