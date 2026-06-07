@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/grimdork/climate/arg"
 	"github.com/grimdork/creo/internal/lang"
@@ -41,7 +42,17 @@ func main() {
 	}
 
 	if opt.GetBool("i") {
-		initProject(opt.GetBool("f"), opt.GetBool("v"))
+		langName, ver := "", ""
+		targets := opt.GetPosStringSlice("targets")
+		if len(targets) > 0 {
+			spec := targets[0]
+			if idx := strings.IndexByte(spec, ':'); idx >= 0 {
+				langName, ver = spec[:idx], spec[idx+1:]
+			} else {
+				langName = spec
+			}
+		}
+		initProject(langName, ver, opt.GetBool("f"), opt.GetBool("v"))
 		return
 	}
 
