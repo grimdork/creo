@@ -73,7 +73,7 @@ For Go, this fills in:
 
 | Property | Default |
 |---|---|
-| `bin=` | `./<dirname>` (`-debug` suffix for targets ending in `-debug`) |
+| `bin=` | `./<name>` (from `go.mod` module path; falls back to directory name; `-debug` suffix for targets ending in `-debug`) |
 | `cmd=` | `$GO <flags> -o $bin` |
 | `sources=` | `*.go` |
 
