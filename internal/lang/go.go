@@ -82,7 +82,7 @@ func Apply(f *FiatFile) {
 			t.Bin = Expand(t.Bin, ev, 0)
 		}
 		if t.Sources == "" {
-			t.Sources = "*.go"
+			t.Sources = "*.go go.mod go.sum"
 		}
 		if len(t.Cmds) == 0 && len(t.Install) == 0 {
 			flags := "$GOFLAGS"
