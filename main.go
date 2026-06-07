@@ -33,7 +33,7 @@ func main() {
 	}
 
 	opts := RunOpts{
-		Rebuild:   opt.GetBool("r"),
+		Rebuild:   opt.GetBool("r") || opt.GetBool("f"),
 		Recursive: opt.GetBool("R"),
 		Clean:     opt.GetBool("c"),
 		Verbose:   opt.GetBool("v"),
