@@ -11,6 +11,32 @@ import (
 	"github.com/grimdork/creo/internal/runner"
 )
 
+func listTargets() {
+	fiatPath, ok := findFiat()
+	if !ok {
+		os.Exit(1)
+	}
+	file, err := lang.ParseFiat(fiatPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
+		os.Exit(1)
+	}
+	lang.Apply(file)
+
+	fmt.Println("Available targets:")
+	for _, t := range file.Targets {
+		lang := t.Language
+		if lang == "" {
+			lang = "-"
+		}
+		if t.Desc != "" {
+			fmt.Printf("  %-15s (%s)   %s\n", t.Name, lang, t.Desc)
+		} else {
+			fmt.Printf("  %-15s (%s)\n", t.Name, lang)
+		}
+	}
+}
+
 var version string
 
 func main() {
@@ -21,6 +47,9 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "r", "recursive", "Recurse into subdirectories")
 	opt.SetFlag(arg.GroupDefault, "c", "clean", "Remove target binaries")
 	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
+	opt.SetFlag(arg.GroupDefault, "l", "list", "List available targets")
+	opt.SetFlag(arg.GroupDefault, "w", "watch", "Watch sources and rebuild on change")
+	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
 	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
@@ -61,6 +90,12 @@ func main() {
 		Recursive: opt.GetBool("r"),
 		Clean:     opt.GetBool("c"),
 		Verbose:   opt.GetBool("v"),
+		Jobs:      opt.GetInt("j"),
+	}
+
+	if opt.GetBool("l") {
+		listTargets()
+		return
 	}
 
 	targets := opt.GetPosStringSlice("targets")
@@ -84,6 +119,11 @@ func main() {
 		os.Exit(1)
 	}
 	lang.Apply(file)
+
+	if opt.GetBool("w") {
+		runner.RunWatch(file, targets[0], opts)
+		return
+	}
 
 	for _, name := range targets {
 		if err := runner.RunTarget(file, name, opts); err != nil {

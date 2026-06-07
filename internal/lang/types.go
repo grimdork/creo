@@ -10,6 +10,7 @@ type Target struct {
 	Name     string
 	Language string
 	Line     int
+	Desc     string
 	Cmds     []string
 	Bin      string
 	Sources  string

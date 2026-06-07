@@ -1,13 +1,17 @@
 build: go
+	desc=Build the project binary
 
 debug: go
+	desc=Debug build with symbols
 
 nix: go
+	desc=Cross-compile for linux/freebsd
 	os=linux freebsd
 	arch=amd64 arm64
 	bin=$bin-$os-$arch
 
 # Install to ~/bin
 install: go
+	desc=Build and install to ~/bin
 	install=$bin:$HOME/bin/
 	require=build

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/grimdork/creo/internal/lang"
@@ -16,6 +17,7 @@ type RunOpts struct {
 	Clean     bool
 	Recursive bool
 	Verbose   bool
+	Jobs      int
 }
 
 func RunTarget(f *lang.FiatFile, name string, opts RunOpts) error {
@@ -44,12 +46,12 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 	}
 
 	if visited[name] {
-		return fmt.Errorf("circular dependency detected for target %q", name)
+		return fmt.Errorf("%s: circular dependency for target %q", f.Path, name)
 	}
 
 	t := lang.FindTarget(f, name)
 	if t == nil {
-		return fmt.Errorf("target %q not found in %s", name, f.Path)
+		return fmt.Errorf("%s: target %q not found", f.Path, name)
 	}
 
 	visited[name] = true
@@ -74,7 +76,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 	if !opts.Clean {
 		for _, dep := range t.Requires {
 			if lang.FindTarget(f, dep) == nil {
-				return fmt.Errorf("dependency target %q not found for %q", dep, name)
+				return fmt.Errorf("%s:%d: dependency %q not found for target %q", f.Path, t.Line, dep, name)
 			}
 			if err := runTargetWithDeps(f, dep, opts, visited, done); err != nil {
 				return err
@@ -249,80 +251,108 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 			return nil
 		}
 
+		numJobs := opts.Jobs
+		if numJobs <= 0 {
+			numJobs = runtime.NumCPU()
+		}
+
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, numJobs)
+		errCh := make(chan error, len(combos))
+
 		for _, c := range combos {
-			comboEnv := os.Environ()
-			activeArch := c.arch
-			activeOS := c.osval
-			if activeArch == "" {
-				activeArch = runtime.GOARCH
-			}
-			if activeOS == "" {
-				activeOS = runtime.GOOS
-			}
-			if c.arch != "" {
-				comboEnv = append(comboEnv, "GOARCH="+c.arch)
-			}
-			if c.osval != "" {
-				comboEnv = append(comboEnv, "GOOS="+c.osval)
-			}
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(c combo) {
+				defer wg.Done()
+				defer func() { <-sem }()
 
-			comboVars := make(map[string]*lang.Var)
-			for k, v := range f.Vars {
-				comboVars[k] = v
-			}
-			for _, v := range t.Vars {
-				comboVars[v.Name] = v
-			}
-			comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
-			comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
-
-			if t.Bin != "" {
-				comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
-				if opts.Rebuild && len(t.Cmds) > 0 {
-					os.Remove(c.bin)
+				comboEnv := os.Environ()
+				activeArch := c.arch
+				activeOS := c.osval
+				if activeArch == "" {
+					activeArch = runtime.GOARCH
 				}
-			}
-			if t.Sources != "" {
-				comboVars["sources"] = &lang.Var{Name: "sources", Value: lang.Expand(t.Sources, comboVars, 0)}
-			}
+				if activeOS == "" {
+					activeOS = runtime.GOOS
+				}
+				if c.arch != "" {
+					comboEnv = append(comboEnv, "GOARCH="+c.arch)
+				}
+				if c.osval != "" {
+					comboEnv = append(comboEnv, "GOOS="+c.osval)
+				}
 
-			if len(t.Cmds) > 0 && opts.Verbose {
+				comboVars := make(map[string]*lang.Var)
+				for k, v := range f.Vars {
+					comboVars[k] = v
+				}
+				for _, v := range t.Vars {
+					comboVars[v.Name] = v
+				}
+				comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+				comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
+
 				if t.Bin != "" {
-					fmt.Printf("  Building %s ...\n", c.bin)
+					comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
+					if opts.Rebuild && len(t.Cmds) > 0 {
+						os.Remove(c.bin)
+					}
 				}
-			}
-			for _, cmd := range t.Cmds {
-				expanded := lang.Expand(cmd, comboVars, 0)
-				if opts.Verbose {
-					fmt.Printf("  Running: %s\n", expanded)
+				if t.Sources != "" {
+					comboVars["sources"] = &lang.Var{Name: "sources", Value: lang.Expand(t.Sources, comboVars, 0)}
 				}
-				if err := execCmd(expanded, dir, comboEnv); err != nil {
-					return fmt.Errorf("command failed: %w", err)
-				}
-			}
 
-			if len(t.Cmds) > 0 && t.Bin != "" {
-				if _, err := os.Stat(c.bin); os.IsNotExist(err) {
-					return fmt.Errorf("binary %q was not created by target %q", c.bin, name)
+				if len(t.Cmds) > 0 && opts.Verbose {
+					if t.Bin != "" {
+						fmt.Printf("  Building %s ...\n", c.bin)
+					}
 				}
-			}
+				for _, cmd := range t.Cmds {
+					expanded := lang.Expand(cmd, comboVars, 0)
+					if opts.Verbose {
+						fmt.Printf("  Running: %s\n", expanded)
+					}
+					if err := execCmd(expanded, dir, comboEnv); err != nil {
+						errCh <- fmt.Errorf("%s:%d: command failed: %w", f.Path, t.Line, err)
+						return
+					}
+				}
 
-			for _, inst := range t.Install {
-				expanded := lang.Expand(inst, comboVars, 0)
-				expanded = os.ExpandEnv(expanded)
-				src := c.bin
-				dest := expanded
-				if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
-					src = expanded[:idx]
-					dest = expanded[idx+1:]
+				if len(t.Cmds) > 0 && t.Bin != "" {
+					if _, err := os.Stat(c.bin); os.IsNotExist(err) {
+						errCh <- fmt.Errorf("%s:%d: binary %q was not created by target %q", f.Path, t.Line, c.bin, name)
+						return
+					}
 				}
-				if si, err := os.Stat(dest); err == nil && si.IsDir() {
-					dest = filepath.Join(dest, filepath.Base(src))
+
+				for _, inst := range t.Install {
+					expanded := lang.Expand(inst, comboVars, 0)
+					expanded = os.ExpandEnv(expanded)
+					src := c.bin
+					dest := expanded
+					if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
+						src = expanded[:idx]
+						dest = expanded[idx+1:]
+					}
+					if si, err := os.Stat(dest); err == nil && si.IsDir() {
+						dest = filepath.Join(dest, filepath.Base(src))
+					}
+					if err := copyFile(src, dest); err != nil {
+						errCh <- fmt.Errorf("%s:%d: install of %s: %w", f.Path, t.Line, src, err)
+						return
+					}
+					fmt.Printf("  Installed %s -> %s\n", src, dest)
 				}
-				if err := copyFile(src, dest); err != nil {
-					return fmt.Errorf("install of %s: %w", src, err)
-				}
-				fmt.Printf("  Installed %s -> %s\n", src, dest)
+			}(c)
+		}
+
+		wg.Wait()
+		close(sem)
+		close(errCh)
+		for err := range errCh {
+			if err != nil {
+				return err
 			}
 		}
 
