@@ -23,9 +23,16 @@ func runTarget(f *FiatFile, name string, opts RunOpts) error {
 
 func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map[string]bool) error {
 	if name == "all" {
-		for _, t := range f.Targets {
-			if err := runTargetWithDeps(f, t.Name, opts, visited, done); err != nil {
+		if bt := findTarget(f, "build"); bt != nil {
+			if err := runTargetWithDeps(f, "build", opts, map[string]bool{}, done); err != nil {
 				return err
+			}
+		}
+		for _, t := range f.Targets {
+			if t.Name != "build" {
+				if err := runTargetWithDeps(f, t.Name, opts, map[string]bool{}, done); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
