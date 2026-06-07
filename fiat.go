@@ -24,8 +24,8 @@ type Target struct {
 	Sources  string
 	Tmp      []string
 	Requires []string
-	Arch     string
-	OS       string
+	Arch     []string
+	OS       []string
 	Vars     []*Var
 }
 
@@ -91,9 +91,9 @@ func parseProperty(line string, t *Target) string {
 	case "require":
 		t.Requires = strings.Fields(value)
 	case "arch":
-		t.Arch = value
+		t.Arch = strings.Fields(value)
 	case "os":
-		t.OS = value
+		t.OS = strings.Fields(value)
 	default:
 		t.Vars = append(t.Vars, &Var{Name: key, Value: value, Eager: eager})
 	}
@@ -195,9 +195,9 @@ func parseFiat(path string) (*FiatFile, error) {
 				case "require":
 					cur.Requires = append(cur.Requires, strings.Fields(line)...)
 				case "arch":
-					cur.Arch += " " + line
+					cur.Arch = append(cur.Arch, strings.Fields(line)...)
 				case "os":
-					cur.OS += " " + line
+					cur.OS = append(cur.OS, strings.Fields(line)...)
 				default:
 					for _, v := range cur.Vars {
 						if v.Name == lastKey {
@@ -260,15 +260,19 @@ func parseFiat(path string) (*FiatFile, error) {
 				ev[v.Name] = v
 			}
 			ev["bin"] = &Var{Name: "bin", Value: defBin}
-			if t.Arch != "" {
-				ev["arch"] = &Var{Name: "arch", Value: t.Arch}
+			if len(t.Arch) > 1 || len(t.OS) > 1 {
+				// Multi-arch/os: only $bin expanded; $os/$arch filled per combination in runner
 			} else {
-				ev["arch"] = &Var{Name: "arch", Value: runtime.GOARCH}
-			}
-			if t.OS != "" {
-				ev["os"] = &Var{Name: "os", Value: t.OS}
-			} else {
-				ev["os"] = &Var{Name: "os", Value: runtime.GOOS}
+				if len(t.OS) > 0 {
+					ev["os"] = &Var{Name: "os", Value: t.OS[0]}
+				} else {
+					ev["os"] = &Var{Name: "os", Value: runtime.GOOS}
+				}
+				if len(t.Arch) > 0 {
+					ev["arch"] = &Var{Name: "arch", Value: t.Arch[0]}
+				} else {
+					ev["arch"] = &Var{Name: "arch", Value: runtime.GOARCH}
+				}
 			}
 			t.Bin = expand(t.Bin, ev, 0)
 		}

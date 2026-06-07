@@ -90,7 +90,17 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 
 	needsRun := true
 	var existsBinPath string
-	if !opts.Rebuild && t.Bin != "" && t.Sources != "" {
+	archs := t.Arch
+	if len(archs) == 0 {
+		archs = []string{""}
+	}
+	oses := t.OS
+	if len(oses) == 0 {
+		oses = []string{""}
+	}
+	multi := len(archs) > 1 || len(oses) > 1
+
+	if !multi && !opts.Rebuild && t.Bin != "" && t.Sources != "" {
 		existsBinPath = expandWithTarget(t.Bin, f.Vars, t)
 		binStat, err := os.Stat(existsBinPath)
 		if err == nil {
@@ -113,34 +123,113 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 		}
 	}
 
-	if needsRun {
-		if opts.Rebuild && t.Bin != "" {
-			binPath := expandWithTarget(t.Bin, f.Vars, t)
-			os.Remove(binPath)
-		}
-
+	if needsRun || multi {
 		start := time.Now()
-		goEnv := os.Environ()
-		if t.Arch != "" {
-			goEnv = append(goEnv, "GOARCH="+expandWithTarget(t.Arch, f.Vars, t))
+
+		type combo struct {
+			arch, osval, bin string
 		}
-		if t.OS != "" {
-			goEnv = append(goEnv, "GOOS="+expandWithTarget(t.OS, f.Vars, t))
-		}
-		for _, cmd := range t.Cmds {
-			expanded := expandWithTarget(cmd, f.Vars, t)
-			if opts.Verbose {
-				fmt.Printf("  Running: %s\n", expanded)
-			}
-			if err := execCmd(expanded, dir, goEnv); err != nil {
-				return fmt.Errorf("command failed: %w", err)
+		var combos []combo
+		for _, arch := range archs {
+			for _, osval := range oses {
+				activeArch := arch
+				activeOS := osval
+				if activeArch == "" {
+					activeArch = runtime.GOARCH
+				}
+				if activeOS == "" {
+					activeOS = runtime.GOOS
+				}
+
+				comboVars := make(map[string]*Var)
+				for k, v := range f.Vars {
+					comboVars[k] = v
+				}
+				for _, v := range t.Vars {
+					comboVars[v.Name] = v
+				}
+				comboVars["arch"] = &Var{Name: "arch", Value: activeArch}
+				comboVars["os"] = &Var{Name: "os", Value: activeOS}
+
+				bp := ""
+				if t.Bin != "" {
+					bp = expand(t.Bin, comboVars, 0)
+				}
+				combos = append(combos, combo{arch, osval, bp})
 			}
 		}
 
-		if t.Bin != "" {
-			binPath := expandWithTarget(t.Bin, f.Vars, t)
-			if _, err := os.Stat(binPath); os.IsNotExist(err) {
-				return fmt.Errorf("binary %q was not created by target %q", binPath, name)
+		allExist := !opts.Rebuild
+		if allExist {
+			for _, c := range combos {
+				if c.bin != "" {
+					if _, err := os.Stat(c.bin); err != nil {
+						allExist = false
+						break
+					}
+				}
+			}
+		}
+		if allExist {
+			fmt.Printf("Target %q: binaries already exist. Skipping.\n", name)
+			done[name] = true
+			return nil
+		}
+
+		for _, c := range combos {
+			comboEnv := os.Environ()
+			activeArch := c.arch
+			activeOS := c.osval
+			if activeArch == "" {
+				activeArch = runtime.GOARCH
+			}
+			if activeOS == "" {
+				activeOS = runtime.GOOS
+			}
+			if c.arch != "" {
+				comboEnv = append(comboEnv, "GOARCH="+c.arch)
+			}
+			if c.osval != "" {
+				comboEnv = append(comboEnv, "GOOS="+c.osval)
+			}
+
+			comboVars := make(map[string]*Var)
+			for k, v := range f.Vars {
+				comboVars[k] = v
+			}
+			for _, v := range t.Vars {
+				comboVars[v.Name] = v
+			}
+			comboVars["arch"] = &Var{Name: "arch", Value: activeArch}
+			comboVars["os"] = &Var{Name: "os", Value: activeOS}
+
+			if t.Bin != "" {
+				comboVars["bin"] = &Var{Name: "bin", Value: c.bin}
+				if opts.Rebuild {
+					os.Remove(c.bin)
+				}
+				if opts.Verbose {
+					fmt.Printf("  Building %s ...\n", c.bin)
+				}
+			}
+			if t.Sources != "" {
+				comboVars["sources"] = &Var{Name: "sources", Value: expand(t.Sources, comboVars, 0)}
+			}
+
+			for _, cmd := range t.Cmds {
+				expanded := expand(cmd, comboVars, 0)
+				if opts.Verbose {
+					fmt.Printf("  Running: %s\n", expanded)
+				}
+				if err := execCmd(expanded, dir, comboEnv); err != nil {
+					return fmt.Errorf("command failed: %w", err)
+				}
+			}
+
+			if t.Bin != "" {
+				if _, err := os.Stat(c.bin); os.IsNotExist(err) {
+					return fmt.Errorf("binary %q was not created by target %q", c.bin, name)
+				}
 			}
 		}
 
@@ -179,13 +268,13 @@ func expandWithTarget(s string, global map[string]*Var, t *Target) string {
 	if t.Sources != "" {
 		vars["sources"] = &Var{Name: "sources", Value: expand(t.Sources, vars, 0)}
 	}
-	arch := t.Arch
-	if arch == "" {
-		arch = runtime.GOARCH
+	arch := runtime.GOARCH
+	if len(t.Arch) > 0 {
+		arch = t.Arch[0]
 	}
-	osval := t.OS
-	if osval == "" {
-		osval = runtime.GOOS
+	osval := runtime.GOOS
+	if len(t.OS) > 0 {
+		osval = t.OS[0]
 	}
 	vars["arch"] = &Var{Name: "arch", Value: arch}
 	vars["os"] = &Var{Name: "os", Value: osval}
