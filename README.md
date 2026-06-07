@@ -105,6 +105,9 @@ nix: go
 every combination — the example above produces four binaries.  Clean
 and skip checks respect all combinations.
 
+Multi-arch builds run in parallel by default (one goroutine per CPU).
+Use `-j N` to control concurrency, or `-j 1` for serial execution.
+
 ### Install
 
 ```
@@ -141,6 +144,7 @@ alongside the build artefacts from `bin=`.
 | `sources=` | File patterns checked for rebuild detection |
 | `tmp=` | Files cleaned before and after the target |
 | `require=` | Targets that must run first |
+| `desc=` | Human-readable description shown by `creo -l` |
 | `install=` | Copy built binaries to a destination (repeatable — see below) |
 | `arch=` | `GOARCH` value (space-separated for cross-compile) |
 | `os=` | `GOOS` value (space-separated for cross-compile) |
@@ -177,6 +181,44 @@ builds inject it automatically via `-X main.version=$VERSION` in the
 linker flags.  Define `$VERSION := custom` in the fiat file to override
 it, or use `$VERSION` in any `cmd=` or `bin=` expression.
 
+### Target listing
+
+```
+creo -l
+```
+
+Prints every target, its language, and its `desc=` description:
+
+```
+  build       (go)   Build the project binary
+  debug       (go)   Debug build with symbols
+  install     (go)   Build and install to ~/bin
+```
+
+Add a description to any target with the `desc=` property.
+
+### Watch mode
+
+```
+creo -w [target]
+```
+
+Watches a target's source files and rebuilds on every change.  Useful
+during development — edit, save, and the build happens automatically.
+The default target is `build`.  Polls every second (no external
+dependencies).
+
+### Parallel builds
+
+Multi-arch targets (targets with multiple `arch=` or `os=` values)
+build each combination in parallel.  Use `-j N` to limit concurrency:
+
+```
+creo -j 2 nix
+```
+
+Without `-j`, the number of CPUs is used.  `-j 1` runs serially.
+
 ## CLI
 
 ```
@@ -184,9 +226,12 @@ creo [flags] [target...]
 ```
 
 | Flag | Description |
-|---|---|
+|---|---|---|
 | `-i`, `--init` | Initialise project (optionally with language, e.g. `go` or `go:1.25`) |
 | `-f`, `--force` | Force rebuild |
+| `-l`, `--list` | List available targets with descriptions |
+| `-w`, `--watch` | Watch sources and rebuild on change |
+| `-j`, `--jobs` | Parallel jobs for multi-arch builds (default: CPU count) |
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries and installed files |
 | `-v`, `--verbose` | Show what's happening |
@@ -195,6 +240,12 @@ creo [flags] [target...]
 
 Targets are positional: `creo debug test` runs both.  Without targets,
 `build` is the default.  `all` runs every target.
+
+Error messages include the fiat file path and line number by default:
+
+```
+Error: fiat:12: install of ./creo: no such file or directory
+```
 
 ## Why not Make?
 
