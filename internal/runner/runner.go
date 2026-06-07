@@ -322,9 +322,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				if err := copyFile(src, dest); err != nil {
 					return fmt.Errorf("install of %s: %w", src, err)
 				}
-				if opts.Verbose {
-					fmt.Printf("  Installed %s -> %s\n", src, dest)
-				}
+				fmt.Printf("  Installed %s -> %s\n", src, dest)
 			}
 		}
 
