@@ -129,9 +129,8 @@ creo [flags] [target...]
 | Flag | Description |
 |---|---|
 | `-i`, `--init` | Create `fiat` and `.gitignore` |
-| `-f`, `--force` | Force overwrite (with `-i`); force rebuild otherwise |
-| `-r`, `--rebuild` | Remove the binary and rebuild |
-| `-R`, `--recursive` | Walk subdirectories for fiat files |
+| `-f`, `--force` | Force rebuild |
+| `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries |
 | `-v`, `--verbose` | Show what's happening |
 | `-h`, `--help` | Show help |

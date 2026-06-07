@@ -12,9 +12,8 @@ func main() {
 	opt := arg.New("creo", "A make-like build tool")
 	opt.SetDefaultHelp(true)
 	opt.SetFlag(arg.GroupDefault, "i", "init", "Initialise project with base files")
-	opt.SetFlag(arg.GroupDefault, "f", "force", "Force overwrite existing files")
-	opt.SetFlag(arg.GroupDefault, "r", "rebuild", "Rebuild, removing existing binary first")
-	opt.SetFlag(arg.GroupDefault, "R", "recursive", "Recurse into subdirectories")
+	opt.SetFlag(arg.GroupDefault, "f", "force", "Force rebuild")
+	opt.SetFlag(arg.GroupDefault, "r", "recursive", "Recurse into subdirectories")
 	opt.SetFlag(arg.GroupDefault, "c", "clean", "Remove target binaries")
 	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
@@ -33,8 +32,8 @@ func main() {
 	}
 
 	opts := RunOpts{
-		Rebuild:   opt.GetBool("r") || opt.GetBool("f"),
-		Recursive: opt.GetBool("R"),
+		Rebuild:   opt.GetBool("f"),
+		Recursive: opt.GetBool("r"),
 		Clean:     opt.GetBool("c"),
 		Verbose:   opt.GetBool("v"),
 	}
