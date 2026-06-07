@@ -89,9 +89,10 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 	}
 
 	needsRun := true
+	var existsBinPath string
 	if !opts.Rebuild && t.Bin != "" && t.Sources != "" {
-		binPath := expandWithTarget(t.Bin, f.Vars, t)
-		binStat, err := os.Stat(binPath)
+		existsBinPath = expandWithTarget(t.Bin, f.Vars, t)
+		binStat, err := os.Stat(existsBinPath)
 		if err == nil {
 			binMod := binStat.ModTime()
 			needsRun = false
@@ -156,8 +157,8 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 				}
 			}
 		}
-	} else if opts.Verbose {
-		fmt.Printf("  %s is up to date\n", name)
+	} else {
+		fmt.Printf("Target %q: binary %q already exists. Skipping.\n", name, existsBinPath)
 	}
 
 	done[name] = true
