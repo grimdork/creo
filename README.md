@@ -1,48 +1,41 @@
 # creo
 
-A build tool with a simpler, more readable format than Make. Variable
-expansion, rebuild detection, multi-command targets, and recursive builds
-are baked in — no arcane syntax needed.
+A build tool with simpler rules than Make. Variables, rebuild detection,
+cross-compilation, and recursive builds are built in.
 
 ## Quick start
 
 ```sh
-# Bootstrap a new project
-$ creo -i
-
-# Edit the generated "fiat" file...
+$ creo -i          # create a fiat file
+$ creo             # build it
+$ creo -v          # see what's happening
+$ creo all         # run every target
 ```
 
-A minimal build rule:
+A minimal Go project:
 
 ```
-$CC=gcc
-$CFLAGS := -O2 -Wall
-
-build:
-        bin=./myapp
-        cmd=$CC $CFLAGS -o $bin main.c
-        sources=*.c
+build: go
 ```
 
-```
-$ creo              # build (or "up to date")
-$ creo -r           # force rebuild
-$ creo debug        # run the debug target
-$ creo -R           # drill into subdirectories
-```
+That's it. `creo` picks up the directory name as the binary, compiles all
+`.go` files in the current directory, strips debug symbols, and checks
+whether the binary is newer than the sources before rebuilding.
 
 ## Format
+
+A file named `fiat` (or `*.fiat` if you run without one) defines
+variables and targets.
 
 ### Variables
 
 ```
-$KEY=value
-$KEY:=value
+$GO=go build
+$GOFLAGS := -trimpath -ldflags="-s -w"
 ```
 
-The `=` form re-evaluates variable references every time (lazy). The `:=`
-form expands once at parse time (eager).
+Variables start with `$`.  `=` is lazy (re-evaluated every time), `:=`
+is eager (expanded once at parse time).  Reference them with `$NAME`.
 
 ### Targets
 
@@ -51,114 +44,81 @@ target-name:
 	property=value
 ```
 
-A target starts with its name followed by a colon, at the start of a line
-(no indentation).  **One tab of indentation is required** for every
-property line under a target.  This is not optional — the parser enforces
-it.
-
-If no target is specified on the command line, `build` runs.  The special
-target `all` runs every target in the file.
-
-### Properties
-
-| Property | Purpose |
-|---|---|
-| `bin=` | Path to the output binary |
-| `cmd=` | Shell command to run (repeatable — runs in sequence) |
-| `sources=` | File patterns for rebuild detection |
-| `tmp=` | Temporary files to clean before and after the target |
-| `require=` | Targets that must run first, in order |
-
-Source patterns: `*` matches files in the current directory, `**.ext`
-matches recursively.  If `bin` is newer than all sources, the target is
-skipped.
-
-### Multi-line properties
-
-`require`, `sources`, `tmp` (and `cmd`, `bin`, or custom variables) can
-span multiple lines.  A line indented with **two tabs** (`\t\t`) continues
-the value of the preceding property.
-
-```
-build:
-	require=dep1
-		dep2
-		dep3
-	sources=*.go
-		**.c
-		**/*.h
-	tmp=*.o *.tmp
-```
-
-This is equivalent to one-liners:
-
-```
-build:
-	require=dep1 dep2 dep3
-	sources=*.go **.c **/*.h
-	tmp=*.o *.tmp
-```
-
-For `cmd` each continuation adds a separate command that runs sequentially.
-
-### Language targets
-
-A target can specify a language instead of inline properties:
-
-```
-target-name: go
-```
-
-When the language is `go`, sensible defaults are filled in automatically:
-
-| Property | Default |
-|---|---|
-| `bin=` | `./<dirname>` (appends `-debug` for targets named `debug`) |
-| `cmd=` | `go build <flags> -o $bin` |
-| `sources=` | `*.go` (current directory only) |
-
-The default `$GOFLAGS` varies by target name:
-
-| Target | `$GOFLAGS` |
-|---|---|
-| `build` | `-trimpath -ldflags="-s -w"` |
-| `debug` | `-gcflags="all=-N -l"` |
-| any other | `-trimpath -ldflags="-s -w"` (release) |
-
-If `$GOFLAGS` is defined explicitly in the fiat file, it takes precedence.
-
-A minimal Go project's fiat file:
+A target starts with its name, a colon, and optionally a language
+keyword.  Properties are indented with **one tab** — required, not
+optional.  Two tabs continue the previous line's value.
 
 ```
 build: go
-
-debug: go
-```
-
-That's it — no variables, no properties, no boilerplate.  `creo` builds
-the release binary, `creo debug` builds a debug binary with the name
-suffixed with `-debug`.
-
-### Example
-
-```
-$APP=creo
-$GO=go build
-$FLAGS := -trimpath -ldflags="-s -w"
-
-build:
-	bin=./$APP
-	cmd=$GO $FLAGS -o $bin
-	sources=**.go
+	sources=*.go
+		**.c
+		**/*.h
 	require=lint
-
-lint:
-	cmd=staticcheck ./...
-
-clean:
-	cmd=rm -f ./$APP
 	tmp=*.o
 ```
+
+If no target is given on the command line, `build` runs.  The special
+target `all` runs every target in order, starting with `build` and its
+dependencies.
+
+### Language mode
+
+A target with a language keyword gets automatic defaults:
+
+```
+target: go
+```
+
+For Go, this fills in:
+
+| Property | Default |
+|---|---|
+| `bin=` | `./<dirname>` (`-debug` suffix for targets ending in `-debug`) |
+| `cmd=` | `$GO <flags> -o $bin` |
+| `sources=` | `*.go` |
+
+Flags vary by target name: `build` and most targets get release flags;
+`debug` and any target ending in `-debug` get debug flags.  Define
+`$GOFLAGS` in the file to override.
+
+### Multi-arch and multi-OS
+
+```
+nix: go
+	os=linux freebsd
+	arch=amd64 arm64
+	bin=$bin-$os-$arch
+```
+
+`os` and `arch` can take space-separated values.  The runner builds
+every combination — the example above produces four binaries.  Clean
+and skip checks respect all combinations.
+
+### Properties
+
+| Property | What it does |
+|---|---|
+| `cmd=` | Shell command to run (repeatable — runs in sequence) |
+| `bin=` | Path to the output binary |
+| `sources=` | File patterns checked for rebuild detection |
+| `tmp=` | Files cleaned before and after the target |
+| `require=` | Targets that must run first |
+| `arch=` | `GOARCH` value (space-separated for cross-compile) |
+| `os=` | `GOOS` value (space-separated for cross-compile) |
+
+Source patterns: `*` matches files in the current directory, `**.ext`
+matches recursively.  When a binary already exists and is newer than all
+sources, creo skips it with a message.
+
+### Built-in variables
+
+When not explicitly defined by the user:
+
+| Variable | Default |
+|---|---|
+| `$GO` | `go build` |
+| `$GOFLAGS` | `-trimpath -ldflags="-s -w"` (release) or `-gcflags="all=-N -l"` (debug) |
+| `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
 
 ## CLI
 
@@ -168,24 +128,22 @@ creo [flags] [target...]
 
 | Flag | Description |
 |---|---|
-| `-i`, `--init` | Create `fiat`, `.gitignore` (skip existing) |
-| `-f`, `--force` | Overwrite with init; force rebuild otherwise |
-| `-r`, `--rebuild` | Remove binary before building |
+| `-i`, `--init` | Create `fiat` and `.gitignore` |
+| `-f`, `--force` | Force overwrite (with `-i`); force rebuild otherwise |
+| `-r`, `--rebuild` | Remove the binary and rebuild |
 | `-R`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries |
-| `-v`, `--verbose` | Show diagnostic and cleanup output |
+| `-v`, `--verbose` | Show what's happening |
 | `-h`, `--help` | Show help |
 
-Target names are positional: `creo debug test` runs `debug` then `test`.
-Without targets, `build` is the default.
+Targets are positional: `creo debug test` runs both.  Without targets,
+`build` is the default.  `all` runs every target.
 
 ## Why not Make?
 
-No `$(eval ...)` directives, no `.PHONY` targets, no `.SUFFIXES` rules,
-no `ifeq`/`else`/`endif` conditionals.  Just variables with `$`
-references, inline properties, and shell commands.  `sources`, `tmp`, and
-`require` are built in — common patterns that take pages of Make macros
-are a single line here.
+No `$(eval ...)`, no `.PHONY`, no `.SUFFIXES`, no `ifeq`/`else`/`endif`.
+Just variables with `$`, targets with properties, and shell commands.
+Language support makes the common case — a Go project — a single line.
 
 ## License
 
