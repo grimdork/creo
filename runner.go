@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -170,6 +171,16 @@ func expandWithTarget(s string, global map[string]*Var, t *Target) string {
 	if t.Sources != "" {
 		vars["sources"] = &Var{Name: "sources", Value: expand(t.Sources, vars, 0)}
 	}
+	arch := t.Arch
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+	osval := t.OS
+	if osval == "" {
+		osval = runtime.GOOS
+	}
+	vars["arch"] = &Var{Name: "arch", Value: arch}
+	vars["os"] = &Var{Name: "os", Value: osval}
 	return expand(s, vars, 0)
 }
 

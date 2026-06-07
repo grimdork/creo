@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -258,12 +259,32 @@ func parseFiat(path string) (*FiatFile, error) {
 			continue
 		}
 		isDebug := t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
+		defBin := "./" + filepath.Base(absDir)
+		if isDebug {
+			defBin += "-debug"
+		}
 		if t.Bin == "" {
-			name := filepath.Base(absDir)
-			if isDebug {
-				name += "-debug"
+			t.Bin = defBin
+		} else {
+			ev := make(map[string]*Var)
+			for k, v := range f.Vars {
+				ev[k] = v
 			}
-			t.Bin = "./" + name
+			for _, v := range t.Vars {
+				ev[v.Name] = v
+			}
+			ev["bin"] = &Var{Name: "bin", Value: defBin}
+			if t.Arch != "" {
+				ev["arch"] = &Var{Name: "arch", Value: t.Arch}
+			} else {
+				ev["arch"] = &Var{Name: "arch", Value: runtime.GOARCH}
+			}
+			if t.OS != "" {
+				ev["os"] = &Var{Name: "os", Value: t.OS}
+			} else {
+				ev["os"] = &Var{Name: "os", Value: runtime.GOOS}
+			}
+			t.Bin = expand(t.Bin, ev, 0)
 		}
 		if t.Sources == "" {
 			t.Sources = "*.go"
