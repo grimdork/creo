@@ -245,7 +245,7 @@ func parseFiat(path string) (*FiatFile, error) {
 			continue
 		}
 		isDebug := t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
-		defBin := "./" + filepath.Base(absDir)
+		defBin := "./" + moduleName(absDir)
 		if isDebug {
 			defBin += "-debug"
 		}
@@ -293,6 +293,24 @@ func parseFiat(path string) (*FiatFile, error) {
 	}
 
 	return f, nil
+}
+
+func moduleName(dir string) string {
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return filepath.Base(dir)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			mod := strings.TrimSpace(strings.TrimPrefix(line, "module "))
+			if idx := strings.LastIndexByte(mod, '/'); idx >= 0 {
+				return mod[idx+1:]
+			}
+			return mod
+		}
+	}
+	return filepath.Base(dir)
 }
 
 func findTarget(f *FiatFile, name string) *Target {
