@@ -16,6 +16,7 @@ type Var struct {
 
 type Target struct {
 	Name     string
+	Language string
 	Line     int
 	Cmds     []string
 	Bin      string
@@ -177,7 +178,11 @@ func parseFiat(path string) (*FiatFile, error) {
 			parts := strings.SplitN(line, ":", 2)
 			name := strings.TrimSpace(parts[0])
 			if name != "" {
-				cur = &Target{Name: name, Line: i + 1}
+				lang := ""
+				if len(parts) > 1 {
+					lang = strings.TrimSpace(parts[1])
+				}
+				cur = &Target{Name: name, Language: lang, Line: i + 1}
 				f.Targets = append(f.Targets, cur)
 				continue
 			}
@@ -221,6 +226,26 @@ func parseFiat(path string) (*FiatFile, error) {
 			if v.Eager {
 				v.Value = expand(v.Value, f.Vars, 0)
 			}
+		}
+	}
+
+	dir := filepath.Dir(f.Path)
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		absDir = dir
+	}
+	for _, t := range f.Targets {
+		if t.Language != "go" {
+			continue
+		}
+		if t.Bin == "" {
+			t.Bin = "./" + filepath.Base(absDir)
+		}
+		if t.Sources == "" {
+			t.Sources = "*.go"
+		}
+		if len(t.Cmds) == 0 {
+			t.Cmds = append(t.Cmds, "go build $GOFLAGS -o $bin")
 		}
 	}
 
