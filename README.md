@@ -8,11 +8,16 @@ syntax to memorise.
 ## Quick start
 
 ```sh
-$ creo -i          # create a fiat file
-$ creo             # build it
+$ creo -i          # create a bare project file
+$ creo -i go       # initialise a full Go project
+$ creo -i go:1.25  # initialise with a pinned Go toolchain
+$ creo             # build
 $ creo -v          # see what's happening
 $ creo all         # run every target
 ```
+
+Running `creo -i go` in a directory with some files already present
+creates only the ones that are missing — safe to run repeatedly.
 
 A minimal Go project:
 
@@ -148,7 +153,7 @@ creo [flags] [target...]
 
 | Flag | Description |
 |---|---|
-| `-i`, `--init` | Create `fiat` and `.gitignore` |
+| `-i`, `--init` | Initialise project (optionally with language, e.g. `go` or `go:1.25`) |
 | `-f`, `--force` | Force rebuild |
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries |
