@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/grimdork/climate/arg"
 )
 
 func runFiat(path string) {
@@ -12,6 +15,24 @@ func runFiat(path string) {
 }
 
 func main() {
+	opt := arg.New("creo", "A make-like build tool")
+	opt.SetDefaultHelp(true)
+	opt.SetFlag(arg.GroupDefault, "i", "init", "Initialise project with base files")
+	opt.SetFlag(arg.GroupDefault, "f", "force", "Force overwrite existing files")
+
+	err := opt.Parse(os.Args[1:])
+	if err != nil {
+		if !errors.Is(err, arg.ErrNonFatal) {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if opt.GetBool("i") {
+		initProject(opt.GetBool("f"))
+		return
+	}
+
 	if _, err := os.Stat("fiat"); err == nil {
 		runFiat("fiat")
 		return

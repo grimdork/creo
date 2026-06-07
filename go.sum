@@ -1,3 +1,5 @@
+github.com/grimdork/climate v0.28.0 h1:21UNV3CjPr9+X1FkHDN/ga+TkQpi8+nilMqHy+GfYPE=
+github.com/grimdork/climate v0.28.0/go.mod h1:TK3a+IoyW2sab2UY/3nwl34KYewdxaxuDNXM2g3gbwY=
 golang.org/x/sys v0.44.0 h1:ildZl3J4uzeKP07r2F++Op7E9B29JRUy+a27EibtBTQ=
 golang.org/x/sys v0.44.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
 golang.org/x/term v0.43.0 h1:S4RLU2sB31O/NCl+zFN9Aru9A/Cq2aqKpTZJ6B+DwT4=
