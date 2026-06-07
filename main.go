@@ -10,6 +10,8 @@ import (
 	"github.com/grimdork/creo/internal/runner"
 )
 
+var version string
+
 func main() {
 	opt := arg.New("creo", "A make-like build tool")
 	opt.SetDefaultHelp(true)
@@ -18,6 +20,7 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "r", "recursive", "Recurse into subdirectories")
 	opt.SetFlag(arg.GroupDefault, "c", "clean", "Remove target binaries")
 	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
+	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
 	err := opt.Parse(os.Args[1:])
@@ -26,6 +29,15 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
+	}
+
+	if opt.GetBool("version") {
+		if version == "" {
+			fmt.Println("creo (dev)")
+		} else {
+			fmt.Println("creo " + version)
+		}
+		return
 	}
 
 	if opt.GetBool("i") {

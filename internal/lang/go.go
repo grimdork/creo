@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/grimdork/creo/internal/semver"
 )
 
 func ModuleName(dir string) string {
@@ -37,6 +39,9 @@ func Apply(f *FiatFile) {
 	}
 	if _, ok := f.Vars["GODEBUGFLAGS"]; !ok {
 		f.Vars["GODEBUGFLAGS"] = &Var{Name: "GODEBUGFLAGS", Value: `-gcflags="all=-N -l"`}
+	}
+	if _, ok := f.Vars["VERSION"]; !ok {
+		f.Vars["VERSION"] = &Var{Name: "VERSION", Value: semver.String()}
 	}
 
 	_, hasGoFlags := f.Vars["GOFLAGS"]
@@ -81,14 +86,16 @@ func Apply(f *FiatFile) {
 		}
 		if len(t.Cmds) == 0 {
 			flags := "$GOFLAGS"
+			verPost := ""
 			if !hasGoFlags {
 				if isDebug {
 					flags = "$GODEBUGFLAGS"
+					verPost = ` -ldflags="-X main.version=$VERSION"`
 				} else {
-					flags = `-trimpath -ldflags="-s -w"`
+					flags = `-trimpath -ldflags="-s -w -X main.version=$VERSION"`
 				}
 			}
-			t.Cmds = append(t.Cmds, "$GO "+flags+" -o $bin")
+			t.Cmds = append(t.Cmds, "$GO "+flags+verPost+" -o $bin")
 		}
 	}
 }
