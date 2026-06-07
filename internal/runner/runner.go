@@ -1,9 +1,8 @@
-package main
+package runner
 
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -19,7 +18,7 @@ type RunOpts struct {
 	Verbose   bool
 }
 
-func runTarget(f *lang.FiatFile, name string, opts RunOpts) error {
+func RunTarget(f *lang.FiatFile, name string, opts RunOpts) error {
 	return runTargetWithDeps(f, name, opts, map[string]bool{}, map[string]bool{})
 }
 
@@ -287,40 +286,30 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 	return nil
 }
 
-func execCmd(cmd, dir string, env []string) error {
-	c := exec.Command("sh", "-c", cmd)
-	c.Dir = dir
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	c.Env = env
-	return c.Run()
-}
-
-func globFiles(pattern, dir string) []string {
-	if strings.HasPrefix(pattern, "**") {
-		ext := strings.TrimPrefix(pattern, "**")
-		var files []string
-		filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if !d.IsDir() && strings.HasSuffix(path, ext) {
-				rel, _ := filepath.Rel(dir, path)
-				files = append(files, filepath.Join(dir, rel))
-			}
-			return nil
-		})
-		return files
+func findFiatInDir(dir string, verbose bool) (string, bool) {
+	path := filepath.Join(dir, "fiat")
+	if _, err := os.Stat(path); err == nil {
+		return path, true
 	}
 
-	matches, err := filepath.Glob(filepath.Join(dir, pattern))
+	matches, err := filepath.Glob(filepath.Join(dir, "*.fiat"))
 	if err != nil {
-		return nil
+		return "", false
 	}
-	return matches
+
+	if len(matches) == 1 {
+		return matches[0], true
+	}
+
+	if len(matches) > 1 {
+		if verbose {
+			fmt.Printf("  Skipped %s (multiple .fiat files)\n", dir)
+		}
+	}
+	return "", false
 }
 
-func runRecursive(dir string, opts RunOpts) {
+func RunRecursive(dir string, opts RunOpts) {
 	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -346,7 +335,7 @@ func runRecursive(dir string, opts RunOpts) {
 		if opts.Verbose {
 			fmt.Printf("Entering %s\n", path)
 		}
-		if err := runTarget(file, "build", opts); err != nil {
+		if err := RunTarget(file, "build", opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in %s: %v\n", path, err)
 		}
 		return nil

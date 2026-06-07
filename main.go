@@ -7,6 +7,7 @@ import (
 
 	"github.com/grimdork/climate/arg"
 	"github.com/grimdork/creo/internal/lang"
+	"github.com/grimdork/creo/internal/runner"
 )
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 		return
 	}
 
-	opts := RunOpts{
+	opts := runner.RunOpts{
 		Rebuild:   opt.GetBool("f"),
 		Recursive: opt.GetBool("r"),
 		Clean:     opt.GetBool("c"),
@@ -45,7 +46,7 @@ func main() {
 	}
 
 	if opts.Recursive {
-		runRecursive(".", opts)
+		runner.RunRecursive(".", opts)
 		return
 	}
 
@@ -62,7 +63,7 @@ func main() {
 	lang.Apply(file)
 
 	for _, name := range targets {
-		if err := runTarget(file, name, opts); err != nil {
+		if err := runner.RunTarget(file, name, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
