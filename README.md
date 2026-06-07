@@ -188,7 +188,7 @@ creo [flags] [target...]
 | `-i`, `--init` | Initialise project (optionally with language, e.g. `go` or `go:1.25`) |
 | `-f`, `--force` | Force rebuild |
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
-| `-c`, `--clean` | Remove target binaries |
+| `-c`, `--clean` | Remove target binaries and installed files |
 | `-v`, `--verbose` | Show what's happening |
 | `--version` | Print version and exit |
 | `-h`, `--help` | Show help |
