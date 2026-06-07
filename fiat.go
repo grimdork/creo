@@ -234,18 +234,32 @@ func parseFiat(path string) (*FiatFile, error) {
 	if err != nil {
 		absDir = dir
 	}
+	_, hasGoFlags := f.Vars["GOFLAGS"]
 	for _, t := range f.Targets {
 		if t.Language != "go" {
 			continue
 		}
 		if t.Bin == "" {
-			t.Bin = "./" + filepath.Base(absDir)
+			name := filepath.Base(absDir)
+			if t.Name == "debug" {
+				name += "-debug"
+			}
+			t.Bin = "./" + name
 		}
 		if t.Sources == "" {
 			t.Sources = "*.go"
 		}
 		if len(t.Cmds) == 0 {
-			t.Cmds = append(t.Cmds, "go build $GOFLAGS -o $bin")
+			flags := "$GOFLAGS"
+			if !hasGoFlags {
+				switch t.Name {
+				case "debug":
+					flags = `-gcflags="all=-N -l"`
+				default:
+					flags = `-trimpath -ldflags="-s -w"`
+				}
+			}
+			t.Cmds = append(t.Cmds, "go build "+flags+" -o $bin")
 		}
 	}
 

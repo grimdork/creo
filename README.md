@@ -101,6 +101,44 @@ build:
 
 For `cmd` each continuation adds a separate command that runs sequentially.
 
+### Language targets
+
+A target can specify a language instead of inline properties:
+
+```
+target-name: go
+```
+
+When the language is `go`, sensible defaults are filled in automatically:
+
+| Property | Default |
+|---|---|
+| `bin=` | `./<dirname>` (appends `-debug` for targets named `debug`) |
+| `cmd=` | `go build <flags> -o $bin` |
+| `sources=` | `*.go` (current directory only) |
+
+The default `$GOFLAGS` varies by target name:
+
+| Target | `$GOFLAGS` |
+|---|---|
+| `build` | `-trimpath -ldflags="-s -w"` |
+| `debug` | `-gcflags="all=-N -l"` |
+| any other | `-trimpath -ldflags="-s -w"` (release) |
+
+If `$GOFLAGS` is defined explicitly in the fiat file, it takes precedence.
+
+A minimal Go project's fiat file:
+
+```
+build: go
+
+debug: go
+```
+
+That's it — no variables, no properties, no boilerplate.  `creo` builds
+the release binary, `creo debug` builds a debug binary with the name
+suffixed with `-debug`.
+
 ### Example
 
 ```
