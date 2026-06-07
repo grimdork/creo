@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/grimdork/creo/internal/lang"
 )
 
 type RunOpts struct {
@@ -17,13 +19,13 @@ type RunOpts struct {
 	Verbose   bool
 }
 
-func runTarget(f *FiatFile, name string, opts RunOpts) error {
+func runTarget(f *lang.FiatFile, name string, opts RunOpts) error {
 	return runTargetWithDeps(f, name, opts, map[string]bool{}, map[string]bool{})
 }
 
-func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map[string]bool) error {
+func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, done map[string]bool) error {
 	if name == "all" {
-		if bt := findTarget(f, "build"); bt != nil {
+		if bt := lang.FindTarget(f, "build"); bt != nil {
 			if err := runTargetWithDeps(f, "build", opts, map[string]bool{}, done); err != nil {
 				return err
 			}
@@ -46,7 +48,7 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 		return fmt.Errorf("circular dependency detected for target %q", name)
 	}
 
-	t := findTarget(f, name)
+	t := lang.FindTarget(f, name)
 	if t == nil {
 		return fmt.Errorf("target %q not found in %s", name, f.Path)
 	}
@@ -56,7 +58,7 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 
 	if !opts.Clean {
 		for _, pattern := range t.Tmp {
-			expanded := expandWithTarget(pattern, f.Vars, t)
+			expanded := lang.ExpandWithTarget(pattern, f.Vars, t)
 			matches := globFiles(expanded, dir)
 			for _, m := range matches {
 				if err := os.Remove(m); err == nil && opts.Verbose {
@@ -67,7 +69,7 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 	}
 
 	for _, dep := range t.Requires {
-		if findTarget(f, dep) == nil {
+		if lang.FindTarget(f, dep) == nil {
 			return fmt.Errorf("dependency target %q not found for %q", dep, name)
 		}
 		if err := runTargetWithDeps(f, dep, opts, visited, done); err != nil {
@@ -96,17 +98,17 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 						activeOS = runtime.GOOS
 					}
 
-					cv := make(map[string]*Var)
+					cv := make(map[string]*lang.Var)
 					for k, v := range f.Vars {
 						cv[k] = v
 					}
 					for _, v := range t.Vars {
 						cv[v.Name] = v
 					}
-					cv["arch"] = &Var{Name: "arch", Value: activeArch}
-					cv["os"] = &Var{Name: "os", Value: activeOS}
+					cv["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+					cv["os"] = &lang.Var{Name: "os", Value: activeOS}
 
-					bp := expand(t.Bin, cv, 0)
+					bp := lang.Expand(t.Bin, cv, 0)
 					if _, err := os.Stat(bp); err == nil {
 						if err := os.Remove(bp); err == nil && opts.Verbose {
 							fmt.Printf("  Removed %s\n", bp)
@@ -132,14 +134,14 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 	multi := len(archs) > 1 || len(oses) > 1
 
 	if !multi && !opts.Rebuild && t.Bin != "" && t.Sources != "" {
-		existsBinPath = expandWithTarget(t.Bin, f.Vars, t)
+		existsBinPath = lang.ExpandWithTarget(t.Bin, f.Vars, t)
 		binStat, err := os.Stat(existsBinPath)
 		if err == nil {
 			binMod := binStat.ModTime()
 			needsRun = false
-			srcPatterns := strings.Fields(expandWithTarget(t.Sources, f.Vars, t))
+			srcPatterns := strings.Fields(lang.ExpandWithTarget(t.Sources, f.Vars, t))
 			for _, pat := range srcPatterns {
-				files := globFiles(expandWithTarget(pat, f.Vars, t), dir)
+				files := globFiles(lang.ExpandWithTarget(pat, f.Vars, t), dir)
 				for _, sf := range files {
 					sStat, sErr := os.Stat(sf)
 					if sErr != nil || sStat.ModTime().After(binMod) {
@@ -172,19 +174,19 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 					activeOS = runtime.GOOS
 				}
 
-				comboVars := make(map[string]*Var)
+				comboVars := make(map[string]*lang.Var)
 				for k, v := range f.Vars {
 					comboVars[k] = v
 				}
 				for _, v := range t.Vars {
 					comboVars[v.Name] = v
 				}
-				comboVars["arch"] = &Var{Name: "arch", Value: activeArch}
-				comboVars["os"] = &Var{Name: "os", Value: activeOS}
+				comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+				comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
 
 				bp := ""
 				if t.Bin != "" {
-					bp = expand(t.Bin, comboVars, 0)
+					bp = lang.Expand(t.Bin, comboVars, 0)
 				}
 				combos = append(combos, combo{arch, osval, bp})
 			}
@@ -224,18 +226,18 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 				comboEnv = append(comboEnv, "GOOS="+c.osval)
 			}
 
-			comboVars := make(map[string]*Var)
+			comboVars := make(map[string]*lang.Var)
 			for k, v := range f.Vars {
 				comboVars[k] = v
 			}
 			for _, v := range t.Vars {
 				comboVars[v.Name] = v
 			}
-			comboVars["arch"] = &Var{Name: "arch", Value: activeArch}
-			comboVars["os"] = &Var{Name: "os", Value: activeOS}
+			comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+			comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
 
 			if t.Bin != "" {
-				comboVars["bin"] = &Var{Name: "bin", Value: c.bin}
+				comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
 				if opts.Rebuild {
 					os.Remove(c.bin)
 				}
@@ -244,11 +246,11 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 				}
 			}
 			if t.Sources != "" {
-				comboVars["sources"] = &Var{Name: "sources", Value: expand(t.Sources, comboVars, 0)}
+				comboVars["sources"] = &lang.Var{Name: "sources", Value: lang.Expand(t.Sources, comboVars, 0)}
 			}
 
 			for _, cmd := range t.Cmds {
-				expanded := expand(cmd, comboVars, 0)
+				expanded := lang.Expand(cmd, comboVars, 0)
 				if opts.Verbose {
 					fmt.Printf("  Running: %s\n", expanded)
 				}
@@ -269,7 +271,7 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 		}
 
 		for _, pattern := range t.Tmp {
-			expanded := expandWithTarget(pattern, f.Vars, t)
+			expanded := lang.ExpandWithTarget(pattern, f.Vars, t)
 			matches := globFiles(expanded, dir)
 			for _, m := range matches {
 				if err := os.Remove(m); err == nil && opts.Verbose {
@@ -283,33 +285,6 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 
 	done[name] = true
 	return nil
-}
-
-func expandWithTarget(s string, global map[string]*Var, t *Target) string {
-	vars := make(map[string]*Var)
-	for k, v := range global {
-		vars[k] = v
-	}
-	for _, v := range t.Vars {
-		vars[v.Name] = v
-	}
-	if t.Bin != "" {
-		vars["bin"] = &Var{Name: "bin", Value: expand(t.Bin, vars, 0)}
-	}
-	if t.Sources != "" {
-		vars["sources"] = &Var{Name: "sources", Value: expand(t.Sources, vars, 0)}
-	}
-	arch := runtime.GOARCH
-	if len(t.Arch) > 0 {
-		arch = t.Arch[0]
-	}
-	osval := runtime.GOOS
-	if len(t.OS) > 0 {
-		osval = t.OS[0]
-	}
-	vars["arch"] = &Var{Name: "arch", Value: arch}
-	vars["os"] = &Var{Name: "os", Value: osval}
-	return expand(s, vars, 0)
 }
 
 func execCmd(cmd, dir string, env []string) error {
@@ -345,14 +320,6 @@ func globFiles(pattern, dir string) []string {
 	return matches
 }
 
-func removeMatching(pattern, dir string) []string {
-	matches := globFiles(pattern, dir)
-	for _, m := range matches {
-		os.Remove(m)
-	}
-	return matches
-}
-
 func runRecursive(dir string, opts RunOpts) {
 	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -370,7 +337,7 @@ func runRecursive(dir string, opts RunOpts) {
 			return nil
 		}
 
-		file, err := parseFiat(fiatPath)
+		file, err := lang.ParseFiat(fiatPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 			return nil

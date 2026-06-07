@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/grimdork/climate/arg"
+	"github.com/grimdork/creo/internal/lang"
 )
 
 func main() {
@@ -53,11 +54,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	file, err := parseFiat(fiatPath)
+	file, err := lang.ParseFiat(fiatPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 		os.Exit(1)
 	}
+	lang.Apply(file)
 
 	for _, name := range targets {
 		if err := runTarget(file, name, opts); err != nil {
