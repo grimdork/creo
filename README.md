@@ -119,6 +119,12 @@ When not explicitly defined by the user:
 | `$GO` | `go build` |
 | `$GOFLAGS` | `-trimpath -ldflags="-s -w"` (release) or `-gcflags="all=-N -l"` (debug) |
 | `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
+| `$VERSION` | `git describe --tags` (or `dev` outside a repo) |
+
+`creo --version` prints the embedded version string.  Release and debug
+builds inject it automatically via `-X main.version=$VERSION` in the
+linker flags.  Define `$VERSION := custom` in the fiat file to override
+it, or use `$VERSION` in any `cmd=` or `bin=` expression.
 
 ## CLI
 
@@ -133,6 +139,7 @@ creo [flags] [target...]
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries |
 | `-v`, `--verbose` | Show what's happening |
+| `--version` | Print version and exit |
 | `-h`, `--help` | Show help |
 
 Targets are positional: `creo debug test` runs both.  Without targets,
