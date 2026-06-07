@@ -1,7 +1,9 @@
 # creo
 
-A build tool with simpler rules than Make. Variables, rebuild detection,
-cross-compilation, and recursive builds are built in.
+A build tool that respects your time. A Go project builds from a single
+line. Variables, rebuild detection, cross-compilation, language
+auto-configuration, and recursive builds are all built in — no arcane
+syntax to memorise.
 
 ## Quick start
 
@@ -119,7 +121,19 @@ When not explicitly defined by the user:
 | `$GO` | `go build` |
 | `$GOFLAGS` | `-trimpath -ldflags="-s -w"` (release) or `-gcflags="all=-N -l"` (debug) |
 | `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
-| `$VERSION` | `git describe --tags` (or `dev` outside a repo) |
+| `$VERSION` | Inferred from `git describe --tags` (see below) |
+
+`$VERSION` is derived from Git history at parse time:
+
+| Repo state | Example (`$VERSION`) |
+|---|---|
+| No tags at all | `dev` |
+| Exact tag, clean | `v0.1.0` |
+| Exact tag, uncommitted changes | `v0.1.0-dirty` |
+| Commits after tag, clean | `v0.1.0-3-a1b2c3d4` |
+| Commits after tag, dirty | `v0.1.0-3-a1b2c3d4-dirty` |
+
+Outside a Git repo, `$VERSION` defaults to `dev`.
 
 `creo --version` prints the embedded version string.  Release and debug
 builds inject it automatically via `-X main.version=$VERSION` in the
