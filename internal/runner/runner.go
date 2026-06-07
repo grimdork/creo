@@ -81,15 +81,16 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 	}
 
 	if opts.Clean {
-		if t.Bin != "" {
-			archs := t.Arch
-			if len(archs) == 0 {
-				archs = []string{""}
-			}
-			oses := t.OS
-			if len(oses) == 0 {
-				oses = []string{""}
-			}
+		archs := t.Arch
+		if len(archs) == 0 {
+			archs = []string{""}
+		}
+		oses := t.OS
+		if len(oses) == 0 {
+			oses = []string{""}
+		}
+
+		cleanCombos := func(cb func(arch, osval string, cv map[string]*lang.Var)) {
 			for _, arch := range archs {
 				for _, osval := range oses {
 					activeArch := arch
@@ -111,15 +112,40 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 					cv["arch"] = &lang.Var{Name: "arch", Value: activeArch}
 					cv["os"] = &lang.Var{Name: "os", Value: activeOS}
 
-					bp := lang.Expand(t.Bin, cv, 0)
-					if _, err := os.Stat(bp); err == nil {
-						if err := os.Remove(bp); err == nil && opts.Verbose {
-							fmt.Printf("  Removed %s\n", bp)
-						}
-					}
+					cb(activeArch, activeOS, cv)
 				}
 			}
 		}
+
+		cleanCombos(func(arch, osval string, cv map[string]*lang.Var) {
+			if t.Bin != "" {
+				bp := lang.Expand(t.Bin, cv, 0)
+				cv["bin"] = &lang.Var{Name: "bin", Value: bp}
+				if _, err := os.Stat(bp); err == nil {
+					if err := os.Remove(bp); err == nil && opts.Verbose {
+						fmt.Printf("  Removed %s\n", bp)
+					}
+				}
+			}
+			for _, inst := range t.Install {
+				expanded := lang.Expand(inst, cv, 0)
+				expanded = os.ExpandEnv(expanded)
+				src := ""
+				dest := expanded
+				if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
+					src = expanded[:idx]
+					dest = expanded[idx+1:]
+				}
+				if si, err := os.Stat(dest); err == nil && si.IsDir() && src != "" {
+					dest = filepath.Join(dest, filepath.Base(src))
+				}
+				if _, err := os.Stat(dest); err == nil {
+					if err := os.Remove(dest); err == nil && opts.Verbose {
+						fmt.Printf("  Removed installed %s\n", dest)
+					}
+				}
+			}
+		})
 		done[name] = true
 		return nil
 	}
@@ -157,6 +183,10 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				}
 			}
 		}
+	}
+
+	if len(t.Install) > 0 {
+		needsRun = true
 	}
 
 	if needsRun || multi {
@@ -198,7 +228,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 			}
 		}
 
-		allExist := !opts.Rebuild && t.Bin != ""
+		allExist := !opts.Rebuild && t.Bin != "" && len(t.Install) == 0
 		if allExist {
 			for _, c := range combos {
 				if c.bin != "" {
@@ -247,14 +277,16 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				if opts.Rebuild {
 					os.Remove(c.bin)
 				}
-				if opts.Verbose {
-					fmt.Printf("  Building %s ...\n", c.bin)
-				}
 			}
 			if t.Sources != "" {
 				comboVars["sources"] = &lang.Var{Name: "sources", Value: lang.Expand(t.Sources, comboVars, 0)}
 			}
 
+			if len(t.Cmds) > 0 && opts.Verbose {
+				if t.Bin != "" {
+					fmt.Printf("  Building %s ...\n", c.bin)
+				}
+			}
 			for _, cmd := range t.Cmds {
 				expanded := lang.Expand(cmd, comboVars, 0)
 				if opts.Verbose {
@@ -265,9 +297,29 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				}
 			}
 
-			if t.Bin != "" {
+			if len(t.Cmds) > 0 && t.Bin != "" {
 				if _, err := os.Stat(c.bin); os.IsNotExist(err) {
 					return fmt.Errorf("binary %q was not created by target %q", c.bin, name)
+				}
+			}
+
+			for _, inst := range t.Install {
+				expanded := lang.Expand(inst, comboVars, 0)
+				expanded = os.ExpandEnv(expanded)
+				src := c.bin
+				dest := expanded
+				if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
+					src = expanded[:idx]
+					dest = expanded[idx+1:]
+				}
+				if si, err := os.Stat(dest); err == nil && si.IsDir() {
+					dest = filepath.Join(dest, filepath.Base(src))
+				}
+				if err := copyFile(src, dest); err != nil {
+					return fmt.Errorf("install of %s: %w", src, err)
+				}
+				if opts.Verbose {
+					fmt.Printf("  Installed %s -> %s\n", src, dest)
 				}
 			}
 		}

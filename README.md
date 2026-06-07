@@ -42,7 +42,11 @@ $GOFLAGS := -trimpath -ldflags="-s -w"
 ```
 
 Variables start with `$`.  `=` is lazy (re-evaluated every time), `:=`
-is eager (expanded once at parse time).  Reference them with `$NAME`.
+is eager (expanded once at parse time).  Reference them with `$NAME`
+or `$(NAME)` — parentheses let you append text directly (e.g. `$(bin)-debug`).
+
+Lines starting with `#` are comments.  Inline `#` (on property lines)
+strips the rest of the line.
 
 ### Targets
 
@@ -81,7 +85,7 @@ For Go, this fills in:
 | Property | Default |
 |---|---|
 | `bin=` | `./<name>` (from `go.mod` module path; falls back to directory name; `-debug` suffix for targets ending in `-debug`) |
-| `cmd=` | `$GO <flags> -o $bin` |
+| `cmd=` | `$GO <flags> -o $bin` (only when no `install=` lines present) |
 | `sources=` | `*.go` |
 
 Flags vary by target name: `build` and most targets get release flags;
@@ -101,15 +105,43 @@ nix: go
 every combination — the example above produces four binaries.  Clean
 and skip checks respect all combinations.
 
+### Install
+
+```
+install: go
+	install=$bin:$HOME/bin/
+	require=build
+```
+
+The `install=` property copies files after a target runs.  Format is
+`source:destination`; when only a destination is given, source defaults
+to the target's binary (`$bin`).  Environment variables like `$HOME` are
+expanded so paths like `$HOME/bin/` work naturally.
+
+Multiple `install=` lines are allowed.  Combined with `$(bin)-debug`
+(parenthesised references) and `require=` this handles complex setups:
+
+```
+install: go
+	install=$bin:$HOME/bin/
+	install=$(bin)-debug:$HOME/bin/
+	require=build debug
+```
+
+The install phase runs unconditionally — binaries are always copied,
+even when the source already exists.  `creo -c` removes installed files
+alongside the build artefacts from `bin=`.
+
 ### Properties
 
 | Property | What it does |
-|---|---|
+|---|---|---|
 | `cmd=` | Shell command to run (repeatable — runs in sequence) |
 | `bin=` | Path to the output binary |
 | `sources=` | File patterns checked for rebuild detection |
 | `tmp=` | Files cleaned before and after the target |
 | `require=` | Targets that must run first |
+| `install=` | Copy built binaries to a destination (repeatable — see below) |
 | `arch=` | `GOARCH` value (space-separated for cross-compile) |
 | `os=` | `GOOS` value (space-separated for cross-compile) |
 

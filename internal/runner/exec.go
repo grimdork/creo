@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,4 +39,31 @@ func globFiles(pattern, dir string) []string {
 		return nil
 	}
 	return matches
+}
+
+func copyFile(src, dest string) error {
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
+	sf, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sf.Close()
+
+	si, err := sf.Stat()
+	if err != nil {
+		return err
+	}
+
+	df, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, si.Mode())
+	if err != nil {
+		return err
+	}
+	defer df.Close()
+
+	if _, err := io.Copy(df, sf); err != nil {
+		return err
+	}
+	return nil
 }

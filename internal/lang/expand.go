@@ -26,6 +26,25 @@ func Expand(s string, vars map[string]*Var, depth int) string {
 			i++
 			continue
 		}
+		if i+1 < len(s) && s[i+1] == '(' {
+			j := i + 2
+			for j < len(s) && s[j] != ')' {
+				j++
+			}
+			if j < len(s) && j > i+2 {
+				name := s[i+2 : j]
+				if v, ok := vars[name]; ok {
+					out.WriteString(Expand(v.Value, vars, depth+1))
+				} else {
+					out.WriteString(s[i : j+1])
+				}
+				i = j
+				continue
+			}
+			out.WriteString("$(")
+			i++
+			continue
+		}
 		j := i + 1
 		for j < len(s) && IsIdent(s[j]) {
 			j++

@@ -84,7 +84,7 @@ func Apply(f *FiatFile) {
 		if t.Sources == "" {
 			t.Sources = "*.go"
 		}
-		if len(t.Cmds) == 0 {
+		if len(t.Cmds) == 0 && len(t.Install) == 0 {
 			flags := "$GOFLAGS"
 			verPost := ""
 			if !hasGoFlags {

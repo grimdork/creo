@@ -1,3 +1,13 @@
-$GOFLAGS := -trimpath -ldflags="-s -w"
-
 build: go
+
+debug: go
+
+nix: go
+	os=linux freebsd
+	arch=amd64 arm64
+	bin=$bin-$os-$arch
+
+# Install to ~/bin
+install: go
+	install=$bin:$HOME/bin/
+	require=build

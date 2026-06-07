@@ -17,6 +17,7 @@ type Target struct {
 	Requires []string
 	Arch     []string
 	OS       []string
+	Install  []string
 	Vars     []*Var
 }
 

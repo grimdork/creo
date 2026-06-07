@@ -64,6 +64,8 @@ func parseProperty(line string, t *Target) string {
 		t.Arch = strings.Fields(value)
 	case "os":
 		t.OS = strings.Fields(value)
+	case "install":
+		t.Install = append(t.Install, value)
 	default:
 		t.Vars = append(t.Vars, &Var{Name: key, Value: value, Eager: eager})
 	}
@@ -86,6 +88,9 @@ func ParseFiat(path string) (*FiatFile, error) {
 	lines := strings.Split(string(data), "\n")
 
 	for i, raw := range lines {
+		if idx := strings.IndexByte(raw, '#'); idx >= 0 {
+			raw = raw[:idx]
+		}
 		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue
@@ -128,6 +133,8 @@ func ParseFiat(path string) (*FiatFile, error) {
 					cur.Arch = append(cur.Arch, strings.Fields(line)...)
 				case "os":
 					cur.OS = append(cur.OS, strings.Fields(line)...)
+				case "install":
+					cur.Install = append(cur.Install, line)
 				default:
 					for _, v := range cur.Vars {
 						if v.Name == lastKey {
