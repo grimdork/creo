@@ -6,24 +6,30 @@ import (
 	"strings"
 )
 
-func initProject(force bool) {
+func initProject(force, verbose bool) {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
 			os.RemoveAll(".creo")
-			fmt.Println("  Removed .creo/")
+			if verbose {
+				fmt.Println("  Removed .creo/")
+			}
 		}
 	}
 
 	if _, err := os.Stat("fiat"); err == nil {
 		if force {
 			os.WriteFile("fiat", []byte("build: go\n"), 0644)
-			fmt.Println("  Replaced fiat")
-		} else {
+			if verbose {
+				fmt.Println("  Replaced fiat")
+			}
+		} else if verbose {
 			fmt.Println("  Skipped fiat (already exists)")
 		}
 	} else {
 		os.WriteFile("fiat", []byte("build: go\n"), 0644)
-		fmt.Println("  Created fiat")
+		if verbose {
+			fmt.Println("  Created fiat")
+		}
 	}
 
 	if _, err := os.Stat(".gitignore"); err == nil {
@@ -38,12 +44,18 @@ func initProject(force bool) {
 			}
 			defer f.Close()
 			f.WriteString("/.creo/\n")
-			fmt.Println("  Added /.creo/ to .gitignore")
-		} else {
+			if verbose {
+				fmt.Println("  Added /.creo/ to .gitignore")
+			}
+		} else if verbose {
 			fmt.Println("  Skipped .gitignore (already has /.creo/)")
 		}
 	} else {
 		os.WriteFile(".gitignore", []byte("/.creo/\n"), 0644)
-		fmt.Println("  Created .gitignore")
+		if verbose {
+			fmt.Println("  Created .gitignore")
+		}
 	}
+
+	fmt.Println("Project initialised")
 }

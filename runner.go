@@ -79,7 +79,7 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 		if t.Bin != "" {
 			binPath := expandWithTarget(t.Bin, f.Vars, t)
 			if _, err := os.Stat(binPath); err == nil {
-				if err := os.Remove(binPath); err == nil {
+				if err := os.Remove(binPath); err == nil && opts.Verbose {
 					fmt.Printf("  Removed %s\n", binPath)
 				}
 			}
@@ -244,7 +244,7 @@ func runRecursive(dir string, opts RunOpts) {
 			return filepath.SkipDir
 		}
 
-		fiatPath, ok := findFiatInDir(path)
+		fiatPath, ok := findFiatInDir(path, opts.Verbose)
 		if !ok {
 			return nil
 		}
@@ -255,7 +255,9 @@ func runRecursive(dir string, opts RunOpts) {
 			return nil
 		}
 
-		fmt.Printf("Entering %s\n", path)
+		if opts.Verbose {
+			fmt.Printf("Entering %s\n", path)
+		}
 		if err := runTarget(file, "build", opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in %s: %v\n", path, err)
 		}

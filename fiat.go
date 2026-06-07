@@ -334,7 +334,7 @@ func findFiat() (string, bool) {
 	return selected, true
 }
 
-func findFiatInDir(dir string) (string, bool) {
+func findFiatInDir(dir string, verbose bool) (string, bool) {
 	path := filepath.Join(dir, "fiat")
 	if _, err := os.Stat(path); err == nil {
 		return path, true
@@ -350,7 +350,9 @@ func findFiatInDir(dir string) (string, bool) {
 	}
 
 	if len(matches) > 1 {
-		fmt.Printf("  Skipped %s (multiple .fiat files)\n", dir)
+		if verbose {
+			fmt.Printf("  Skipped %s (multiple .fiat files)\n", dir)
+		}
 	}
 	return "", false
 }

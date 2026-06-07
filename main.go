@@ -28,7 +28,7 @@ func main() {
 	}
 
 	if opt.GetBool("i") {
-		initProject(opt.GetBool("f"))
+		initProject(opt.GetBool("f"), opt.GetBool("v"))
 		return
 	}
 
