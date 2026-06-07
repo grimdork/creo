@@ -16,13 +16,13 @@ func initProject(force bool) {
 
 	if _, err := os.Stat("fiat"); err == nil {
 		if force {
-			os.WriteFile("fiat", []byte("build:\n"), 0644)
+			os.WriteFile("fiat", []byte("build: go\n"), 0644)
 			fmt.Println("  Replaced fiat")
 		} else {
 			fmt.Println("  Skipped fiat (already exists)")
 		}
 	} else {
-		os.WriteFile("fiat", []byte("build:\n"), 0644)
+		os.WriteFile("fiat", []byte("build: go\n"), 0644)
 		fmt.Println("  Created fiat")
 	}
 

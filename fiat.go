@@ -79,10 +79,6 @@ func parseProperty(line string, t *Target) string {
 	key := strings.TrimSpace(parts[0])
 	value := strings.TrimSpace(parts[1])
 
-	if eager {
-		value = expandVars(value, nil, nil)
-	}
-
 	switch key {
 	case "cmd":
 		t.Cmds = append(t.Cmds, value)
@@ -102,17 +98,6 @@ func parseProperty(line string, t *Target) string {
 		t.Vars = append(t.Vars, &Var{Name: key, Value: value, Eager: eager})
 	}
 	return key
-}
-
-func expandVars(s string, global map[string]*Var, target []*Var) string {
-	vars := make(map[string]*Var)
-	for k, v := range global {
-		vars[k] = v
-	}
-	for _, v := range target {
-		vars[v.Name] = v
-	}
-	return expand(s, vars, 0)
 }
 
 func expand(s string, vars map[string]*Var, depth int) string {
@@ -191,6 +176,7 @@ func parseFiat(path string) (*FiatFile, error) {
 				}
 				cur = &Target{Name: name, Language: lang, Line: i + 1}
 				f.Targets = append(f.Targets, cur)
+				lastKey = ""
 				continue
 			}
 		}
