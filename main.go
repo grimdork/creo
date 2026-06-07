@@ -4,21 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
 
 	"github.com/grimdork/climate/arg"
 )
-
-func runFiat(path string) {
-	fmt.Printf("Selected: %s\n", path)
-}
 
 func main() {
 	opt := arg.New("creo", "A make-like build tool")
 	opt.SetDefaultHelp(true)
 	opt.SetFlag(arg.GroupDefault, "i", "init", "Initialise project with base files")
 	opt.SetFlag(arg.GroupDefault, "f", "force", "Force overwrite existing files")
+	opt.SetFlag(arg.GroupDefault, "r", "rebuild", "Rebuild, removing existing binary first")
+	opt.SetFlag(arg.GroupDefault, "R", "recursive", "Recurse into subdirectories")
+	opt.SetFlag(arg.GroupDefault, "c", "clean", "Remove target binaries")
+	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
+	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
 	err := opt.Parse(os.Args[1:])
 	if err != nil {
@@ -33,37 +32,38 @@ func main() {
 		return
 	}
 
-	if _, err := os.Stat("fiat"); err == nil {
-		runFiat("fiat")
+	opts := RunOpts{
+		Rebuild:   opt.GetBool("r"),
+		Recursive: opt.GetBool("R"),
+		Clean:     opt.GetBool("c"),
+		Verbose:   opt.GetBool("v"),
+	}
+
+	targets := opt.GetPosStringSlice("targets")
+	if len(targets) == 0 {
+		targets = []string{"build"}
+	}
+
+	if opts.Recursive {
+		runRecursive(".", opts)
 		return
 	}
 
-	matches, err := filepath.Glob("*.fiat")
+	fiatPath, ok := findFiat()
+	if !ok {
+		os.Exit(1)
+	}
+
+	file, err := parseFiat(fiatPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error scanning for .fiat files: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 		os.Exit(1)
 	}
 
-	if len(matches) == 0 {
-		fmt.Fprintln(os.Stderr, "No .fiat files found")
-		os.Exit(1)
+	for _, name := range targets {
+		if err := runTarget(file, name, opts); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 	}
-
-	sort.Strings(matches)
-
-	if len(matches) == 1 {
-		runFiat(matches[0])
-		return
-	}
-
-	selected, err := Run(matches)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Picker error: %v\n", err)
-		os.Exit(1)
-	}
-	if selected == "" {
-		fmt.Fprintln(os.Stderr, "Cancelled")
-		os.Exit(1)
-	}
-	runFiat(selected)
 }
