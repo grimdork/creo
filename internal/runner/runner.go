@@ -113,10 +113,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 					for _, v := range t.Vars {
 						cv[v.Name] = v
 					}
-					cv["arch"] = &lang.Var{Name: "arch", Value: activeArch}
-					cv["os"] = &lang.Var{Name: "os", Value: activeOS}
+			cv["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+				cv["os"] = &lang.Var{Name: "os", Value: activeOS}
+				cv["THIS"] = &lang.Var{Name: "THIS", Value: t.Name}
 
-					cb(activeArch, activeOS, cv)
+				cb(activeArch, activeOS, cv)
 				}
 			}
 		}
@@ -222,6 +223,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				}
 				comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
 				comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
+				comboVars["THIS"] = &lang.Var{Name: "THIS", Value: t.Name}
 
 				bp := ""
 				if t.Bin != "" {
@@ -290,10 +292,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				for _, v := range t.Vars {
 					comboVars[v.Name] = v
 				}
-				comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
-				comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
+			comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+			comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
+			comboVars["THIS"] = &lang.Var{Name: "THIS", Value: t.Name}
 
-				if t.Bin != "" {
+			if t.Bin != "" {
 					comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
 					if opts.Rebuild && len(t.Cmds) > 0 {
 						os.Remove(c.bin)

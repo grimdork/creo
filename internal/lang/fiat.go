@@ -2,6 +2,7 @@ package lang
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -107,11 +108,18 @@ func ParseFiat(path string) (*FiatFile, error) {
 			parts := strings.SplitN(line, ":", 2)
 			name := strings.TrimSpace(parts[0])
 			if name != "" {
-				lang := ""
+				cur = &Target{Name: name, Line: i + 1}
 				if len(parts) > 1 {
-					lang = strings.TrimSpace(parts[1])
+					tokens := strings.Fields(parts[1])
+					if len(tokens) > 0 {
+						cur.Language = tokens[0]
+						for _, token := range tokens[1:] {
+							if kv := strings.SplitN(token, "=", 2); len(kv) == 2 {
+								cur.Vars = append(cur.Vars, &Var{Name: kv[0], Value: kv[1]})
+							}
+						}
+					}
 				}
-				cur = &Target{Name: name, Language: lang, Line: i + 1}
 				f.Targets = append(f.Targets, cur)
 				lastKey = ""
 				continue
@@ -152,6 +160,14 @@ func ParseFiat(path string) (*FiatFile, error) {
 			}
 			continue
 		}
+	}
+
+	dir := filepath.Dir(path)
+	absDir, err := filepath.Abs(dir)
+	if err == nil {
+		f.Vars["DIR"] = &Var{Name: "DIR", Value: absDir}
+	} else {
+		f.Vars["DIR"] = &Var{Name: "DIR", Value: dir}
 	}
 
 	for _, v := range f.Vars {

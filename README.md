@@ -45,6 +45,13 @@ Variables start with `$`.  `=` is lazy (re-evaluated every time), `:=`
 is eager (expanded once at parse time).  Reference them with `$NAME`
 or `$(NAME)` — parentheses let you append text directly (e.g. `$(bin)-debug`).
 
+Two built-in variables are available in every target:
+
+| Variable | Value |
+|---|---|
+| `$THIS` | The target's own name (`"build"`, `"debug"`, etc.) |
+| `$DIR` | Absolute path to the directory containing the fiat file |
+
 Lines starting with `#` are comments.  Inline `#` (on property lines)
 strips the rest of the line.
 
@@ -56,7 +63,15 @@ target-name:
 ```
 
 A target starts with its name, a colon, and optionally a language
-keyword.  Properties are indented with **one tab** — required, not
+keyword.  After the language, you can set target-local variables with
+`KEY=VALUE` pairs:
+
+```
+build: go NAME=myapp VER=1.0
+	cmd=echo "Building $NAME v$VER"
+```
+
+Properties are indented with **one tab** — required, not
 optional.  Two tabs continue the previous line's value.
 
 ```

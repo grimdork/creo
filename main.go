@@ -25,14 +25,15 @@ func listTargets() {
 
 	fmt.Println("Available targets:")
 	for _, t := range file.Targets {
-		lang := t.Language
-		if lang == "" {
-			lang = "-"
+		ln := t.Language
+		if ln == "" {
+			ln = "-"
 		}
 		if t.Desc != "" {
-			fmt.Printf("  %-15s (%s)   %s\n", t.Name, lang, t.Desc)
+			desc := lang.ExpandWithTarget(t.Desc, file.Vars, t)
+			fmt.Printf("  %-15s (%s)   %s\n", t.Name, ln, desc)
 		} else {
-			fmt.Printf("  %-15s (%s)\n", t.Name, lang)
+			fmt.Printf("  %-15s (%s)\n", t.Name, ln)
 		}
 	}
 }

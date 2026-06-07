@@ -92,5 +92,6 @@ func ExpandWithTarget(s string, global map[string]*Var, t *Target) string {
 	}
 	vars["arch"] = &Var{Name: "arch", Value: arch}
 	vars["os"] = &Var{Name: "os", Value: osval}
+	vars["THIS"] = &Var{Name: "THIS", Value: t.Name}
 	return Expand(s, vars, 0)
 }
