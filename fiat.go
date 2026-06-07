@@ -60,7 +60,7 @@ func parseVar(line string, f *FiatFile, t *Target) {
 	}
 }
 
-func parseProperty(line string, t *Target) {
+func parseProperty(line string, t *Target) string {
 	eager := false
 	sep := "="
 	if idx := strings.Index(line, ":="); idx >= 0 {
@@ -70,7 +70,7 @@ func parseProperty(line string, t *Target) {
 
 	parts := strings.SplitN(line, sep, 2)
 	if len(parts) < 2 {
-		return
+		return ""
 	}
 	key := strings.TrimSpace(parts[0])
 	value := strings.TrimSpace(parts[1])
@@ -93,6 +93,7 @@ func parseProperty(line string, t *Target) {
 	default:
 		t.Vars = append(t.Vars, &Var{Name: key, Value: value, Eager: eager})
 	}
+	return key
 }
 
 func expandVars(s string, global map[string]*Var, target []*Var) string {
@@ -158,6 +159,7 @@ func parseFiat(path string) (*FiatFile, error) {
 	}
 
 	var cur *Target
+	var lastKey string
 	lines := strings.Split(string(data), "\n")
 
 	for i, raw := range lines {
@@ -182,7 +184,29 @@ func parseFiat(path string) (*FiatFile, error) {
 		}
 
 		if cur != nil && isIndented(raw) {
-			parseProperty(line, cur)
+			if strings.HasPrefix(raw, "\t\t") {
+				switch lastKey {
+				case "cmd":
+					cur.Cmds = append(cur.Cmds, line)
+				case "bin":
+					cur.Bin += " " + line
+				case "sources":
+					cur.Sources += " " + line
+				case "tmp":
+					cur.Tmp = append(cur.Tmp, strings.Fields(line)...)
+				case "require":
+					cur.Requires = append(cur.Requires, strings.Fields(line)...)
+				default:
+					for _, v := range cur.Vars {
+						if v.Name == lastKey {
+							v.Value += " " + line
+							break
+						}
+					}
+				}
+			} else {
+				lastKey = parseProperty(line, cur)
+			}
 			continue
 		}
 	}
