@@ -23,6 +23,8 @@ type Target struct {
 	Sources  string
 	Tmp      []string
 	Requires []string
+	Arch     string
+	OS       string
 	Vars     []*Var
 }
 
@@ -91,6 +93,10 @@ func parseProperty(line string, t *Target) string {
 		t.Tmp = strings.Fields(value)
 	case "require":
 		t.Requires = strings.Fields(value)
+	case "arch":
+		t.Arch = value
+	case "os":
+		t.OS = value
 	default:
 		t.Vars = append(t.Vars, &Var{Name: key, Value: value, Eager: eager})
 	}
@@ -201,6 +207,10 @@ func parseFiat(path string) (*FiatFile, error) {
 					cur.Tmp = append(cur.Tmp, strings.Fields(line)...)
 				case "require":
 					cur.Requires = append(cur.Requires, strings.Fields(line)...)
+				case "arch":
+					cur.Arch += " " + line
+				case "os":
+					cur.OS += " " + line
 				default:
 					for _, v := range cur.Vars {
 						if v.Name == lastKey {
@@ -234,14 +244,23 @@ func parseFiat(path string) (*FiatFile, error) {
 	if err != nil {
 		absDir = dir
 	}
+
+	if _, ok := f.Vars["GO"]; !ok {
+		f.Vars["GO"] = &Var{Name: "GO", Value: "go build"}
+	}
+	if _, ok := f.Vars["GODEBUGFLAGS"]; !ok {
+		f.Vars["GODEBUGFLAGS"] = &Var{Name: "GODEBUGFLAGS", Value: `-gcflags="all=-N -l"`}
+	}
+
 	_, hasGoFlags := f.Vars["GOFLAGS"]
 	for _, t := range f.Targets {
 		if t.Language != "go" {
 			continue
 		}
+		isDebug := t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
 		if t.Bin == "" {
 			name := filepath.Base(absDir)
-			if t.Name == "debug" {
+			if isDebug {
 				name += "-debug"
 			}
 			t.Bin = "./" + name
@@ -252,14 +271,13 @@ func parseFiat(path string) (*FiatFile, error) {
 		if len(t.Cmds) == 0 {
 			flags := "$GOFLAGS"
 			if !hasGoFlags {
-				switch t.Name {
-				case "debug":
-					flags = `-gcflags="all=-N -l"`
-				default:
+				if isDebug {
+					flags = "$GODEBUGFLAGS"
+				} else {
 					flags = `-trimpath -ldflags="-s -w"`
 				}
 			}
-			t.Cmds = append(t.Cmds, "go build "+flags+" -o $bin")
+			t.Cmds = append(t.Cmds, "$GO "+flags+" -o $bin")
 		}
 	}
 

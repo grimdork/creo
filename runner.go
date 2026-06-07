@@ -111,12 +111,19 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 		}
 
 		start := time.Now()
+		goEnv := os.Environ()
+		if t.Arch != "" {
+			goEnv = append(goEnv, "GOARCH="+expandWithTarget(t.Arch, f.Vars, t))
+		}
+		if t.OS != "" {
+			goEnv = append(goEnv, "GOOS="+expandWithTarget(t.OS, f.Vars, t))
+		}
 		for _, cmd := range t.Cmds {
 			expanded := expandWithTarget(cmd, f.Vars, t)
 			if opts.Verbose {
 				fmt.Printf("  Running: %s\n", expanded)
 			}
-			if err := execCmd(expanded, dir); err != nil {
+			if err := execCmd(expanded, dir, goEnv); err != nil {
 				return fmt.Errorf("command failed: %w", err)
 			}
 		}
@@ -166,11 +173,12 @@ func expandWithTarget(s string, global map[string]*Var, t *Target) string {
 	return expand(s, vars, 0)
 }
 
-func execCmd(cmd, dir string) error {
+func execCmd(cmd, dir string, env []string) error {
 	c := exec.Command("sh", "-c", cmd)
 	c.Dir = dir
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
+	c.Env = env
 	return c.Run()
 }
 
