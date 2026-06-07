@@ -55,6 +55,10 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 	visited[name] = true
 	dir := filepath.Dir(f.Path)
 
+	if opts.Verbose {
+		fmt.Printf("Target %q\n", name)
+	}
+
 	if !opts.Clean {
 		for _, pattern := range t.Tmp {
 			expanded := lang.ExpandWithTarget(pattern, f.Vars, t)
