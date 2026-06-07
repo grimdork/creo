@@ -46,17 +46,9 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 	visited[name] = true
 	dir := filepath.Dir(f.Path)
 
-	vars := make(map[string]*Var)
-	for k, v := range f.Vars {
-		vars[k] = v
-	}
-	for _, v := range t.Vars {
-		vars[v.Name] = v
-	}
-
 	if !opts.Clean {
 		for _, pattern := range t.Tmp {
-			expanded := expandVars(pattern, f.Vars, t.Vars)
+			expanded := expandWithTarget(pattern, f.Vars, t)
 			matches := globFiles(expanded, dir)
 			for _, m := range matches {
 				if err := os.Remove(m); err == nil && opts.Verbose {
@@ -77,7 +69,7 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 
 	if opts.Clean {
 		if t.Bin != "" {
-			binPath := expandVars(t.Bin, f.Vars, t.Vars)
+			binPath := expandWithTarget(t.Bin, f.Vars, t)
 			if _, err := os.Stat(binPath); err == nil {
 				if err := os.Remove(binPath); err == nil {
 					fmt.Printf("  Removed %s\n", binPath)
@@ -89,15 +81,15 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 	}
 
 	needsRun := true
-	if t.Bin != "" && t.Sources != "" {
-		binPath := expandVars(t.Bin, f.Vars, t.Vars)
+	if !opts.Rebuild && t.Bin != "" && t.Sources != "" {
+		binPath := expandWithTarget(t.Bin, f.Vars, t)
 		binStat, err := os.Stat(binPath)
 		if err == nil {
 			binMod := binStat.ModTime()
 			needsRun = false
-			srcPatterns := strings.Fields(expandVars(t.Sources, f.Vars, t.Vars))
+			srcPatterns := strings.Fields(expandWithTarget(t.Sources, f.Vars, t))
 			for _, pat := range srcPatterns {
-				files := globFiles(expandVars(pat, f.Vars, t.Vars), dir)
+				files := globFiles(expandWithTarget(pat, f.Vars, t), dir)
 				for _, sf := range files {
 					sStat, sErr := os.Stat(sf)
 					if sErr != nil || sStat.ModTime().After(binMod) {
@@ -114,13 +106,13 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 
 	if needsRun {
 		if opts.Rebuild && t.Bin != "" {
-			binPath := expandVars(t.Bin, f.Vars, t.Vars)
+			binPath := expandWithTarget(t.Bin, f.Vars, t)
 			os.Remove(binPath)
 		}
 
 		start := time.Now()
 		for _, cmd := range t.Cmds {
-			expanded := expandVars(cmd, f.Vars, t.Vars)
+			expanded := expandWithTarget(cmd, f.Vars, t)
 			if opts.Verbose {
 				fmt.Printf("  Running: %s\n", expanded)
 			}
@@ -128,12 +120,20 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 				return fmt.Errorf("command failed: %w", err)
 			}
 		}
+
+		if t.Bin != "" {
+			binPath := expandWithTarget(t.Bin, f.Vars, t)
+			if _, err := os.Stat(binPath); os.IsNotExist(err) {
+				return fmt.Errorf("binary %q was not created by target %q", binPath, name)
+			}
+		}
+
 		if opts.Verbose {
 			fmt.Printf("  Done in %v\n", time.Since(start))
 		}
 
 		for _, pattern := range t.Tmp {
-			expanded := expandVars(pattern, f.Vars, t.Vars)
+			expanded := expandWithTarget(pattern, f.Vars, t)
 			matches := globFiles(expanded, dir)
 			for _, m := range matches {
 				if err := os.Remove(m); err == nil && opts.Verbose {
@@ -147,6 +147,23 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 
 	done[name] = true
 	return nil
+}
+
+func expandWithTarget(s string, global map[string]*Var, t *Target) string {
+	vars := make(map[string]*Var)
+	for k, v := range global {
+		vars[k] = v
+	}
+	for _, v := range t.Vars {
+		vars[v.Name] = v
+	}
+	if t.Bin != "" {
+		vars["bin"] = &Var{Name: "bin", Value: expand(t.Bin, vars, 0)}
+	}
+	if t.Sources != "" {
+		vars["sources"] = &Var{Name: "sources", Value: expand(t.Sources, vars, 0)}
+	}
+	return expand(s, vars, 0)
 }
 
 func execCmd(cmd, dir string) error {
