@@ -1,7 +1,3 @@
-$GO=go build
 $GOFLAGS := -trimpath -ldflags="-s -w"
 
-build:
-	bin=./creo
-	cmd=$GO $GOFLAGS -o $bin
-	sources=**.go
+build: go
