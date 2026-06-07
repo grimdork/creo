@@ -190,12 +190,15 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				bp := ""
 				if t.Bin != "" {
 					bp = lang.Expand(t.Bin, comboVars, 0)
+					if strings.Contains(bp, "$bin") {
+						bp = strings.ReplaceAll(bp, "$bin", "")
+					}
 				}
 				combos = append(combos, combo{arch, osval, bp})
 			}
 		}
 
-		allExist := !opts.Rebuild
+		allExist := !opts.Rebuild && t.Bin != ""
 		if allExist {
 			for _, c := range combos {
 				if c.bin != "" {
