@@ -77,10 +77,41 @@ func runTargetWithDeps(f *FiatFile, name string, opts RunOpts, visited, done map
 
 	if opts.Clean {
 		if t.Bin != "" {
-			binPath := expandWithTarget(t.Bin, f.Vars, t)
-			if _, err := os.Stat(binPath); err == nil {
-				if err := os.Remove(binPath); err == nil && opts.Verbose {
-					fmt.Printf("  Removed %s\n", binPath)
+			archs := t.Arch
+			if len(archs) == 0 {
+				archs = []string{""}
+			}
+			oses := t.OS
+			if len(oses) == 0 {
+				oses = []string{""}
+			}
+			for _, arch := range archs {
+				for _, osval := range oses {
+					activeArch := arch
+					activeOS := osval
+					if activeArch == "" {
+						activeArch = runtime.GOARCH
+					}
+					if activeOS == "" {
+						activeOS = runtime.GOOS
+					}
+
+					cv := make(map[string]*Var)
+					for k, v := range f.Vars {
+						cv[k] = v
+					}
+					for _, v := range t.Vars {
+						cv[v.Name] = v
+					}
+					cv["arch"] = &Var{Name: "arch", Value: activeArch}
+					cv["os"] = &Var{Name: "os", Value: activeOS}
+
+					bp := expand(t.Bin, cv, 0)
+					if _, err := os.Stat(bp); err == nil {
+						if err := os.Remove(bp); err == nil && opts.Verbose {
+							fmt.Printf("  Removed %s\n", bp)
+						}
+					}
 				}
 			}
 		}
