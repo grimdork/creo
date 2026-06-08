@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/grimdork/creo/internal/fiat"
 )
 
 func TestCommentStripping(t *testing.T) {
@@ -13,8 +15,11 @@ func TestCommentStripping(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.Targets) != 1 || f.Targets[0].Name != "build" {
@@ -29,8 +34,11 @@ func TestInlineCommentStripping(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.Targets) != 1 || len(f.Targets[0].Cmds) != 1 {
@@ -49,8 +57,11 @@ func TestCommentLineStripping(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.Targets[0].Cmds) != 1 {
@@ -59,16 +70,16 @@ func TestCommentLineStripping(t *testing.T) {
 }
 
 func TestParenthesizedVars(t *testing.T) {
-	vars := map[string]*Var{
+	vars := map[string]*fiat.Var{
 		"bin": {Name: "bin", Value: "./creo"},
 	}
-	result := Expand("$(bin)-debug", vars, 0)
+	result := fiat.Expand("$(bin)-debug", vars, 0)
 	expected := "./creo-debug"
 	if result != expected {
 		t.Fatalf("Expand($(bin)-debug): expected %q, got %q", expected, result)
 	}
 
-	result2 := Expand("$(bin)$(bin)", vars, 0)
+	result2 := fiat.Expand("$(bin)$(bin)", vars, 0)
 	expected2 := "./creo./creo"
 	if result2 != expected2 {
 		t.Fatalf("Expand($(bin)$(bin)): expected %q, got %q", expected2, result2)
@@ -76,10 +87,10 @@ func TestParenthesizedVars(t *testing.T) {
 }
 
 func TestPlainVarStillWorks(t *testing.T) {
-	vars := map[string]*Var{
+	vars := map[string]*fiat.Var{
 		"bin": {Name: "bin", Value: "./creo"},
 	}
-	result := Expand("$bin", vars, 0)
+	result := fiat.Expand("$bin", vars, 0)
 	expected := "./creo"
 	if result != expected {
 		t.Fatalf("Expand($bin): expected %q, got %q", expected, result)
@@ -93,8 +104,11 @@ func TestInstallProperty(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.Targets) != 1 {
@@ -116,8 +130,11 @@ func TestInstallPropertyWithSource(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
 		t.Fatal(err)
 	}
 	if f.Targets[0].Install[0] != "$bin:$HOME/bin" {
@@ -133,8 +150,11 @@ func TestMultipleInstallLines(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.Targets[0].Install) != 2 {
@@ -152,14 +172,14 @@ func TestMultipleInstallLines(t *testing.T) {
 }
 
 func TestExpandWithParenthesizedInTarget(t *testing.T) {
-	vars := map[string]*Var{
+	vars := map[string]*fiat.Var{
 		"bin": {Name: "bin", Value: "./creo"},
 	}
-	trg := &Target{
+	trg := &fiat.Target{
 		Name: "install",
-		Vars: []*Var{{Name: "go", Value: "1"}},
+		Vars: []*fiat.Var{{Name: "go", Value: "1"}},
 	}
-	result := ExpandWithTarget("$(bin)-debug", vars, trg)
+	result := fiat.ExpandWithTarget("$(bin)-debug", vars, trg)
 	expected := "./creo-debug"
 	if result != expected {
 		t.Fatalf("ExpandWithTarget($(bin)-debug): expected %q, got %q",
@@ -174,11 +194,13 @@ func TestGoSRCDIR(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	Apply(f)
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(f.Targets) != 1 {
 		t.Fatalf("expected 1 target, got %d", len(f.Targets))
@@ -195,28 +217,33 @@ func TestGoSRCDIR(t *testing.T) {
 	}
 }
 
-func TestKoDefaults(t *testing.T) {
-	content := []byte("image: ko\n")
+func TestOciDefaults(t *testing.T) {
+	content := []byte("image: oci\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	Apply(f)
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(f.Targets) != 1 {
 		t.Fatalf("expected 1 target, got %d", len(f.Targets))
 	}
 	trg := f.Targets[0]
-	if trg.Language != "ko" {
-		t.Fatalf("expected ko language, got %q", trg.Language)
+	if trg.Language != "oci" {
+		t.Fatalf("expected oci language, got %q", trg.Language)
 	}
-	if len(trg.Cmds) == 0 {
-		t.Fatal("expected a cmd")
+	if trg.OCI == nil {
+		t.Fatal("expected OCI config")
+	}
+	if trg.OCI.AppDir != "/app" {
+		t.Fatalf("expected appdir /app, got %q", trg.OCI.AppDir)
 	}
 }
 
@@ -227,11 +254,13 @@ func TestGlobalVars(t *testing.T) {
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	f, err := ParseFiat(fpath)
+	f, err := fiat.Parse(fpath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	Apply(f)
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
 
 	if _, ok := f.Vars["COMMIT"]; !ok {
 		t.Fatal("expected COMMIT var to be set")

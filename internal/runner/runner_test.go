@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
 )
 
@@ -22,13 +23,15 @@ func writeFile(t *testing.T, dir, name, content string) {
 	}
 }
 
-func parseAndApply(t *testing.T, dir string) *lang.FiatFile {
+func parseAndApply(t *testing.T, dir string) *fiat.File {
 	t.Helper()
-	f, err := lang.ParseFiat(filepath.Join(dir, "fiat"))
+	f, err := fiat.Parse(filepath.Join(dir, "fiat"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	lang.Apply(f)
+	if err := lang.Apply(f); err != nil {
+		t.Fatal(err)
+	}
 	return f
 }
 

@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/grimdork/creo/internal/fiat"
 )
 
 func tryWrite(path, content string, force, verbose bool, label string) error {
@@ -62,7 +64,6 @@ func initGoMod(dir, name string, force, verbose bool) error {
 
 func runGofmt(dir string) error {
 	if out, err := exec.Command("gofmt", "-w", dir).CombinedOutput(); err != nil {
-		exec.Command("goimports", "-w", dir).Run()
 		return fmt.Errorf("gofmt: %s", strings.TrimSpace(string(out)))
 	}
 	if out, err := exec.Command("goimports", "-w", dir).CombinedOutput(); err != nil {
@@ -88,18 +89,68 @@ func absDirName(dir string) (string, string) {
 	return absDir, filepath.Base(absDir)
 }
 
-func Init(dir, ver string, force, verbose bool) ([]string, error) {
-	_, name := absDirName(dir)
+func ensureFiat(dir string, _ bool) (*fiat.File, error) {
+	fiatPath := filepath.Join(dir, "fiat")
+	if _, err := os.Stat(fiatPath); err == nil {
+		file, err := fiat.Parse(fiatPath)
+		if err != nil {
+			return nil, err
+		}
+		return file, nil
+	}
+	file := fiat.NewFile(fiatPath)
+	return file, nil
+}
 
-	if err := tryWrite(
-		filepath.Join(dir, "fiat"),
-		"build: go\n\ndebug: go\n",
-		force, verbose, "fiat",
-	); err != nil {
-		return nil, err
+func writeGoSources(dir, name, ver string, force, verbose bool, file *fiat.File) error {
+	if fiat.FindTarget(file, "build") == nil {
+		bt := &fiat.Target{
+			Name:     "build",
+			Language: "go",
+			Desc:     "Build the Go binary",
+		}
+		file.AddTarget(bt)
 	}
 
 	if err := initGoMod(dir, name, force, verbose); err != nil {
+		return err
+	}
+
+	mainContent := `package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	fmt.Printf("%s %s %s/%s\n", Name, version, runtime.GOOS, runtime.GOARCH)
+}
+`
+	if err := tryWrite(filepath.Join(dir, "main.go"), mainContent, force, verbose, "main.go"); err != nil {
+		return err
+	}
+
+	verContent := fmt.Sprintf(`package main
+
+var Name = "%s"
+
+var version string
+`, name)
+	if err := tryWrite(filepath.Join(dir, "version.go"), verContent, force, verbose, "version.go"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Init(dir, ver string, force, verbose bool) ([]string, error) {
+	_, name := absDirName(dir)
+	file, err := ensureFiat(dir, force)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := writeGoSources(dir, name, ver, force, verbose, file); err != nil {
 		return nil, err
 	}
 
@@ -125,36 +176,13 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 		}
 	}
 
-	mainContent := `package main
-
-import (
-	"fmt"
-	"runtime"
-)
-
-func main() {
-	fmt.Printf("%s %s %s/%s\n", Name, version, runtime.GOOS, runtime.GOARCH)
-}
-`
-	if err := tryWrite(filepath.Join(dir, "main.go"), mainContent, force, verbose, "main.go"); err != nil {
-		return nil, err
-	}
-
-	verContent := fmt.Sprintf(`package main
-
-var Name = "%s"
-
-var version string
-`, name)
-	if err := tryWrite(filepath.Join(dir, "version.go"), verContent, force, verbose, "version.go"); err != nil {
-		return nil, err
-	}
-
 	if err := runGofmt(dir); err != nil {
 		return nil, err
 	}
-
 	if err := runGoModTidy(dir); err != nil {
+		return nil, err
+	}
+	if err := file.Write(); err != nil {
 		return nil, err
 	}
 
@@ -162,17 +190,24 @@ var version string
 }
 
 func InitC(dir string, force, verbose bool) ([]string, error) {
-	if err := tryWrite(filepath.Join(dir, "fiat"),
-		"build: c\n",
-		force, verbose, "fiat",
-	); err != nil {
+	file, err := ensureFiat(dir, force)
+	if err != nil {
 		return nil, err
+	}
+
+	if fiat.FindTarget(file, "build") == nil {
+		bt := &fiat.Target{
+			Name:     "build",
+			Language: "c",
+			Desc:     "Build the C binary",
+		}
+		file.AddTarget(bt)
 	}
 
 	mainContent := `#include <stdio.h>
 
 int main(int argc, char **argv) {
-	printf("hello\\n");
+	printf("hello\n");
 	return 0;
 }
 `
@@ -181,15 +216,26 @@ int main(int argc, char **argv) {
 		return nil, err
 	}
 
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+
 	return []string{"/main", "/.creo"}, nil
 }
 
 func InitCxx(dir string, force, verbose bool) ([]string, error) {
-	if err := tryWrite(filepath.Join(dir, "fiat"),
-		"build: cxx\n",
-		force, verbose, "fiat",
-	); err != nil {
+	file, err := ensureFiat(dir, force)
+	if err != nil {
 		return nil, err
+	}
+
+	if fiat.FindTarget(file, "build") == nil {
+		bt := &fiat.Target{
+			Name:     "build",
+			Language: "cxx",
+			Desc:     "Build the C++ binary",
+		}
+		file.AddTarget(bt)
 	}
 
 	mainContent := `#include <iostream>
@@ -204,57 +250,54 @@ int main(int argc, char **argv) {
 		return nil, err
 	}
 
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+
 	return []string{"/main", "/.creo"}, nil
 }
 
-func InitKo(dir string, force, verbose bool) ([]string, error) {
-	_, name := absDirName(dir)
-
-	if err := tryWrite(filepath.Join(dir, "fiat"),
-		"build: ko\n",
-		force, verbose, "fiat",
-	); err != nil {
+func InitOci(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir, force)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := initGoMod(dir, name, force, verbose); err != nil {
+	// Ensure a Go build target exists
+	if fiat.FindTarget(file, "build") == nil {
+		_, name := absDirName(dir)
+		if err := writeGoSources(dir, name, "", force, verbose, file); err != nil {
+			return nil, err
+		}
+	}
+
+	if fiat.FindTarget(file, "image") == nil {
+		img := &fiat.Target{
+			Name:     "image",
+			Language: "oci",
+			Desc:     "Package and push OCI image",
+			Requires: []string{"build"},
+		}
+		file.AddTarget(img)
+		if verbose {
+			fmt.Println("  Added oci target")
+		}
+	} else if verbose {
+		fmt.Println("  Skipped oci target (already exists)")
+	}
+
+	if fiat.FindTarget(file, "build") != nil {
+		if err := runGofmt(dir); err != nil {
+			return nil, err
+		}
+		if err := runGoModTidy(dir); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := file.Write(); err != nil {
 		return nil, err
 	}
 
-	mainContent := `package main
-
-import (
-	"fmt"
-	"runtime"
-)
-
-func main() {
-	fmt.Printf("%s %s %s/%s\n", Name, version, runtime.GOOS, runtime.GOARCH)
-}
-`
-	if err := tryWrite(filepath.Join(dir, "main.go"), mainContent,
-		force, verbose, "main.go"); err != nil {
-		return nil, err
-	}
-
-	verContent := fmt.Sprintf(`package main
-
-var Name = "%s"
-
-var version string
-`, name)
-	if err := tryWrite(filepath.Join(dir, "version.go"), verContent,
-		force, verbose, "version.go"); err != nil {
-		return nil, err
-	}
-
-	if err := runGofmt(dir); err != nil {
-		return nil, err
-	}
-
-	if err := runGoModTidy(dir); err != nil {
-		return nil, err
-	}
-
-	return []string{"/build", "/.creo"}, nil
+	return []string{"/" + filepath.Base(dir), "/build", "/.creo"}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/grimdork/climate/arg"
+	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
 	"github.com/grimdork/creo/internal/runner"
 )
@@ -16,12 +17,15 @@ func listTargets(explicitPath string) {
 	if !ok {
 		os.Exit(1)
 	}
-	file, err := lang.ParseFiat(fiatPath)
+	file, err := fiat.Parse(fiatPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 		os.Exit(1)
 	}
-	lang.Apply(file)
+	if err := lang.Apply(file); err != nil {
+		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
+		os.Exit(1)
+	}
 
 	fmt.Println("Available targets:")
 	for _, t := range file.Targets {
@@ -30,7 +34,7 @@ func listTargets(explicitPath string) {
 			ln = "-"
 		}
 		if t.Desc != "" {
-			desc := lang.ExpandWithTarget(t.Desc, file.Vars, t)
+			desc := fiat.ExpandWithTarget(t.Desc, file.Vars, t)
 			fmt.Printf("  %-15s (%s)   %s\n", t.Name, ln, desc)
 		} else {
 			fmt.Printf("  %-15s (%s)\n", t.Name, ln)
@@ -81,17 +85,8 @@ func main() {
 	}
 
 	if opt.GetBool("i") {
-		langName, ver := "", ""
-		targets := opt.GetPosStringSlice("targets")
-		if len(targets) > 0 {
-			spec := targets[0]
-			if idx := strings.IndexByte(spec, ':'); idx >= 0 {
-				langName, ver = spec[:idx], spec[idx+1:]
-			} else {
-				langName = spec
-			}
-		}
-		initProject(langName, ver, opt.GetBool("F"), opt.GetBool("v"))
+		langs := opt.GetPosStringSlice("targets")
+		initProject(langs, opt.GetBool("F"), opt.GetBool("v"))
 		return
 	}
 
@@ -125,12 +120,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	file, err := lang.ParseFiat(fiatPath)
+	file, err := fiat.Parse(fiatPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 		os.Exit(1)
 	}
-	lang.Apply(file)
+	if err := lang.Apply(file); err != nil {
+		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
+		os.Exit(1)
+	}
 
 	if opt.GetBool("w") {
 		runner.RunWatch(file, targets[0], opts)
@@ -201,7 +199,7 @@ const targetsHelper = `__creo_targets() {
 }`
 
 const langsHelper = `__creo_langs() {
-	COMPREPLY+=( $(compgen -W "go c cxx cpp ko" -- "$cur") )
+	COMPREPLY+=( $(compgen -W "go c cxx cpp oci" -- "$cur") )
 }`
 
 const completionFunc = `_creo() {

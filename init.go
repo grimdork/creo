@@ -8,7 +8,7 @@ import (
 	"github.com/grimdork/creo/internal/lang"
 )
 
-func initProject(langName, ver string, force, verbose bool) {
+func initProject(langs []string, force, verbose bool) {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
 			os.RemoveAll(".creo")
@@ -18,30 +18,45 @@ func initProject(langName, ver string, force, verbose bool) {
 		}
 	}
 
-	var ignores []string
-	var err error
-
-	switch langName {
-	case "go":
-		ignores, err = lang.Init(".", ver, force, verbose)
-	case "c":
-		ignores, err = lang.InitC(".", force, verbose)
-	case "cxx", "cpp":
-		ignores, err = lang.InitCxx(".", force, verbose)
-	case "ko":
-		ignores, err = lang.InitKo(".", force, verbose)
-	default:
+	if len(langs) == 0 {
 		writeFiat(force, verbose)
 		writeIgnores([]string{"/.creo"}, verbose)
 		fmt.Println("Project initialised")
 		return
 	}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	var allIgnores []string
+
+	for _, spec := range langs {
+		langName, ver := spec, ""
+		if idx := strings.IndexByte(spec, ':'); idx >= 0 {
+			langName, ver = spec[:idx], spec[idx+1:]
+		}
+
+		var ignores []string
+		var err error
+
+		switch langName {
+		case "go":
+			ignores, err = lang.Init(".", ver, force, verbose)
+		case "c":
+			ignores, err = lang.InitC(".", force, verbose)
+		case "cxx", "cpp":
+			ignores, err = lang.InitCxx(".", force, verbose)
+		case "oci":
+			ignores, err = lang.InitOci(".", force, verbose)
+		default:
+			ignores, err = nil, fmt.Errorf("unknown language: %s", langName)
+		}
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		allIgnores = append(allIgnores, ignores...)
 	}
-	writeIgnores(ignores, verbose)
+
+	writeIgnores(allIgnores, verbose)
 	fmt.Println("Project initialised")
 }
 
@@ -64,6 +79,7 @@ func writeFiat(force, verbose bool) {
 }
 
 func writeIgnores(lines []string, verbose bool) {
+	lines = unique(lines)
 	if _, err := os.Stat(".gitignore"); err == nil {
 		data, _ := os.ReadFile(".gitignore")
 		content := string(data)
@@ -91,4 +107,16 @@ func writeIgnores(lines []string, verbose bool) {
 			fmt.Println("  Created .gitignore")
 		}
 	}
+}
+
+func unique(s []string) []string {
+	seen := map[string]bool{}
+	r := make([]string, 0, len(s))
+	for _, v := range s {
+		if !seen[v] {
+			seen[v] = true
+			r = append(r, v)
+		}
+	}
+	return r
 }

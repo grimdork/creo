@@ -3,34 +3,36 @@ package lang
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/grimdork/creo/internal/fiat"
 )
 
-func isDebug(t *Target) bool {
+func isDebug(t *fiat.Target) bool {
 	return t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
 }
 
-func setVarDefaults(f *FiatFile) {
+func setVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CC"]; !ok {
-		f.Vars["CC"] = &Var{Name: "CC", Value: "cc"}
+		f.Vars["CC"] = &fiat.Var{Name: "CC", Value: "cc"}
 	}
 	if _, ok := f.Vars["CFLAGS"]; !ok {
-		f.Vars["CFLAGS"] = &Var{Name: "CFLAGS", Value: "-O2 -Wall"}
+		f.Vars["CFLAGS"] = &fiat.Var{Name: "CFLAGS", Value: "-O2 -Wall"}
 	}
 	if _, ok := f.Vars["CDEBUGFLAGS"]; !ok {
-		f.Vars["CDEBUGFLAGS"] = &Var{Name: "CDEBUGFLAGS", Value: "-O0 -g -Wall"}
+		f.Vars["CDEBUGFLAGS"] = &fiat.Var{Name: "CDEBUGFLAGS", Value: "-O0 -g -Wall"}
 	}
 	if _, ok := f.Vars["LDFLAGS"]; !ok {
-		f.Vars["LDFLAGS"] = &Var{Name: "LDFLAGS", Value: ""}
+		f.Vars["LDFLAGS"] = &fiat.Var{Name: "LDFLAGS", Value: ""}
 	}
 	if _, ok := f.Vars["LIBS"]; !ok {
-		f.Vars["LIBS"] = &Var{Name: "LIBS", Value: ""}
+		f.Vars["LIBS"] = &fiat.Var{Name: "LIBS", Value: ""}
 	}
 }
 
-func applyC(f *FiatFile, t *Target) {
+func applyC(f *fiat.File, t *fiat.Target) {
 	setVarDefaults(f)
 
-	dir := filepath.Dir(f.Path)
+	dir := filepath.Dir(f.Path())
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		absDir = dir
@@ -53,12 +55,12 @@ func applyC(f *FiatFile, t *Target) {
 	}
 }
 
-func setCxxVarDefaults(f *FiatFile) {
+func setCxxVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CXX"]; !ok {
 		if _, ok2 := f.Vars["CPP"]; ok2 {
 			f.Vars["CXX"] = f.Vars["CPP"]
 		} else {
-			f.Vars["CXX"] = &Var{Name: "CXX", Value: "c++"}
+			f.Vars["CXX"] = &fiat.Var{Name: "CXX", Value: "c++"}
 		}
 	}
 	if _, ok := f.Vars["CPP"]; !ok {
@@ -69,7 +71,7 @@ func setCxxVarDefaults(f *FiatFile) {
 		if _, ok2 := f.Vars["CPPFLAGS"]; ok2 {
 			f.Vars["CXXFLAGS"] = f.Vars["CPPFLAGS"]
 		} else {
-			f.Vars["CXXFLAGS"] = &Var{Name: "CXXFLAGS", Value: "-O2 -Wall"}
+			f.Vars["CXXFLAGS"] = &fiat.Var{Name: "CXXFLAGS", Value: "-O2 -Wall"}
 		}
 	}
 	if _, ok := f.Vars["CPPFLAGS"]; !ok {
@@ -80,7 +82,7 @@ func setCxxVarDefaults(f *FiatFile) {
 		if _, ok2 := f.Vars["CPPDEBUGFLAGS"]; ok2 {
 			f.Vars["CXXDEBUGFLAGS"] = f.Vars["CPPDEBUGFLAGS"]
 		} else {
-			f.Vars["CXXDEBUGFLAGS"] = &Var{Name: "CXXDEBUGFLAGS", Value: "-O0 -g -Wall"}
+			f.Vars["CXXDEBUGFLAGS"] = &fiat.Var{Name: "CXXDEBUGFLAGS", Value: "-O0 -g -Wall"}
 		}
 	}
 	if _, ok := f.Vars["CPPDEBUGFLAGS"]; !ok {
@@ -88,10 +90,10 @@ func setCxxVarDefaults(f *FiatFile) {
 	}
 
 	if _, ok := f.Vars["LDFLAGS"]; !ok {
-		f.Vars["LDFLAGS"] = &Var{Name: "LDFLAGS", Value: ""}
+		f.Vars["LDFLAGS"] = &fiat.Var{Name: "LDFLAGS", Value: ""}
 	}
 	if _, ok := f.Vars["LIBS"]; !ok {
-		f.Vars["LIBS"] = &Var{Name: "LIBS", Value: ""}
+		f.Vars["LIBS"] = &fiat.Var{Name: "LIBS", Value: ""}
 	}
 }
 
@@ -111,10 +113,10 @@ func CrossEnv(lang, arch, osval string) []string {
 	}
 }
 
-func applyCxx(f *FiatFile, t *Target) {
+func applyCxx(f *fiat.File, t *fiat.Target) {
 	setCxxVarDefaults(f)
 
-	dir := filepath.Dir(f.Path)
+	dir := filepath.Dir(f.Path())
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		absDir = dir

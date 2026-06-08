@@ -12,9 +12,9 @@ property.
 | `install.fiat` | Go | `install=`, `$LDFLAGS`, built-in vars |
 | `c.fiat` | C | `c` language, `$CC`, `$CFLAGS` |
 | `cxx.fiat` | C++ | `cxx`/`cpp` language, `$CXXFLAGS` |
-| `ko.fiat` | ko | Container image via `ko build` |
+| `oci.fiat` | oci | Container image via built-in OCI builder |
 | `virtual.fiat` | — | `.test`, `.lint`, `.release` virtual targets |
-| `full.fiat` | All | Combined: build + nix + image + install + deploy + test + lint |
+| `full.fiat` | All | Combined: build + nix + image + install + test + lint |
 
 ## Quick reference
 

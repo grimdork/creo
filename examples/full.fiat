@@ -1,8 +1,8 @@
 # Full production example combining build, cross-compile, install,
 # container image, test, and lint — all in one fiat file.
 #
-# Uses: Go, ko, golangci-lint
-# See also: basic.fiat, cross-compile.fiat, install.fiat, ko.fiat, virtual.fiat
+# Uses: Go, OCI, golangci-lint
+# See also: basic.fiat, cross-compile.fiat, install.fiat, oci.fiat, virtual.fiat
 
 # -- Global variables --
 
@@ -26,21 +26,17 @@ nix: go
 
 # -- Container image --
 
-image: ko
+image: oci
     desc=Build OCI image tarball
     require=build
+    tarball=build/image.tar
 
-# -- Install and deploy --
+# -- Install --
 
 install: go
     desc=Install binary to ~/bin
     install=$bin:$HOME/bin/
     require=build
-
-deploy: ko
-    desc=Push image to registry (set $KO_DOCKER_REPO)
-    cmd=skopeo copy --dest-creds "$$(cat .scw-skopeo | tr -d '\n')" docker-archive:build/$NAME.tar docker://$KO_DOCKER_REPO:latest
-    require=image
 
 # -- Test and lint (virtual targets) --
 
@@ -56,5 +52,5 @@ deploy: ko
 # -- Release pipeline --
 
 .release:
-    desc=Test, lint, build, push image
-    require=.test .lint image deploy
+    desc=Test, lint, build
+    require=.test .lint image install

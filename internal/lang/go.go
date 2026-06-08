@@ -1,11 +1,13 @@
 package lang
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/semver"
 )
 
@@ -27,15 +29,15 @@ func ModuleName(dir string) string {
 	return filepath.Base(dir)
 }
 
-func Apply(f *FiatFile) {
+func Apply(f *fiat.File) error {
 	if _, ok := f.Vars["VERSION"]; !ok {
-		f.Vars["VERSION"] = &Var{Name: "VERSION", Value: semver.String()}
+		f.Vars["VERSION"] = &fiat.Var{Name: "VERSION", Value: semver.String()}
 	}
 	if _, ok := f.Vars["COMMIT"]; !ok {
-		f.Vars["COMMIT"] = &Var{Name: "COMMIT", Value: semver.CommitString()}
+		f.Vars["COMMIT"] = &fiat.Var{Name: "COMMIT", Value: semver.CommitString()}
 	}
 	if _, ok := f.Vars["DATE"]; !ok {
-		f.Vars["DATE"] = &Var{Name: "DATE", Value: semver.DateString()}
+		f.Vars["DATE"] = &fiat.Var{Name: "DATE", Value: semver.DateString()}
 	}
 
 	for _, t := range f.Targets {
@@ -43,30 +45,35 @@ func Apply(f *FiatFile) {
 			continue
 		}
 		switch t.Language {
+		case "":
+			continue
 		case "go":
 			applyGo(f, t)
 		case "c":
 			applyC(f, t)
 		case "cxx", "cpp":
 			applyCxx(f, t)
-		case "ko":
-			applyKo(f, t)
+		case "oci":
+			applyOci(f, t)
+		default:
+			return fmt.Errorf("%s: unknown language %q", f.Path(), t.Language)
 		}
 	}
+	return nil
 }
 
-func applyGo(f *FiatFile, t *Target) {
-	dir := filepath.Dir(f.Path)
+func applyGo(f *fiat.File, t *fiat.Target) {
+	dir := filepath.Dir(f.Path())
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		absDir = dir
 	}
 
 	if _, ok := f.Vars["GO"]; !ok {
-		f.Vars["GO"] = &Var{Name: "GO", Value: "go build"}
+		f.Vars["GO"] = &fiat.Var{Name: "GO", Value: "go build"}
 	}
 	if _, ok := f.Vars["GODEBUGFLAGS"]; !ok {
-		f.Vars["GODEBUGFLAGS"] = &Var{Name: "GODEBUGFLAGS", Value: `-gcflags="all=-N -l"`}
+		f.Vars["GODEBUGFLAGS"] = &fiat.Var{Name: "GODEBUGFLAGS", Value: `-gcflags="all=-N -l"`}
 	}
 
 	_, hasGoFlags := f.Vars["GOFLAGS"]
@@ -78,28 +85,28 @@ func applyGo(f *FiatFile, t *Target) {
 	if t.Bin == "" {
 		t.Bin = defBin
 	} else {
-		ev := make(map[string]*Var)
+		ev := make(map[string]*fiat.Var)
 		for k, v := range f.Vars {
 			ev[k] = v
 		}
 		for _, v := range t.Vars {
 			ev[v.Name] = v
 		}
-		ev["bin"] = &Var{Name: "bin", Value: defBin}
+		ev["bin"] = &fiat.Var{Name: "bin", Value: defBin}
 		if len(t.Arch) > 1 || len(t.OS) > 1 {
 		} else {
 			if len(t.OS) > 0 {
-				ev["os"] = &Var{Name: "os", Value: t.OS[0]}
+				ev["os"] = &fiat.Var{Name: "os", Value: t.OS[0]}
 			} else {
-				ev["os"] = &Var{Name: "os", Value: runtime.GOOS}
+				ev["os"] = &fiat.Var{Name: "os", Value: runtime.GOOS}
 			}
 			if len(t.Arch) > 0 {
-				ev["arch"] = &Var{Name: "arch", Value: t.Arch[0]}
+				ev["arch"] = &fiat.Var{Name: "arch", Value: t.Arch[0]}
 			} else {
-				ev["arch"] = &Var{Name: "arch", Value: runtime.GOARCH}
+				ev["arch"] = &fiat.Var{Name: "arch", Value: runtime.GOARCH}
 			}
 		}
-		t.Bin = Expand(t.Bin, ev, 0)
+		t.Bin = fiat.Expand(t.Bin, ev, 0)
 	}
 	srcDir := ""
 	for _, v := range t.Vars {

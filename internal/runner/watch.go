@@ -7,13 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
 )
 
-func RunWatch(f *lang.FiatFile, name string, opts RunOpts) {
-	dir := filepath.Dir(f.Path)
+func RunWatch(f *fiat.File, name string, opts RunOpts) {
+	dir := filepath.Dir(f.Path())
 
-	t := lang.FindTarget(f, name)
+	t := fiat.FindTarget(f, name)
 	if t == nil {
 		fmt.Fprintf(os.Stderr, "Error: target %q not found\n", name)
 		return
@@ -37,16 +38,21 @@ func RunWatch(f *lang.FiatFile, name string, opts RunOpts) {
 	prevMods := make(map[string]time.Time)
 
 	for range ticker.C {
-		curFiat, err := lang.ParseFiat(f.Path)
+		curFiat, err := fiat.Parse(f.Path())
 		if err != nil {
 			if opts.Verbose {
 				fmt.Fprintf(os.Stderr, "  Re-parse error: %v\n", err)
 			}
 			continue
 		}
-		lang.Apply(curFiat)
+		if err := lang.Apply(curFiat); err != nil {
+			if opts.Verbose {
+				fmt.Fprintf(os.Stderr, "  Apply error: %v\n", err)
+			}
+			continue
+		}
 
-		curT := lang.FindTarget(curFiat, name)
+		curT := fiat.FindTarget(curFiat, name)
 		if curT == nil {
 			if opts.Verbose {
 				fmt.Fprintf(os.Stderr, "  Target %q no longer exists\n", name)
@@ -79,18 +85,18 @@ func RunWatch(f *lang.FiatFile, name string, opts RunOpts) {
 	}
 }
 
-func collectSources(t *lang.Target, f *lang.FiatFile, dir string, mods map[string]time.Time) {
+func collectSources(t *fiat.Target, f *fiat.File, dir string, mods map[string]time.Time) {
 	visited := map[string]bool{}
-	var walk func(t *lang.Target)
-	walk = func(t *lang.Target) {
+	var walk func(t *fiat.Target)
+	walk = func(t *fiat.Target) {
 		if visited[t.Name] {
 			return
 		}
 		visited[t.Name] = true
 		if t.Sources != "" {
-			srcPatterns := strings.Fields(lang.ExpandWithTarget(t.Sources, f.Vars, t))
+			srcPatterns := strings.Fields(fiat.ExpandWithTarget(t.Sources, f.Vars, t))
 			for _, pat := range srcPatterns {
-				files := globFiles(lang.ExpandWithTarget(pat, f.Vars, t), dir)
+				files := globFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
 				for _, sf := range files {
 					si, err := os.Stat(sf)
 					if err == nil {
@@ -100,7 +106,7 @@ func collectSources(t *lang.Target, f *lang.FiatFile, dir string, mods map[strin
 			}
 		}
 		for _, dep := range t.Requires {
-			dt := lang.FindTarget(f, dep)
+			dt := fiat.FindTarget(f, dep)
 			if dt != nil {
 				walk(dt)
 			}

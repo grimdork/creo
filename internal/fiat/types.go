@@ -1,9 +1,18 @@
-package lang
+package fiat
 
 type Var struct {
 	Name  string
 	Value string
 	Eager bool
+}
+
+type OCIConfig struct {
+	Repo    string
+	Tag     string
+	Tarball string
+	AppDir  string
+	User    string
+	Pass    string
 }
 
 type Target struct {
@@ -21,10 +30,12 @@ type Target struct {
 	OS        []string
 	Install   []string
 	Vars      []*Var
+	OCI       *OCIConfig
 }
 
-type FiatFile struct {
-	Path    string
+type File struct {
+	path    string
 	Vars    map[string]*Var
 	Targets []*Target
+	segs    []segment
 }

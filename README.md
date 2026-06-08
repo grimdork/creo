@@ -13,7 +13,8 @@ $ creo -i go       # initialise a Go project
 $ creo -i go:1.25  # initialise with a pinned Go toolchain
 $ creo -i c        # initialise a C project
 $ creo -i cxx      # initialise a C++ project
-$ creo -i ko       # initialise a container image (ko) project
+$ creo -i oci      # initialise a container image project
+$ creo -i go oci   # initialise multiple languages
 $ creo             # build
 $ creo -v          # see what's happening
 $ creo all         # run every target
@@ -54,6 +55,9 @@ Two built-in variables are available in every target:
 |---|---|
 | `$THIS` | The target's own name (`"build"`, `"debug"`, etc.) |
 | `$DIR` | Absolute path to the directory containing the fiat file |
+
+After a dependency completes, `$OUTPUT_<name>` is set to its binary
+path for the requiring target.
 
 Lines starting with `#` are comments.  Inline `#` (on property lines)
 strips the rest of the line.
@@ -103,7 +107,7 @@ target: go
 | `go` | `./<name>` (from `go.mod`) | `$GO $GOFLAGS -o $bin` | `*.go go.mod go.sum` |
 | `c` | `./<name>` (from directory) | `$CC $CFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.c` |
 | `cxx` / `cpp` | `./<name>` (from directory) | `$CXX $CXXFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.cpp` |
-| `ko` | `build/<name>.tar` (tarball) | `$KO --platform=linux/amd64 --tarball build/<name>.tar --push=false .` | `*.go go.mod go.sum` |
+| `oci` | — | — (packaging-only; uses `$OUTPUT_<target>` from required build) | — |
 
 For `go`: `build` targets get release flags; `debug` and any target
 ending in `-debug` get debug flags.  Define `$GOFLAGS` to override.
@@ -114,10 +118,73 @@ with `$CXXFLAGS` / `$CXXDEBUGFLAGS`.
 
 All variables are overridable in the fiat file.
 
-For `ko`: builds an OCI-compatible container image as a tarball using
-[ko](https://ko.build).  Multi-arch targets produce a single tarball
-containing all platform combinations.  Set `$SRCDIR` to build from a
-sub-package.
+For `oci`: packages a compiled binary into an OCI container image and
+writes a tarball or pushes to a registry.  OCI targets are packaging-only
+(no compilation themselves) — use `require=` to reference a Go build
+target and `$OUTPUT_<target>` to locate its binary.  Example:
+
+```
+build: go
+
+image: oci
+    repo=ghcr.io/myorg/myapp
+    tag=latest
+    require=build
+```
+
+After `build` completes, its binary path is available as `$OUTPUT_build`.
+The image places the binary at `/app/<name>` (override with `appdir=`).
+
+### OCI properties
+
+| Property | What it does |
+|---|---|
+| `repo=` | Container registry (e.g. `ghcr.io/user/repo`) |
+| `tag=` | Image tag (default: `latest` for tarball; push uses this if set) |
+| `tarball=` | Write image as a docker-compatible `.tar` file |
+| `appdir=` | Directory in the image for the binary (default: `/app`) |
+| `ociuser=` | Registry username (for basic auth) |
+| `ocipass=` | Registry password or token |
+
+If no `tarball=` is set, the image is only pushed.  If no `repo=` is
+set, the image is only written to a tarball.  Auth: when both
+`ociuser=` and `ocipass=` are set, basic auth is used; otherwise the
+default Docker keychain (`~/.docker/config.json`) is consulted.
+
+### Output variables
+
+When a dependency target produces a binary (`bin=` property), its path
+is available to the requiring target as `$OUTPUT_<name>`.  This replaces
+the old `ko` `$SRCDIR` approach and works for any language:
+
+```
+build: go
+
+image: oci
+    appdir=/srv
+    require=build
+    repo=ghcr.io/myorg/myapp
+    tag=latest
+```
+
+Here `build` sets `$bin`, which becomes `$OUTPUT_build` for the `image`
+target.  The `oci` language target reads it as the binary source for the
+container layer.
+
+### Legacy `ko` migration
+
+The `language: ko` keyword is no longer recognised.  If you have an
+existing `ko` target, replace it with:
+
+```
+image: oci
+    repo=<your-registry>
+    tarball=<path>.tar
+    require=<build-target>
+```
+
+Where `<build-target>` is the name of your Go build target.  The binary
+path is automatically injected via `$OUTPUT_<target>`.
 
 ### Multi-arch and multi-OS
 
@@ -141,7 +208,7 @@ Cross-compilation environment variables are set per language:
 |---|---|
 | `go` | `GOARCH`, `GOOS` (used by Go toolchain) |
 | `c`, `cxx`, `cpp` | none (C/C++ cross-compilers must be configured via `$CC` / `$CXX`) |
-| `ko` | none (uses `--platform` flag instead) |
+| `oci` | none (packaging-only target) |
 
 For C/C++ cross-compilation, set `$CC` or `$CXX` to the target
 toolchain prefix:
@@ -194,6 +261,12 @@ alongside the build artefacts from `bin=`.
 | `arch=` | Architecture for cross-compile (space-separated; sets per-language env) |
 | `os=` | OS for cross-compile (space-separated; sets per-language env) |
 | `args=` | Extra arguments injected into the default command (empty by default) |
+| `repo=` | Container registry for OCI images (e.g. `ghcr.io/user/repo`) |
+| `tag=` | Image tag for OCI (default: `latest` for tarball) |
+| `tarball=` | Path to write an OCI image tarball |
+| `appdir=` | Directory in the OCI image for the binary (default: `/app`) |
+| `ociuser=` | Registry username (basic auth) |
+| `ocipass=` | Registry password or token |
 
 Source patterns: `*` matches files in the current directory, `**.go` and
 `**/*.go` match `.go` files recursively, and `src/**/*.go` matches `.go`
@@ -209,7 +282,7 @@ When not explicitly defined by the user:
 | `$GO` | `go build` |
 | `$GOFLAGS` | `-trimpath -ldflags="-s -w"` (release) or `-gcflags="all=-N -l"` (debug) |
 | `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
-| `$KO` | `ko build` |
+| `$APPDIR` | `/app` (OCI app directory; overridable per target via `appdir=`) |
 | `$CC` | `cc` (C compiler) |
 | `$CFLAGS` | `-O2 -Wall` (release), `$CDEBUGFLAGS`: `-O0 -g -Wall` (debug) |
 | `$CXX`, `$CPP` | `c++` (C++ compiler) |
@@ -314,7 +387,7 @@ creo [flags] [target...]
 
 | Flag | Description |
 |---|---|
-| `-i`, `--init` | Initialise project (optionally with language: `go`/`go:1.25`/`c`/`cxx`/`cpp`/`ko`) |
+| `-i`, `--init` | Initialise project (optionally with languages: `go`/`go:1.25`/`c`/`cxx`/`cpp`/`oci`; multiple accepted) |
 | `-f`, `--file` | Alternative fiat file path |
 | `-F`, `--force` | Force rebuild |
 | `-l`, `--list` | List available targets with descriptions |
@@ -343,6 +416,7 @@ Error: fiat:12: install of ./creo: no such file or directory
 No `$(eval ...)`, no `.PHONY`, no `.SUFFIXES`, no `ifeq`/`else`/`endif`.
 Just variables with `$`, targets with properties, and shell commands.
 Language support makes the common case — a Go project — a single line.
+OCI image building is built in — no external `ko` binary needed.
 
 ## License
 
