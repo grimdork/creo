@@ -173,7 +173,7 @@ func (p *picker) run() string {
 		case '\x03':
 			term.Restore(p.fd, p.oldState)
 			fmt.Fprint(os.Stdout, "\x1b[?1049l")
-			os.Exit(1)
+			return ""
 
 		case '\b', '\x7f':
 			if len(p.prefix) > 0 {

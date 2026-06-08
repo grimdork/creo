@@ -33,27 +33,13 @@ func tryWrite(path, content string, force, verbose bool, label string) error {
 	return nil
 }
 
-func Init(dir, ver string, force, verbose bool) ([]string, error) {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
-	name := filepath.Base(absDir)
-
-	if err := tryWrite(
-		filepath.Join(dir, "fiat"),
-		"build: go\n\ndebug: go\n",
-		force, verbose, "fiat",
-	); err != nil {
-		return nil, err
-	}
-
+func initGoMod(dir, name string, force, verbose bool) error {
 	modPath := filepath.Join(dir, "go.mod")
 	if _, err := os.Stat(modPath); os.IsNotExist(err) {
 		mod := exec.Command("go", "mod", "init", name)
 		mod.Dir = dir
 		if out, err := mod.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
+			return fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
 		}
 		if verbose {
 			fmt.Println("  Initialised Go module")
@@ -63,7 +49,7 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 		mod := exec.Command("go", "mod", "init", name)
 		mod.Dir = dir
 		if out, err := mod.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
+			return fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
 		}
 		if verbose {
 			fmt.Println("  Reinitialised Go module")
@@ -71,8 +57,54 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 	} else if verbose {
 		fmt.Println("  Skipped go.mod (already exists)")
 	}
+	return nil
+}
+
+func runGofmt(dir string) error {
+	if out, err := exec.Command("gofmt", "-w", dir).CombinedOutput(); err != nil {
+		exec.Command("goimports", "-w", dir).Run()
+		return fmt.Errorf("gofmt: %s", strings.TrimSpace(string(out)))
+	}
+	if out, err := exec.Command("goimports", "-w", dir).CombinedOutput(); err != nil {
+		return fmt.Errorf("goimports: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func runGoModTidy(dir string) error {
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = dir
+	if out, err := tidy.CombinedOutput(); err != nil {
+		return fmt.Errorf("go mod tidy: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func absDirName(dir string) (string, string) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		absDir = dir
+	}
+	return absDir, filepath.Base(absDir)
+}
+
+func Init(dir, ver string, force, verbose bool) ([]string, error) {
+	_, name := absDirName(dir)
+
+	if err := tryWrite(
+		filepath.Join(dir, "fiat"),
+		"build: go\n\ndebug: go\n",
+		force, verbose, "fiat",
+	); err != nil {
+		return nil, err
+	}
+
+	if err := initGoMod(dir, name, force, verbose); err != nil {
+		return nil, err
+	}
 
 	if ver != "" {
+		modPath := filepath.Join(dir, "go.mod")
 		data, err := os.ReadFile(modPath)
 		if err == nil {
 			content := string(data)
@@ -118,12 +150,13 @@ var version string
 		return nil, err
 	}
 
-	exec.Command("gofmt", "-w", dir).Run()
-	exec.Command("goimports", "-w", dir).Run()
+	if err := runGofmt(dir); err != nil {
+		return nil, err
+	}
 
-	tidy := exec.Command("go", "mod", "tidy")
-	tidy.Dir = dir
-	tidy.Run()
+	if err := runGoModTidy(dir); err != nil {
+		return nil, err
+	}
 
 	return []string{"/" + name, "/.creo"}, nil
 }
@@ -175,11 +208,7 @@ int main(int argc, char **argv) {
 }
 
 func InitKo(dir string, force, verbose bool) ([]string, error) {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
-	name := filepath.Base(absDir)
+	_, name := absDirName(dir)
 
 	if err := tryWrite(filepath.Join(dir, "fiat"),
 		"build: ko\n",
@@ -188,28 +217,8 @@ func InitKo(dir string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	modPath := filepath.Join(dir, "go.mod")
-	if _, err := os.Stat(modPath); os.IsNotExist(err) {
-		mod := exec.Command("go", "mod", "init", name)
-		mod.Dir = dir
-		if out, err := mod.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
-		}
-		if verbose {
-			fmt.Println("  Initialised Go module")
-		}
-	} else if force {
-		os.Remove(modPath)
-		mod := exec.Command("go", "mod", "init", name)
-		mod.Dir = dir
-		if out, err := mod.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
-		}
-		if verbose {
-			fmt.Println("  Reinitialised Go module")
-		}
-	} else if verbose {
-		fmt.Println("  Skipped go.mod (already exists)")
+	if err := initGoMod(dir, name, force, verbose); err != nil {
+		return nil, err
 	}
 
 	mainContent := `package main
@@ -239,10 +248,13 @@ var version string
 		return nil, err
 	}
 
-	exec.Command("gofmt", "-w", dir).Run()
-	tidy := exec.Command("go", "mod", "tidy")
-	tidy.Dir = dir
-	tidy.Run()
+	if err := runGofmt(dir); err != nil {
+		return nil, err
+	}
+
+	if err := runGoModTidy(dir); err != nil {
+		return nil, err
+	}
 
 	return []string{"/build", "/.creo"}, nil
 }

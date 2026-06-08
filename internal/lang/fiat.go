@@ -48,6 +48,9 @@ func parseProperty(line string, t *Target) string {
 		return ""
 	}
 	key := strings.TrimSpace(parts[0])
+	if key == "" {
+		return ""
+	}
 	value := strings.TrimSpace(parts[1])
 
 	switch key {
@@ -108,7 +111,7 @@ func ParseFiat(path string) (*FiatFile, error) {
 			parts := strings.SplitN(line, ":", 2)
 			name := strings.TrimSpace(parts[0])
 			if name != "" {
-				virtual := len(name) > 0 && name[0] == '.'
+				virtual := name[0] == '.'
 				cur = &Target{Name: name, Line: i + 1, IsVirtual: virtual}
 				if len(parts) > 1 {
 					tokens := strings.Fields(parts[1])

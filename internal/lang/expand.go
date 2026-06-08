@@ -73,11 +73,7 @@ func ExpandWithTarget(s string, global map[string]*Var, t *Target) string {
 		vars[v.Name] = v
 	}
 	if t.Bin != "" {
-		base := Expand(t.Bin, vars, 0)
-		if strings.Contains(base, "$bin") {
-			base = strings.ReplaceAll(base, "$bin", "")
-		}
-		vars["bin"] = &Var{Name: "bin", Value: base}
+		vars["bin"] = &Var{Name: "bin", Value: Expand(t.Bin, vars, 0)}
 	}
 	if t.Sources != "" {
 		vars["sources"] = &Var{Name: "sources", Value: Expand(t.Sources, vars, 0)}

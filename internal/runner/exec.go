@@ -41,6 +41,25 @@ func globFiles(pattern, dir string) []string {
 	suffix = strings.TrimPrefix(suffix, "/")
 
 	var files []string
+
+	if strings.Contains(suffix, "**") {
+		segments := strings.Split(suffix, "/")
+		filePat := segments[len(segments)-1]
+		filepath.WalkDir(walkRoot, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !d.IsDir() {
+				matched, _ := filepath.Match(filePat, filepath.Base(path))
+				if matched {
+					files = append(files, path)
+				}
+			}
+			return nil
+		})
+		return files
+	}
+
 	filepath.WalkDir(walkRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -63,7 +82,19 @@ func globFiles(pattern, dir string) []string {
 	return files
 }
 
-func copyFile(src, dest string) error {
+func copyFile(src, dest string) (err error) {
+	absSrc, err := filepath.Abs(src)
+	if err != nil {
+		return err
+	}
+	absDest, err := filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+	if absSrc == absDest {
+		return nil
+	}
+
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return err
 	}
@@ -82,9 +113,13 @@ func copyFile(src, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer df.Close()
 
 	if _, err := io.Copy(df, sf); err != nil {
+		df.Close()
+		return err
+	}
+
+	if err := df.Close(); err != nil {
 		return err
 	}
 	return nil

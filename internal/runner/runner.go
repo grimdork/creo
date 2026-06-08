@@ -80,7 +80,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 			expanded := lang.ExpandWithTarget(pattern, f.Vars, t)
 			matches := globFiles(expanded, dir)
 			for _, m := range matches {
-				if err := os.Remove(m); err == nil && opts.Verbose {
+				if err := os.Remove(m); err != nil {
+					if opts.Verbose {
+						fmt.Printf("  Failed to remove stale %s: %v\n", m, err)
+					}
+				} else if opts.Verbose {
 					fmt.Printf("  Removed stale %s\n", m)
 				}
 			}
@@ -143,7 +147,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 					cv["bin"] = &lang.Var{Name: "bin", Value: bp}
 					if len(t.Cmds) > 0 {
 						if _, err := os.Stat(bp); err == nil {
-							if err := os.Remove(bp); err == nil && opts.Verbose {
+							if err := os.Remove(bp); err != nil {
+								if opts.Verbose {
+									fmt.Printf("  Failed to remove %s: %v\n", bp, err)
+								}
+							} else if opts.Verbose {
 								fmt.Printf("  Removed %s\n", bp)
 							}
 						}
@@ -162,7 +170,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 						dest = filepath.Join(dest, filepath.Base(src))
 					}
 					if _, err := os.Stat(dest); err == nil {
-						if err := os.Remove(dest); err == nil && opts.Verbose {
+						if err := os.Remove(dest); err != nil {
+							if opts.Verbose {
+								fmt.Printf("  Failed to remove installed %s: %v\n", dest, err)
+							}
+						} else if opts.Verbose {
 							fmt.Printf("  Removed installed %s\n", dest)
 						}
 					}
@@ -310,7 +322,9 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				if t.Bin != "" {
 					comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
 					if !opts.DryRun && opts.Rebuild && len(t.Cmds) > 0 {
-						os.Remove(c.bin)
+						if err := os.Remove(c.bin); err != nil && !os.IsNotExist(err) && opts.Verbose {
+							fmt.Printf("  Failed to remove %s: %v\n", c.bin, err)
+						}
 					}
 				}
 				if t.Sources != "" {
@@ -389,7 +403,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 			expanded := lang.ExpandWithTarget(pattern, f.Vars, t)
 			matches := globFiles(expanded, dir)
 			for _, m := range matches {
-				if err := os.Remove(m); err == nil && opts.Verbose {
+				if err := os.Remove(m); err != nil {
+					if opts.Verbose {
+						fmt.Printf("  Failed to clean %s: %v\n", m, err)
+					}
+				} else if opts.Verbose {
 					fmt.Printf("  Cleaned %s\n", m)
 				}
 			}
@@ -447,6 +465,7 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 			return nil
 		}
+		lang.Apply(file)
 
 		if opts.Verbose {
 			fmt.Printf("Entering %s\n", path)
