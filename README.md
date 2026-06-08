@@ -289,6 +289,21 @@ creo -j 2 nix
 
 Without `-j`, the number of CPUs is used.  `-j 1` runs serially.
 
+### Shell completion
+
+```
+creo --completion
+```
+
+Outputs a bash completion script providing tab completion for flags,
+target names, and `init` languages.  Install it with:
+
+```
+source <(creo --completion)
+```
+
+Add it to your `~/.bashrc` for persistence.
+
 ## CLI
 
 ```
