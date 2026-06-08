@@ -95,17 +95,20 @@ A target with a language keyword gets automatic defaults:
 target: go
 ```
 
-For Go, this fills in:
+| Language | `bin=` | `cmd=` | `sources=` |
+|---|---|---|---|
+| `go` | `./<name>` (from `go.mod`) | `$GO $GOFLAGS -o $bin` | `*.go go.mod go.sum` |
+| `c` | `./<name>` (from directory) | `$CC $CFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.c` |
+| `cxx` / `cpp` | `./<name>` (from directory) | `$CXX $CXXFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.cpp` |
 
-| Property | Default |
-|---|---|
-| `bin=` | `./<name>` (from `go.mod` module path; falls back to directory name; `-debug` suffix for targets ending in `-debug`) |
-| `cmd=` | `$GO <flags> -o $bin` (only when no `install=` lines present) |
-| `sources=` | `*.go` |
+For `go`: `build` targets get release flags; `debug` and any target
+ending in `-debug` get debug flags.  Define `$GOFLAGS` to override.
 
-Flags vary by target name: `build` and most targets get release flags;
-`debug` and any target ending in `-debug` get debug flags.  Define
-`$GOFLAGS` in the file to override.
+For `c`: `build` targets get `$CFLAGS` (`-O2 -Wall`); `debug` targets
+get `$CDEBUGFLAGS` (`-O0 -g -Wall`).  Same pattern for `cxx`/`cpp`
+with `$CXXFLAGS` / `$CXXDEBUGFLAGS`.
+
+All variables are overridable in the fiat file.
 
 ### Multi-arch and multi-OS
 
@@ -122,6 +125,23 @@ and skip checks respect all combinations.
 
 Multi-arch builds run in parallel by default (one goroutine per CPU).
 Use `-j N` to control concurrency, or `-j 1` for serial execution.
+
+Cross-compilation environment variables are set per language:
+
+| Language | Env vars set |
+|---|---|
+| `go` | `GOARCH`, `GOOS` (used by Go toolchain) |
+| `c`, `cxx`, `cpp` | none (C/C++ cross-compilers must be configured via `$CC` / `$CXX`) |
+
+For C/C++ cross-compilation, set `$CC` or `$CXX` to the target
+toolchain prefix:
+
+```
+nix: c
+    os=linux
+    arch=arm64
+    $CC=aarch64-linux-gnu-gcc
+```
 
 ### Install
 
@@ -161,8 +181,8 @@ alongside the build artefacts from `bin=`.
 | `require=` | Targets that must run first |
 | `desc=` | Human-readable description shown by `creo -l` |
 | `install=` | Copy built binaries to a destination (repeatable — see below) |
-| `arch=` | `GOARCH` value (space-separated for cross-compile) |
-| `os=` | `GOOS` value (space-separated for cross-compile) |
+| `arch=` | Architecture for cross-compile (space-separated; sets per-language env) |
+| `os=` | OS for cross-compile (space-separated; sets per-language env) |
 
 Source patterns: `*` matches files in the current directory, `**.ext`
 matches recursively.  When a binary already exists and is newer than all
@@ -177,6 +197,12 @@ When not explicitly defined by the user:
 | `$GO` | `go build` |
 | `$GOFLAGS` | `-trimpath -ldflags="-s -w"` (release) or `-gcflags="all=-N -l"` (debug) |
 | `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
+| `$CC` | `cc` (C compiler) |
+| `$CFLAGS` | `-O2 -Wall` (release), `$CDEBUGFLAGS`: `-O0 -g -Wall` (debug) |
+| `$CXX`, `$CPP` | `c++` (C++ compiler) |
+| `$CXXFLAGS`, `$CPPFLAGS` | `-O2 -Wall` (release), `$CXXDEBUGFLAGS`: `-O0 -g -Wall` (debug) |
+| `$LDFLAGS` | *(empty — override for `-L` flags)* |
+| `$LIBS` | *(empty — override for `-lm -lpthread`)* |
 | `$VERSION` | Inferred from `git describe --tags` (see below) |
 
 `$VERSION` is derived from Git history at parse time:

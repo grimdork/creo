@@ -96,7 +96,7 @@ func applyGo(f *FiatFile, t *Target) {
 	if t.Sources == "" {
 		t.Sources = "*.go go.mod go.sum"
 	}
-	if len(t.Cmds) == 0 && len(t.Install) == 0 {
+	if len(t.Cmds) == 0 {
 		flags := "$GOFLAGS"
 		verPost := ""
 		if !hasGoFlags {

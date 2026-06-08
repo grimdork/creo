@@ -95,6 +95,22 @@ func setCxxVarDefaults(f *FiatFile) {
 	}
 }
 
+func CrossEnv(lang, arch, osval string) []string {
+	switch lang {
+	case "go":
+		var env []string
+		if arch != "" {
+			env = append(env, "GOARCH="+arch)
+		}
+		if osval != "" {
+			env = append(env, "GOOS="+osval)
+		}
+		return env
+	default:
+		return nil
+	}
+}
+
 func applyCxx(f *FiatFile, t *Target) {
 	setCxxVarDefaults(f)
 

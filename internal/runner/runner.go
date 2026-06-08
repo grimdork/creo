@@ -294,12 +294,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				if activeOS == "" {
 					activeOS = runtime.GOOS
 				}
-				if c.arch != "" {
-					comboEnv = append(comboEnv, "GOARCH="+c.arch)
-				}
-				if c.osval != "" {
-					comboEnv = append(comboEnv, "GOOS="+c.osval)
-				}
+				comboEnv = append(comboEnv, lang.CrossEnv(t.Language, c.arch, c.osval)...)
 
 				comboVars := make(map[string]*lang.Var)
 				for k, v := range f.Vars {
