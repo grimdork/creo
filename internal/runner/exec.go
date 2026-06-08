@@ -18,27 +18,49 @@ func execCmd(cmd, dir string, env []string) error {
 }
 
 func globFiles(pattern, dir string) []string {
-	if strings.HasPrefix(pattern, "**") {
-		ext := strings.TrimPrefix(pattern, "**")
-		var files []string
-		filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if !d.IsDir() && strings.HasSuffix(path, ext) {
-				rel, _ := filepath.Rel(dir, path)
-				files = append(files, filepath.Join(dir, rel))
-			}
+	if !strings.Contains(pattern, "**") {
+		matches, err := filepath.Glob(filepath.Join(dir, pattern))
+		if err != nil {
 			return nil
-		})
-		return files
+		}
+		return matches
 	}
 
-	matches, err := filepath.Glob(filepath.Join(dir, pattern))
-	if err != nil {
-		return nil
+	idx := strings.Index(pattern, "**")
+	prefix := pattern[:idx]
+	suffix := pattern[idx+2:]
+
+	var walkRoot string
+	if prefix != "" {
+		prefix = strings.TrimSuffix(prefix, "/")
+		walkRoot = filepath.Join(dir, prefix)
+	} else {
+		walkRoot = dir
 	}
-	return matches
+
+	suffix = strings.TrimPrefix(suffix, "/")
+
+	var files []string
+	filepath.WalkDir(walkRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !d.IsDir() {
+			matched := false
+			if suffix == "" {
+				matched = true
+			} else if strings.ContainsAny(suffix, "*?[") {
+				matched, _ = filepath.Match(suffix, filepath.Base(path))
+			} else {
+				matched = strings.HasSuffix(filepath.Base(path), suffix)
+			}
+			if matched {
+				files = append(files, path)
+			}
+		}
+		return nil
+	})
+	return files
 }
 
 func copyFile(src, dest string) error {

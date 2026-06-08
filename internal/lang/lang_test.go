@@ -190,7 +190,7 @@ func TestGoSRCDIR(t *testing.T) {
 	if len(trg.Cmds) == 0 {
 		t.Fatal("expected a cmd")
 	}
-	if trg.Cmds[0] != "$GO -trimpath -ldflags=\"-s -w -X main.version=$VERSION\" -o $bin ./cmd/server" {
+	if trg.Cmds[0] != "$GO $args -trimpath -ldflags=\"-s -w -X main.version=$VERSION\" -o $bin ./cmd/server" {
 		t.Fatalf("unexpected cmd: %s", trg.Cmds[0])
 	}
 }

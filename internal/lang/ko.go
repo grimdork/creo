@@ -80,6 +80,12 @@ func applyKo(f *FiatFile, t *Target) {
 			pkg = srcDir
 		}
 
-		t.Cmds = append(t.Cmds, "mkdir -p build && $KO --platform="+platform+" --tarball "+tarball+" --push=false "+pkg)
+		if t.Bin == "" {
+			t.Bin = tarball
+		}
+
+		t.Cmds = append(t.Cmds, "mkdir -p build && $KO $args --platform="+platform+" --tarball "+tarball+" --push=false "+pkg)
+		t.Arch = nil
+		t.OS = nil
 	}
 }

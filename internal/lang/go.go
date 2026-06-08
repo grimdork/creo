@@ -134,6 +134,6 @@ func applyGo(f *FiatFile, t *Target) {
 		if srcDir != "" {
 			pkg = " " + srcDir
 		}
-		t.Cmds = append(t.Cmds, "$GO "+flags+verPost+" -o $bin"+pkg)
+		t.Cmds = append(t.Cmds, "$GO $args "+flags+verPost+" -o $bin"+pkg)
 	}
 }

@@ -303,11 +303,11 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 				for _, v := range t.Vars {
 					comboVars[v.Name] = v
 				}
-			comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
-			comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
-			comboVars["THIS"] = &lang.Var{Name: "THIS", Value: t.Name}
+				comboVars["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+				comboVars["os"] = &lang.Var{Name: "os", Value: activeOS}
+				comboVars["THIS"] = &lang.Var{Name: "THIS", Value: t.Name}
 
-			if t.Bin != "" {
+				if t.Bin != "" {
 					comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
 					if !opts.DryRun && opts.Rebuild && len(t.Cmds) > 0 {
 						os.Remove(c.bin)
@@ -425,7 +425,7 @@ func findFiatInDir(dir string, verbose bool) (string, bool) {
 	return "", false
 }
 
-func RunRecursive(dir string, opts RunOpts) {
+func RunRecursive(dir string, targetName string, opts RunOpts) {
 	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -451,7 +451,7 @@ func RunRecursive(dir string, opts RunOpts) {
 		if opts.Verbose {
 			fmt.Printf("Entering %s\n", path)
 		}
-		if err := RunTarget(file, "build", opts); err != nil {
+		if err := RunTarget(file, targetName, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in %s: %v\n", path, err)
 		}
 		return nil

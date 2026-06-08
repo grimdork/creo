@@ -193,10 +193,12 @@ alongside the build artefacts from `bin=`.
 | `install=` | Copy built binaries to a destination (repeatable — see below) |
 | `arch=` | Architecture for cross-compile (space-separated; sets per-language env) |
 | `os=` | OS for cross-compile (space-separated; sets per-language env) |
+| `args=` | Extra arguments injected into the default command (empty by default) |
 
-Source patterns: `*` matches files in the current directory, `**.ext`
-matches recursively.  When a binary already exists and is newer than all
-sources, creo skips it with a message.
+Source patterns: `*` matches files in the current directory, `**.go` and
+`**/*.go` match `.go` files recursively, and `src/**/*.go` matches `.go`
+files under `src/` only. When a binary already exists and is newer than
+all sources, creo skips it with a message.
 
 ### Built-in variables
 
@@ -313,7 +315,8 @@ creo [flags] [target...]
 | Flag | Description |
 |---|---|
 | `-i`, `--init` | Initialise project (optionally with language: `go`/`go:1.25`/`c`/`cxx`/`cpp`/`ko`) |
-| `-f`, `--force` | Force rebuild |
+| `-f`, `--file` | Alternative fiat file path |
+| `-F`, `--force` | Force rebuild |
 | `-l`, `--list` | List available targets with descriptions |
 | `-w`, `--watch` | Watch sources and rebuild on change |
 | `-k`, `--keep-going` | Continue past errors, report all at the end |

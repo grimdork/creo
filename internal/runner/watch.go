@@ -55,16 +55,7 @@ func RunWatch(f *lang.FiatFile, name string, opts RunOpts) {
 		}
 
 		currentMods := make(map[string]time.Time)
-		srcPatterns := strings.Fields(lang.ExpandWithTarget(curT.Sources, curFiat.Vars, curT))
-		for _, pat := range srcPatterns {
-			files := globFiles(lang.ExpandWithTarget(pat, curFiat.Vars, curT), dir)
-			for _, sf := range files {
-				si, err := os.Stat(sf)
-				if err == nil {
-					currentMods[sf] = si.ModTime()
-				}
-			}
-		}
+		collectSources(curT, curFiat, dir, currentMods)
 
 		changed := false
 		if len(currentMods) != len(prevMods) {
@@ -86,4 +77,34 @@ func RunWatch(f *lang.FiatFile, name string, opts RunOpts) {
 			prevMods = currentMods
 		}
 	}
+}
+
+func collectSources(t *lang.Target, f *lang.FiatFile, dir string, mods map[string]time.Time) {
+	visited := map[string]bool{}
+	var walk func(t *lang.Target)
+	walk = func(t *lang.Target) {
+		if visited[t.Name] {
+			return
+		}
+		visited[t.Name] = true
+		if t.Sources != "" {
+			srcPatterns := strings.Fields(lang.ExpandWithTarget(t.Sources, f.Vars, t))
+			for _, pat := range srcPatterns {
+				files := globFiles(lang.ExpandWithTarget(pat, f.Vars, t), dir)
+				for _, sf := range files {
+					si, err := os.Stat(sf)
+					if err == nil {
+						mods[sf] = si.ModTime()
+					}
+				}
+			}
+		}
+		for _, dep := range t.Requires {
+			dt := lang.FindTarget(f, dep)
+			if dt != nil {
+				walk(dt)
+			}
+		}
+	}
+	walk(t)
 }

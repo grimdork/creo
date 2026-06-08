@@ -11,8 +11,8 @@ import (
 	"github.com/grimdork/creo/internal/runner"
 )
 
-func listTargets() {
-	fiatPath, ok := findFiat()
+func listTargets(explicitPath string) {
+	fiatPath, ok := findFiat(explicitPath)
 	if !ok {
 		os.Exit(1)
 	}
@@ -44,7 +44,8 @@ func main() {
 	opt := arg.New("creo", "A make-like build tool")
 	opt.SetDefaultHelp(true)
 	opt.SetFlag(arg.GroupDefault, "i", "init", "Initialise project with base files")
-	opt.SetFlag(arg.GroupDefault, "f", "force", "Force rebuild")
+	opt.SetOption(arg.GroupDefault, "f", "file", "Alternative fiat file path", "", false, arg.VarString, nil)
+	opt.SetFlag(arg.GroupDefault, "F", "force", "Force rebuild")
 	opt.SetFlag(arg.GroupDefault, "r", "recursive", "Recurse into subdirectories")
 	opt.SetFlag(arg.GroupDefault, "c", "clean", "Remove target binaries")
 	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
@@ -90,12 +91,12 @@ func main() {
 				langName = spec
 			}
 		}
-		initProject(langName, ver, opt.GetBool("f"), opt.GetBool("v"))
+		initProject(langName, ver, opt.GetBool("F"), opt.GetBool("v"))
 		return
 	}
 
 	opts := runner.RunOpts{
-		Rebuild:   opt.GetBool("f"),
+		Rebuild:   opt.GetBool("F"),
 		Recursive: opt.GetBool("r"),
 		Clean:     opt.GetBool("c"),
 		Verbose:   opt.GetBool("v"),
@@ -105,7 +106,7 @@ func main() {
 	}
 
 	if opt.GetBool("l") {
-		listTargets()
+		listTargets(opt.GetString("file"))
 		return
 	}
 
@@ -115,11 +116,11 @@ func main() {
 	}
 
 	if opts.Recursive {
-		runner.RunRecursive(".", opts)
+		runner.RunRecursive(".", targets[0], opts)
 		return
 	}
 
-	fiatPath, ok := findFiat()
+	fiatPath, ok := findFiat(opt.GetString("file"))
 	if !ok {
 		os.Exit(1)
 	}
@@ -233,6 +234,9 @@ const completionFunc = `_creo() {
 		case ${prev} in
 		-i|--init)
 			__creo_langs
+			;;
+		-f|--file)
+			complete_files
 			;;
 		*)
 			__creo_targets

@@ -12,15 +12,15 @@ type Target struct {
 	Line      int
 	Desc      string
 	IsVirtual bool
-	Cmds     []string
-	Bin      string
-	Sources  string
-	Tmp      []string
-	Requires []string
-	Arch     []string
-	OS       []string
-	Install  []string
-	Vars     []*Var
+	Cmds      []string
+	Bin       string
+	Sources   string
+	Tmp       []string
+	Requires  []string
+	Arch      []string
+	OS        []string
+	Install   []string
+	Vars      []*Var
 }
 
 type FiatFile struct {

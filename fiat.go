@@ -9,7 +9,15 @@ import (
 	"github.com/grimdork/creo/internal/picker"
 )
 
-func findFiat() (string, bool) {
+func findFiat(explicitPath string) (string, bool) {
+	if explicitPath != "" {
+		if _, err := os.Stat(explicitPath); err == nil {
+			return explicitPath, true
+		} else {
+			fmt.Fprintln(os.Stderr, "Error:", explicitPath, err)
+			return "", false
+		}
+	}
 	if _, err := os.Stat("fiat"); err == nil {
 		return "fiat", true
 	}

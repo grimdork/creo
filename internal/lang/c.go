@@ -49,7 +49,7 @@ func applyC(f *FiatFile, t *Target) {
 		if isDebug(t) {
 			flags = "$CDEBUGFLAGS"
 		}
-		t.Cmds = append(t.Cmds, "$CC "+flags+" $LDFLAGS -o $bin $sources $LIBS")
+		t.Cmds = append(t.Cmds, "$CC $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
 	}
 }
 
@@ -111,8 +111,6 @@ func CrossEnv(lang, arch, osval string) []string {
 	}
 }
 
-
-
 func applyCxx(f *FiatFile, t *Target) {
 	setCxxVarDefaults(f)
 
@@ -135,6 +133,6 @@ func applyCxx(f *FiatFile, t *Target) {
 		if isDebug(t) {
 			flags = "$CXXDEBUGFLAGS"
 		}
-		t.Cmds = append(t.Cmds, "$CXX "+flags+" $LDFLAGS -o $bin $sources $LIBS")
+		t.Cmds = append(t.Cmds, "$CXX $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
 	}
 }

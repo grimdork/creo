@@ -144,11 +144,11 @@ func ParseFiat(path string) (*FiatFile, error) {
 					cur.Arch = append(cur.Arch, strings.Fields(line)...)
 				case "os":
 					cur.OS = append(cur.OS, strings.Fields(line)...)
-			case "desc":
-				cur.Desc += " " + line
-			case "install":
-				cur.Install = append(cur.Install, line)
-			default:
+				case "desc":
+					cur.Desc += " " + line
+				case "install":
+					cur.Install = append(cur.Install, line)
+				default:
 					for _, v := range cur.Vars {
 						if v.Name == lastKey {
 							v.Value += " " + line
