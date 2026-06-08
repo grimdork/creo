@@ -127,3 +127,49 @@ var version string
 
 	return []string{"/" + name, "/.creo"}, nil
 }
+
+func InitC(dir string, force, verbose bool) ([]string, error) {
+	if err := tryWrite(filepath.Join(dir, "fiat"),
+		"build: c\n",
+		force, verbose, "fiat",
+	); err != nil {
+		return nil, err
+	}
+
+	mainContent := `#include <stdio.h>
+
+int main(int argc, char **argv) {
+	printf("hello\\n");
+	return 0;
+}
+`
+	if err := tryWrite(filepath.Join(dir, "main.c"), mainContent,
+		force, verbose, "main.c"); err != nil {
+		return nil, err
+	}
+
+	return []string{"/main", "/.creo"}, nil
+}
+
+func InitCxx(dir string, force, verbose bool) ([]string, error) {
+	if err := tryWrite(filepath.Join(dir, "fiat"),
+		"build: cxx\n",
+		force, verbose, "fiat",
+	); err != nil {
+		return nil, err
+	}
+
+	mainContent := `#include <iostream>
+
+int main(int argc, char **argv) {
+	std::cout << "hello" << std::endl;
+	return 0;
+}
+`
+	if err := tryWrite(filepath.Join(dir, "main.cpp"), mainContent,
+		force, verbose, "main.cpp"); err != nil {
+		return nil, err
+	}
+
+	return []string{"/main", "/.creo"}, nil
+}

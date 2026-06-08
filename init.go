@@ -18,19 +18,28 @@ func initProject(langName, ver string, force, verbose bool) {
 		}
 	}
 
-	if langName == "go" {
-		ignores, err := lang.Init(".", ver, force, verbose)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		writeIgnores(ignores, verbose)
+	var ignores []string
+	var err error
+
+	switch langName {
+	case "go":
+		ignores, err = lang.Init(".", ver, force, verbose)
+	case "c":
+		ignores, err = lang.InitC(".", force, verbose)
+	case "cxx", "cpp":
+		ignores, err = lang.InitCxx(".", force, verbose)
+	default:
+		writeFiat(force, verbose)
+		writeIgnores([]string{"/.creo"}, verbose)
 		fmt.Println("Project initialised")
 		return
 	}
 
-	writeFiat(force, verbose)
-	writeIgnores([]string{"/.creo"}, verbose)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	writeIgnores(ignores, verbose)
 	fmt.Println("Project initialised")
 }
 
