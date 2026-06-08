@@ -307,6 +307,7 @@ creo [flags] [target...]
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries and installed files |
 | `-v`, `--verbose` | Show what's happening |
+| `--completion` | Print bash shell completion script |
 | `--version` | Print version and exit |
 | `-h`, `--help` | Show help |
 
