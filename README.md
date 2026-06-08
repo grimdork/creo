@@ -153,7 +153,7 @@ alongside the build artefacts from `bin=`.
 ### Properties
 
 | Property | What it does |
-|---|---|---|
+|---|---|
 | `cmd=` | Shell command to run (repeatable — runs in sequence) |
 | `bin=` | Path to the output binary |
 | `sources=` | File patterns checked for rebuild detection |
@@ -241,7 +241,7 @@ creo [flags] [target...]
 ```
 
 | Flag | Description |
-|---|---|---|
+|---|---|
 | `-i`, `--init` | Initialise project (optionally with language, e.g. `go` or `go:1.25`) |
 | `-f`, `--force` | Force rebuild |
 | `-l`, `--list` | List available targets with descriptions |
