@@ -9,8 +9,11 @@ syntax to memorise.
 
 ```sh
 $ creo -i          # create a bare project file
-$ creo -i go       # initialise a full Go project
+$ creo -i go       # initialise a Go project
 $ creo -i go:1.25  # initialise with a pinned Go toolchain
+$ creo -i c        # initialise a C project
+$ creo -i cxx      # initialise a C++ project
+$ creo -i ko       # initialise a container image (ko) project
 $ creo             # build
 $ creo -v          # see what's happening
 $ creo all         # run every target
@@ -100,6 +103,7 @@ target: go
 | `go` | `./<name>` (from `go.mod`) | `$GO $GOFLAGS -o $bin` | `*.go go.mod go.sum` |
 | `c` | `./<name>` (from directory) | `$CC $CFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.c` |
 | `cxx` / `cpp` | `./<name>` (from directory) | `$CXX $CXXFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.cpp` |
+| `ko` | `build/<name>.tar` (tarball) | `$KO --platform=linux/amd64 --tarball build/<name>.tar --push=false .` | `*.go go.mod go.sum` |
 
 For `go`: `build` targets get release flags; `debug` and any target
 ending in `-debug` get debug flags.  Define `$GOFLAGS` to override.
@@ -109,6 +113,11 @@ get `$CDEBUGFLAGS` (`-O0 -g -Wall`).  Same pattern for `cxx`/`cpp`
 with `$CXXFLAGS` / `$CXXDEBUGFLAGS`.
 
 All variables are overridable in the fiat file.
+
+For `ko`: builds an OCI-compatible container image as a tarball using
+[ko](https://ko.build).  Multi-arch targets produce a single tarball
+containing all platform combinations.  Set `$SRCDIR` to build from a
+sub-package.
 
 ### Multi-arch and multi-OS
 
@@ -132,6 +141,7 @@ Cross-compilation environment variables are set per language:
 |---|---|
 | `go` | `GOARCH`, `GOOS` (used by Go toolchain) |
 | `c`, `cxx`, `cpp` | none (C/C++ cross-compilers must be configured via `$CC` / `$CXX`) |
+| `ko` | none (uses `--platform` flag instead) |
 
 For C/C++ cross-compilation, set `$CC` or `$CXX` to the target
 toolchain prefix:
@@ -197,13 +207,17 @@ When not explicitly defined by the user:
 | `$GO` | `go build` |
 | `$GOFLAGS` | `-trimpath -ldflags="-s -w"` (release) or `-gcflags="all=-N -l"` (debug) |
 | `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
+| `$KO` | `ko build` |
 | `$CC` | `cc` (C compiler) |
 | `$CFLAGS` | `-O2 -Wall` (release), `$CDEBUGFLAGS`: `-O0 -g -Wall` (debug) |
 | `$CXX`, `$CPP` | `c++` (C++ compiler) |
 | `$CXXFLAGS`, `$CPPFLAGS` | `-O2 -Wall` (release), `$CXXDEBUGFLAGS`: `-O0 -g -Wall` (debug) |
 | `$LDFLAGS` | *(empty — override for `-L` flags)* |
 | `$LIBS` | *(empty — override for `-lm -lpthread`)* |
+| `$SRCDIR` | *(empty — override to build from a sub-package)* |
 | `$VERSION` | Inferred from `git describe --tags` (see below) |
+| `$COMMIT` | Short commit hash from `git rev-parse --short HEAD` |
+| `$DATE` | Current UTC timestamp (ISO 8601) |
 
 `$VERSION` is derived from Git history at parse time:
 
@@ -283,7 +297,7 @@ creo [flags] [target...]
 
 | Flag | Description |
 |---|---|
-| `-i`, `--init` | Initialise project (optionally with language, e.g. `go` or `go:1.25`) |
+| `-i`, `--init` | Initialise project (optionally with language: `go`/`go:1.25`/`c`/`cxx`/`cpp`/`ko`) |
 | `-f`, `--force` | Force rebuild |
 | `-l`, `--list` | List available targets with descriptions |
 | `-w`, `--watch` | Watch sources and rebuild on change |
