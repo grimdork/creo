@@ -46,7 +46,7 @@ func Apply(f *FiatFile) {
 
 	_, hasGoFlags := f.Vars["GOFLAGS"]
 	for _, t := range f.Targets {
-		if t.Language != "go" {
+		if t.Language != "go" || t.IsVirtual {
 			continue
 		}
 		isDebug := t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")

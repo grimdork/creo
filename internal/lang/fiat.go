@@ -108,7 +108,8 @@ func ParseFiat(path string) (*FiatFile, error) {
 			parts := strings.SplitN(line, ":", 2)
 			name := strings.TrimSpace(parts[0])
 			if name != "" {
-				cur = &Target{Name: name, Line: i + 1}
+				virtual := len(name) > 0 && name[0] == '.'
+				cur = &Target{Name: name, Line: i + 1, IsVirtual: virtual}
 				if len(parts) > 1 {
 					tokens := strings.Fields(parts[1])
 					if len(tokens) > 0 {

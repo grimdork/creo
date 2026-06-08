@@ -18,6 +18,8 @@ type RunOpts struct {
 	Recursive bool
 	Verbose   bool
 	Jobs      int
+	KeepGoing bool
+	DryRun    bool
 }
 
 func RunTarget(f *lang.FiatFile, name string, opts RunOpts) error {
@@ -26,17 +28,29 @@ func RunTarget(f *lang.FiatFile, name string, opts RunOpts) error {
 
 func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, done map[string]bool) error {
 	if name == "all" {
+		var allErrs []error
+		report := func(err error) {
+			if opts.KeepGoing {
+				allErrs = append(allErrs, err)
+			}
+		}
 		if bt := lang.FindTarget(f, "build"); bt != nil {
 			if err := runTargetWithDeps(f, "build", opts, map[string]bool{}, done); err != nil {
-				return err
+				report(err)
 			}
 		}
 		for _, t := range f.Targets {
 			if t.Name != "build" {
 				if err := runTargetWithDeps(f, t.Name, opts, map[string]bool{}, done); err != nil {
-					return err
+					report(err)
 				}
 			}
+		}
+		if len(allErrs) > 0 {
+			if !opts.KeepGoing {
+				return allErrs[0]
+			}
+			return fmt.Errorf("some targets failed")
 		}
 		return nil
 	}
@@ -85,74 +99,76 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 	}
 
 	if opts.Clean {
-		archs := t.Arch
-		if len(archs) == 0 {
-			archs = []string{""}
-		}
-		oses := t.OS
-		if len(oses) == 0 {
-			oses = []string{""}
-		}
+		if !t.IsVirtual {
+			archs := t.Arch
+			if len(archs) == 0 {
+				archs = []string{""}
+			}
+			oses := t.OS
+			if len(oses) == 0 {
+				oses = []string{""}
+			}
 
-		cleanCombos := func(cb func(arch, osval string, cv map[string]*lang.Var)) {
-			for _, arch := range archs {
-				for _, osval := range oses {
-					activeArch := arch
-					activeOS := osval
-					if activeArch == "" {
-						activeArch = runtime.GOARCH
-					}
-					if activeOS == "" {
-						activeOS = runtime.GOOS
-					}
+			cleanCombos := func(cb func(arch, osval string, cv map[string]*lang.Var)) {
+				for _, arch := range archs {
+					for _, osval := range oses {
+						activeArch := arch
+						activeOS := osval
+						if activeArch == "" {
+							activeArch = runtime.GOARCH
+						}
+						if activeOS == "" {
+							activeOS = runtime.GOOS
+						}
 
-					cv := make(map[string]*lang.Var)
-					for k, v := range f.Vars {
-						cv[k] = v
-					}
-					for _, v := range t.Vars {
-						cv[v.Name] = v
-					}
-			cv["arch"] = &lang.Var{Name: "arch", Value: activeArch}
-				cv["os"] = &lang.Var{Name: "os", Value: activeOS}
-				cv["THIS"] = &lang.Var{Name: "THIS", Value: t.Name}
+						cv := make(map[string]*lang.Var)
+						for k, v := range f.Vars {
+							cv[k] = v
+						}
+						for _, v := range t.Vars {
+							cv[v.Name] = v
+						}
+						cv["arch"] = &lang.Var{Name: "arch", Value: activeArch}
+						cv["os"] = &lang.Var{Name: "os", Value: activeOS}
+						cv["THIS"] = &lang.Var{Name: "THIS", Value: t.Name}
 
-				cb(activeArch, activeOS, cv)
+						cb(activeArch, activeOS, cv)
+					}
 				}
 			}
-		}
 
-		cleanCombos(func(arch, osval string, cv map[string]*lang.Var) {
-			if t.Bin != "" {
-				bp := lang.Expand(t.Bin, cv, 0)
-				cv["bin"] = &lang.Var{Name: "bin", Value: bp}
-				if len(t.Cmds) > 0 {
-					if _, err := os.Stat(bp); err == nil {
-						if err := os.Remove(bp); err == nil && opts.Verbose {
-							fmt.Printf("  Removed %s\n", bp)
+			cleanCombos(func(arch, osval string, cv map[string]*lang.Var) {
+				if t.Bin != "" {
+					bp := lang.Expand(t.Bin, cv, 0)
+					cv["bin"] = &lang.Var{Name: "bin", Value: bp}
+					if len(t.Cmds) > 0 {
+						if _, err := os.Stat(bp); err == nil {
+							if err := os.Remove(bp); err == nil && opts.Verbose {
+								fmt.Printf("  Removed %s\n", bp)
+							}
 						}
 					}
 				}
-			}
-			for _, inst := range t.Install {
-				expanded := lang.Expand(inst, cv, 0)
-				expanded = os.ExpandEnv(expanded)
-				src := ""
-				dest := expanded
-				if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
-					src = expanded[:idx]
-					dest = expanded[idx+1:]
-				}
-				if si, err := os.Stat(dest); err == nil && si.IsDir() && src != "" {
-					dest = filepath.Join(dest, filepath.Base(src))
-				}
-				if _, err := os.Stat(dest); err == nil {
-					if err := os.Remove(dest); err == nil && opts.Verbose {
-						fmt.Printf("  Removed installed %s\n", dest)
+				for _, inst := range t.Install {
+					expanded := lang.Expand(inst, cv, 0)
+					expanded = os.ExpandEnv(expanded)
+					src := ""
+					dest := expanded
+					if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
+						src = expanded[:idx]
+						dest = expanded[idx+1:]
+					}
+					if si, err := os.Stat(dest); err == nil && si.IsDir() && src != "" {
+						dest = filepath.Join(dest, filepath.Base(src))
+					}
+					if _, err := os.Stat(dest); err == nil {
+						if err := os.Remove(dest); err == nil && opts.Verbose {
+							fmt.Printf("  Removed installed %s\n", dest)
+						}
 					}
 				}
-			}
-		})
+			})
+		}
 		done[name] = true
 		return nil
 	}
@@ -169,7 +185,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 	}
 	multi := len(archs) > 1 || len(oses) > 1
 
-	if !multi && !opts.Rebuild && t.Bin != "" && t.Sources != "" {
+	if !t.IsVirtual && !multi && !opts.Rebuild && t.Bin != "" && t.Sources != "" {
 		existsBinPath = lang.ExpandWithTarget(t.Bin, f.Vars, t)
 		binStat, err := os.Stat(existsBinPath)
 		if err == nil {
@@ -236,7 +252,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 			}
 		}
 
-		allExist := !opts.Rebuild && t.Bin != "" && len(t.Install) == 0
+		allExist := !t.IsVirtual && !opts.Rebuild && t.Bin != "" && len(t.Install) == 0
 		if allExist {
 			for _, c := range combos {
 				if c.bin != "" {
@@ -298,7 +314,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 
 			if t.Bin != "" {
 					comboVars["bin"] = &lang.Var{Name: "bin", Value: c.bin}
-					if opts.Rebuild && len(t.Cmds) > 0 {
+					if !opts.DryRun && opts.Rebuild && len(t.Cmds) > 0 {
 						os.Remove(c.bin)
 					}
 				}
@@ -306,15 +322,18 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 					comboVars["sources"] = &lang.Var{Name: "sources", Value: lang.Expand(t.Sources, comboVars, 0)}
 				}
 
-				if len(t.Cmds) > 0 && opts.Verbose {
+				if len(t.Cmds) > 0 && (opts.DryRun || opts.Verbose) {
 					if t.Bin != "" {
 						fmt.Printf("  Building %s ...\n", c.bin)
 					}
 				}
 				for _, cmd := range t.Cmds {
 					expanded := lang.Expand(cmd, comboVars, 0)
-					if opts.Verbose {
-						fmt.Printf("  Running: %s\n", expanded)
+					if opts.DryRun || opts.Verbose {
+						fmt.Println("  " + expanded)
+					}
+					if opts.DryRun {
+						continue
 					}
 					if err := execCmd(expanded, dir, comboEnv); err != nil {
 						errCh <- fmt.Errorf("%s:%d: command failed: %w", f.Path, t.Line, err)
@@ -322,7 +341,7 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 					}
 				}
 
-				if len(t.Cmds) > 0 && t.Bin != "" {
+				if !opts.DryRun && len(t.Cmds) > 0 && t.Bin != "" {
 					if _, err := os.Stat(c.bin); os.IsNotExist(err) {
 						errCh <- fmt.Errorf("%s:%d: binary %q was not created by target %q", f.Path, t.Line, c.bin, name)
 						return
@@ -341,11 +360,14 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 					if si, err := os.Stat(dest); err == nil && si.IsDir() {
 						dest = filepath.Join(dest, filepath.Base(src))
 					}
+					fmt.Printf("  Installed %s -> %s\n", src, dest)
+					if opts.DryRun {
+						continue
+					}
 					if err := copyFile(src, dest); err != nil {
 						errCh <- fmt.Errorf("%s:%d: install of %s: %w", f.Path, t.Line, src, err)
 						return
 					}
-					fmt.Printf("  Installed %s -> %s\n", src, dest)
 				}
 			}(c)
 		}
@@ -353,10 +375,15 @@ func runTargetWithDeps(f *lang.FiatFile, name string, opts RunOpts, visited, don
 		wg.Wait()
 		close(sem)
 		close(errCh)
+		var errs []error
 		for err := range errCh {
-			if err != nil {
-				return err
+			errs = append(errs, err)
+		}
+		if len(errs) > 0 {
+			if !opts.KeepGoing {
+				return errs[0]
 			}
+			return fmt.Errorf("some combos failed")
 		}
 
 		if opts.Verbose {

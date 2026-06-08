@@ -7,10 +7,11 @@ type Var struct {
 }
 
 type Target struct {
-	Name     string
-	Language string
-	Line     int
-	Desc     string
+	Name      string
+	Language  string
+	Line      int
+	Desc      string
+	IsVirtual bool
 	Cmds     []string
 	Bin      string
 	Sources  string

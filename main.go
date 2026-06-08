@@ -50,6 +50,8 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
 	opt.SetFlag(arg.GroupDefault, "l", "list", "List available targets")
 	opt.SetFlag(arg.GroupDefault, "w", "watch", "Watch sources and rebuild on change")
+	opt.SetFlag(arg.GroupDefault, "k", "keep-going", "Continue despite errors")
+	opt.SetFlag(arg.GroupDefault, "n", "dry-run", "Print commands without running them")
 	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
 	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
@@ -92,6 +94,8 @@ func main() {
 		Clean:     opt.GetBool("c"),
 		Verbose:   opt.GetBool("v"),
 		Jobs:      opt.GetInt("j"),
+		KeepGoing: opt.GetBool("k"),
+		DryRun:    opt.GetBool("n"),
 	}
 
 	if opt.GetBool("l") {
@@ -126,10 +130,17 @@ func main() {
 		return
 	}
 
+	var errCount int
 	for _, name := range targets {
 		if err := runner.RunTarget(file, name, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			errCount++
+			if !opts.KeepGoing {
+				break
+			}
 		}
+	}
+	if errCount > 0 {
+		os.Exit(1)
 	}
 }

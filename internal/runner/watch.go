@@ -19,7 +19,7 @@ func RunWatch(f *lang.FiatFile, name string, opts RunOpts) {
 		return
 	}
 
-	if t.Sources == "" {
+	if t.IsVirtual || t.Sources == "" {
 		fmt.Fprintf(os.Stderr, "Error: target %q has no sources to watch\n", name)
 		return
 	}

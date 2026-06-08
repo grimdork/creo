@@ -196,6 +196,21 @@ builds inject it automatically via `-X main.version=$VERSION` in the
 linker flags.  Define `$VERSION := custom` in the fiat file to override
 it, or use `$VERSION` in any `cmd=` or `bin=` expression.
 
+### Virtual targets
+
+A target name starting with `.` *(dot targets)* is virtual — it has no
+output file and always runs.  Useful for tests, linting, or release
+tasks:
+
+```
+.test: go
+    cmd=go test ./...
+```
+
+Virtual targets get no language defaults (no auto `bin`/`cmd`/`sources`).
+Give them what you need, or just a `cmd=` with no language at all.
+Dependencies resolve normally; clean silently skips them.
+
 ### Target listing
 
 ```
@@ -246,6 +261,8 @@ creo [flags] [target...]
 | `-f`, `--force` | Force rebuild |
 | `-l`, `--list` | List available targets with descriptions |
 | `-w`, `--watch` | Watch sources and rebuild on change |
+| `-k`, `--keep-going` | Continue past errors, report all at the end |
+| `-n`, `--dry-run` | Print commands and install actions without executing |
 | `-j`, `--jobs` | Parallel jobs for multi-arch builds (default: CPU count) |
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries and installed files |
