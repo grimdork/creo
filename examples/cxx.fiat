@@ -1,0 +1,15 @@
+# Minimal C++ project.
+#
+# The "cxx" (or "cpp") language mode sets c++ as the compiler,
+# -O2 -Wall as default flags, and compiles all *.cpp files.
+# $CXXFLAGS and $CXXDEBUGFLAGS control release and debug modes.
+# Both $CXX and $CPP naming conventions are recognised.
+#
+# Usage:  creo
+#         creo debug
+
+build: cxx
+    desc=Build release binary
+
+debug: cxx
+    desc=Debug build with symbols

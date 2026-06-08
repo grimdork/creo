@@ -1,0 +1,17 @@
+# Build a container image using ko (no Dockerfile needed).
+#
+# ko builds Go source directly into an OCI image.  The "ko" language
+# mode defaults to "ko build --platform=linux/amd64 --tarball build/<name>.tar
+# --push=false".  Set SRCDIR for sub-package projects.
+#
+# Cross-compile with the arch/os properties — ko accepts
+# comma-separated --platform values (e.g. "linux/amd64,linux/arm64").
+#
+# Prerequisites: go, ko (github.com/ko-build/ko)
+#
+# Usage:  creo                        # default linux/amd64 image
+#         creo image -n               # dry-run to see the command
+#         creo -c image               # clean the tarball
+
+image: ko
+    desc=Build OCI image tarball

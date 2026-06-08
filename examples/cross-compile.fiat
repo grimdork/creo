@@ -1,0 +1,21 @@
+# Cross-compile a Go binary for multiple architectures.
+#
+# The "nix" target builds for every combination of the listed OS and
+# architecture values.  Each combo runs in parallel (use -j 1 for serial).
+# The $bin-$os-$arch pattern produces distinct filenames like
+# "myapp-linux-amd64".
+#
+# The runner sets GOARCH and GOOS environment variables per combo,
+# which the Go toolchain uses to produce the right binary.
+# This is Go-specific — C/C++ targets get no such env vars and would
+# need to configure their own cross-compiler via $CC/$CXX.
+#
+# Usage:  creo nix              # builds all 4 combos
+#         creo nix -j 2         # limit to 2 parallel jobs
+#         creo -c nix           # remove all 4 binaries
+
+nix: go
+    desc=Cross-compile for linux/freebsd on amd64/arm64
+    os=linux freebsd
+    arch=amd64 arm64
+    bin=$bin-$os-$arch

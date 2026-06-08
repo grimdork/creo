@@ -1,0 +1,16 @@
+# Minimal C project.
+#
+# The "c" language mode sets cc as the compiler, -O2 -Wall as default
+# flags, and compiles all *.c files into a binary named after the
+# directory.  Override $CC, $CFLAGS, $LDFLAGS, or $LIBS as needed.
+#
+# Debug target gets -O0 -g -Wall flags and a -debug binary suffix.
+#
+# Usage:  creo
+#         creo debug
+
+build: c
+    desc=Build release binary
+
+debug: c
+    desc=Debug build with symbols

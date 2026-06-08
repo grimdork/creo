@@ -1,0 +1,30 @@
+# Virtual targets for test, lint, and release.
+#
+# Targets starting with "." are virtual — they always run, produce no
+# output file, and skip language defaults.  Use them for actions that
+# don't produce a binary.
+#
+# Dependencies resolve normally, so .test can require build to ensure
+# the binary is up to date.
+#
+# Usage:  creo .test
+#         creo .lint
+#         creo .release
+#         creo -k .test .lint       # keep-going: run all, report errors
+
+build: go
+    desc=Build the project binary
+
+.test:
+    desc=Run all tests
+    cmd=go test ./...
+    require=build
+
+.lint:
+    desc=Run linter
+    cmd=golangci-lint run
+
+.release:
+    desc=Tag and push a release
+    cmd=git tag v$VERSION && git push --tags
+    require=.test .lint

@@ -1,0 +1,14 @@
+# Go project with separate release and debug builds.
+#
+# The "build" target produces a stripped release binary.
+# The "debug" target includes debug symbols and a -debug suffix.
+# Targets ending in -debug automatically get debug flags in Go mode.
+#
+# Usage:  creo          # release
+#         creo debug    # debug
+
+build: go
+    desc=Release build (stripped)
+
+debug: go
+    desc=Debug build with symbols

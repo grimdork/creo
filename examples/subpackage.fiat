@@ -1,0 +1,10 @@
+# Go project with main.go in a sub-package.
+#
+# SRCDIR tells creo to look for sources in ./cmd/server instead of the
+# current directory, and appends the package path to the build command.
+# Useful for projects following the cmd/<name>/main.go convention.
+#
+# Usage:  creo
+
+build: go SRCDIR=./cmd/server
+    desc=Build server binary from ./cmd/server

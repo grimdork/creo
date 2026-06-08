@@ -1,0 +1,60 @@
+# Full production example combining build, cross-compile, install,
+# container image, test, and lint — all in one fiat file.
+#
+# Uses: Go, ko, golangci-lint
+# See also: basic.fiat, cross-compile.fiat, install.fiat, ko.fiat, virtual.fiat
+
+# -- Global variables --
+
+$LDFLAGS=-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE
+
+# -- Build targets --
+
+build: go
+    desc=Release binary
+    cmd=go build -ldflags="$LDFLAGS" -o $bin
+
+debug: go
+    desc=Debug binary with symbols
+    cmd=go build -gcflags="all=-N -l" -o $bin-debug
+
+nix: go
+    desc=Cross-compile for linux on amd64/arm64
+    os=linux
+    arch=amd64 arm64
+    bin=build/$bin-$os-$arch
+
+# -- Container image --
+
+image: ko
+    desc=Build OCI image tarball
+    require=build
+
+# -- Install and deploy --
+
+install: go
+    desc=Install binary to ~/bin
+    install=$bin:$HOME/bin/
+    require=build
+
+deploy: ko
+    desc=Push image to registry (set $KO_DOCKER_REPO)
+    cmd=skopeo copy --dest-creds "$$(cat .scw-skopeo | tr -d '\n')" docker-archive:build/$NAME.tar docker://$KO_DOCKER_REPO:latest
+    require=image
+
+# -- Test and lint (virtual targets) --
+
+.test:
+    desc=Run tests
+    cmd=go test ./...
+    require=build
+
+.lint:
+    desc=Run linter
+    cmd=golangci-lint run
+
+# -- Release pipeline --
+
+.release:
+    desc=Test, lint, build, push image
+    require=.test .lint image deploy

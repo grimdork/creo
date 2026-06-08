@@ -1,0 +1,23 @@
+# Build and install a binary to the user's bin directory.
+#
+# The "install" target requires the "build" target to run first, then
+# copies the binary to ~/bin/.  Environment variables like $HOME are
+# expanded natively (not through the shell).
+#
+# The build target uses custom ldflags that reference the built-in
+# $VERSION, $COMMIT, and $DATE variables (set by creo, not the shell).
+#
+# Usage:  creo install
+#         creo -c install       # cleans both binary and installed copy
+
+$LDFLAGS=-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE
+
+build: go
+    desc=Build release binary
+    cmd=go build -ldflags="$LDFLAGS" -o $bin
+
+# Install to ~/bin
+install: go
+    desc=Build and install to ~/bin
+    install=$bin:$HOME/bin/
+    require=build
