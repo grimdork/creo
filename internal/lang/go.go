@@ -31,6 +31,12 @@ func Apply(f *FiatFile) {
 	if _, ok := f.Vars["VERSION"]; !ok {
 		f.Vars["VERSION"] = &Var{Name: "VERSION", Value: semver.String()}
 	}
+	if _, ok := f.Vars["COMMIT"]; !ok {
+		f.Vars["COMMIT"] = &Var{Name: "COMMIT", Value: semver.CommitString()}
+	}
+	if _, ok := f.Vars["DATE"]; !ok {
+		f.Vars["DATE"] = &Var{Name: "DATE", Value: semver.DateString()}
+	}
 
 	for _, t := range f.Targets {
 		if t.IsVirtual {
@@ -43,6 +49,8 @@ func Apply(f *FiatFile) {
 			applyC(f, t)
 		case "cxx", "cpp":
 			applyCxx(f, t)
+		case "ko":
+			applyKo(f, t)
 		}
 	}
 }
@@ -93,8 +101,23 @@ func applyGo(f *FiatFile, t *Target) {
 		}
 		t.Bin = Expand(t.Bin, ev, 0)
 	}
+	srcDir := ""
+	for _, v := range t.Vars {
+		if v.Name == "SRCDIR" {
+			srcDir = v.Value
+			break
+		}
+	}
+	if v, ok := f.Vars["SRCDIR"]; ok && srcDir == "" {
+		srcDir = v.Value
+	}
+
 	if t.Sources == "" {
-		t.Sources = "*.go go.mod go.sum"
+		if srcDir != "" {
+			t.Sources = srcDir + "/*.go"
+		} else {
+			t.Sources = "*.go go.mod go.sum"
+		}
 	}
 	if len(t.Cmds) == 0 {
 		flags := "$GOFLAGS"
@@ -107,6 +130,10 @@ func applyGo(f *FiatFile, t *Target) {
 				flags = `-trimpath -ldflags="-s -w -X main.version=$VERSION"`
 			}
 		}
-		t.Cmds = append(t.Cmds, "$GO "+flags+verPost+" -o $bin")
+		pkg := ""
+		if srcDir != "" {
+			pkg = " " + srcDir
+		}
+		t.Cmds = append(t.Cmds, "$GO "+flags+verPost+" -o $bin"+pkg)
 	}
 }

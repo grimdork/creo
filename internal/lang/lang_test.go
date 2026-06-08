@@ -166,3 +166,77 @@ func TestExpandWithParenthesizedInTarget(t *testing.T) {
 			expected, result)
 	}
 }
+
+func TestGoSRCDIR(t *testing.T) {
+	content := []byte("build: go SRCDIR=./cmd/server\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := ParseFiat(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Apply(f)
+
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.Sources != "./cmd/server/*.go" {
+		t.Fatalf("expected sources './cmd/server/*.go', got %q", trg.Sources)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected a cmd")
+	}
+	if trg.Cmds[0] != "$GO -trimpath -ldflags=\"-s -w -X main.version=$VERSION\" -o $bin ./cmd/server" {
+		t.Fatalf("unexpected cmd: %s", trg.Cmds[0])
+	}
+}
+
+func TestKoDefaults(t *testing.T) {
+	content := []byte("image: ko\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := ParseFiat(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Apply(f)
+
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.Language != "ko" {
+		t.Fatalf("expected ko language, got %q", trg.Language)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected a cmd")
+	}
+}
+
+func TestGlobalVars(t *testing.T) {
+	content := []byte("build: go\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := ParseFiat(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Apply(f)
+
+	if _, ok := f.Vars["COMMIT"]; !ok {
+		t.Fatal("expected COMMIT var to be set")
+	}
+	if _, ok := f.Vars["DATE"]; !ok {
+		t.Fatal("expected DATE var to be set")
+	}
+}

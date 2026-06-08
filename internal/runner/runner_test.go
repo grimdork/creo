@@ -155,6 +155,24 @@ func TestCleanOnlyRemovesTargetsOwnFiles(t *testing.T) {
 	}
 }
 
+func TestSRCDIRBuild(t *testing.T) {
+	dir := t.TempDir()
+	defer runInDir(t, dir)()
+	os.MkdirAll(dir+"/cmd/server", 0755)
+	writeFiat(t, dir, "build: go SRCDIR=./cmd/server\n")
+	writeFile(t, dir, "go.mod", "module test\n")
+	writeFile(t, dir, "cmd/server/main.go", "package main; func main() {}\n")
+	f := parseAndApply(t, dir)
+
+	if err := RunTarget(f, "build", RunOpts{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat("./test"); os.IsNotExist(err) {
+		t.Fatal("expected binary to be created from sub-package")
+	}
+}
+
 func TestCrossEnv(t *testing.T) {
 	tests := []struct {
 		lang, arch, osval string

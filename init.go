@@ -28,6 +28,8 @@ func initProject(langName, ver string, force, verbose bool) {
 		ignores, err = lang.InitC(".", force, verbose)
 	case "cxx", "cpp":
 		ignores, err = lang.InitCxx(".", force, verbose)
+	case "ko":
+		ignores, err = lang.InitKo(".", force, verbose)
 	default:
 		writeFiat(force, verbose)
 		writeIgnores([]string{"/.creo"}, verbose)
