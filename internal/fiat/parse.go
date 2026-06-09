@@ -166,7 +166,13 @@ func Parse(path string) (*File, error) {
 				if len(parts) > 1 {
 					tokens := strings.Fields(parts[1])
 					if len(tokens) > 0 {
-						curTarget.Language = tokens[0]
+						langToken := tokens[0]
+						if idx := strings.IndexByte(langToken, ':'); idx > 0 {
+							curTarget.Language = langToken[:idx]
+							curTarget.LangAlias = langToken[idx+1:]
+						} else {
+							curTarget.Language = langToken
+						}
 						for _, token := range tokens[1:] {
 							if kv := strings.SplitN(token, "=", 2); len(kv) == 2 {
 								curTarget.Vars = append(curTarget.Vars, &Var{Name: kv[0], Value: kv[1]})

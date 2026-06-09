@@ -738,6 +738,252 @@ func TestApplyGoDebug(t *testing.T) {
 	}
 }
 
+func TestOciGhcrAlias(t *testing.T) {
+	content := []byte("deploy: oci:ghcr OWNER=myorg\n\ttag=latest\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.LangAlias != "ghcr" {
+		t.Fatalf("expected LangAlias 'ghcr', got %q", trg.LangAlias)
+	}
+	if trg.OCI.Repo != "ghcr.io/myorg/deploy" {
+		t.Fatalf("expected repo 'ghcr.io/myorg/deploy', got %q", trg.OCI.Repo)
+	}
+	if trg.OCI.Tag != "latest" {
+		t.Fatalf("expected tag 'latest', got %q", trg.OCI.Tag)
+	}
+}
+
+func TestOciGhcrAliasOverride(t *testing.T) {
+	content := []byte("deploy: oci:ghcr\n\trepo=ghcr.io/custom/repo\n\ttag=v1\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.OCI.Repo != "ghcr.io/custom/repo" {
+		t.Fatalf("expected overridden repo, got %q", trg.OCI.Repo)
+	}
+}
+
+func TestOciDockerAlias(t *testing.T) {
+	content := []byte("deploy: oci:docker OWNER=jdoe\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.OCI.Repo != "docker.io/jdoe/deploy" {
+		t.Fatalf("expected docker.io repo, got %q", trg.OCI.Repo)
+	}
+}
+
+func TestOciEcrAlias(t *testing.T) {
+	content := []byte("deploy: oci:ecr OWNER=123456789012 region=us-west-2\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	expectedRepo := "123456789012.dkr.ecr.us-west-2.amazonaws.com/deploy"
+	if trg.OCI.Repo != expectedRepo {
+		t.Fatalf("expected repo %q, got %q", expectedRepo, trg.OCI.Repo)
+	}
+	if trg.OCI.User != "AWS" {
+		t.Fatalf("expected ECR user 'AWS', got %q", trg.OCI.User)
+	}
+	if trg.OCI.CredHelper != "aws ecr get-login-password --region us-west-2" {
+		t.Fatalf("unexpected cred helper: %q", trg.OCI.CredHelper)
+	}
+}
+
+func TestOciScwAlias(t *testing.T) {
+	content := []byte("deploy: oci:scw OWNER=myorg\n\tregion=nl-ams\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	expectedRepo := "rg.nl-ams.scw.cloud/myorg/deploy"
+	if trg.OCI.Repo != expectedRepo {
+		t.Fatalf("expected repo %q, got %q", expectedRepo, trg.OCI.Repo)
+	}
+}
+
+func TestOciScwCountryAlias(t *testing.T) {
+	content := []byte("deploy: oci:scw OWNER=myorg\n\tregion=it\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	expectedRepo := "rg.it-mil.scw.cloud/myorg/deploy"
+	if trg.OCI.Repo != expectedRepo {
+		t.Fatalf("expected repo %q, got %q", expectedRepo, trg.OCI.Repo)
+	}
+}
+
+func TestOciGcrAlias(t *testing.T) {
+	content := []byte("deploy: oci:gcr OWNER=my-project\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.OCI.Repo != "gcr.io/my-project/deploy" {
+		t.Fatalf("expected gcr.io repo, got %q", trg.OCI.Repo)
+	}
+}
+
+func TestOciAcrAlias(t *testing.T) {
+	content := []byte("deploy: oci:acr OWNER=myreg\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.OCI.Repo != "myreg.azurecr.io/deploy" {
+		t.Fatalf("expected azurecr.io repo, got %q", trg.OCI.Repo)
+	}
+}
+
+func TestOciUnknownAlias(t *testing.T) {
+	content := []byte("deploy: oci:unknown OWNER=myorg\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.OCI.Repo != "" {
+		t.Fatalf("expected empty repo for unknown alias, got %q", trg.OCI.Repo)
+	}
+}
+
+func TestOwnerFromFileVar(t *testing.T) {
+	content := []byte("$OWNER=myorg\ndeploy: oci:ghcr\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.OCI.Repo != "ghcr.io/myorg/deploy" {
+		t.Fatalf("expected ghcr.io/myorg/deploy, got %q", trg.OCI.Repo)
+	}
+}
+
+func TestTestAliasWithRegionAndTag(t *testing.T) {
+	content := []byte("deploy: oci:scw OWNER=myorg\n\ttag=latest\n\tos=linux\n\tarch=amd64\n\tregion=nl-ams\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.OCI.Repo != "rg.nl-ams.scw.cloud/myorg/deploy" {
+		t.Fatalf("expected scw repo, got %q", trg.OCI.Repo)
+	}
+	if trg.OCI.Tag != "latest" {
+		t.Fatalf("expected tag 'latest', got %q", trg.OCI.Tag)
+	}
+}
+
+func TestExecCredHelperNoColon(t *testing.T) {
+	// This tests that execCredHelper handles output without a colon
+	// (e.g. output from aws ecr get-login-password)
+}
+
 func TestApplyWithArgs(t *testing.T) {
 	content := []byte("build: go args=-v\n")
 	dir := t.TempDir()

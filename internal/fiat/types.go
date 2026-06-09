@@ -14,6 +14,7 @@ type OCIConfig struct {
 	User       string
 	Pass       string
 	CredHelper string
+	Region     string
 	CACert     string
 	BaseImage  string
 	SBOM       bool
@@ -22,6 +23,7 @@ type OCIConfig struct {
 type Target struct {
 	Name      string
 	Language  string
+	LangAlias string
 	Desc      string
 	IsVirtual bool
 	Cmds      []string

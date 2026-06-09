@@ -540,14 +540,17 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
 							user := os.ExpandEnv(fiat.Expand(t.OCI.User, comboVars, 0))
 							pass := os.ExpandEnv(fiat.Expand(t.OCI.Pass, comboVars, 0))
-							if user == "" && pass == "" && t.OCI.CredHelper != "" {
+							if pass == "" && t.OCI.CredHelper != "" {
 								helper := os.ExpandEnv(fiat.Expand(t.OCI.CredHelper, comboVars, 0))
-								var helpErr error
-								user, pass, helpErr = execCredHelper(helper, dir)
+								hUser, hPass, helpErr := execCredHelper(helper, dir)
 								if helpErr != nil {
 									errCh <- fmt.Errorf("%s: credential helper: %w", f.Path(), helpErr)
 									return
 								}
+								if user == "" {
+									user = hUser
+								}
+								pass = hPass
 							}
 							if err := oci.Push(img, oci.PushConfig{
 								Repo: repo,
@@ -720,7 +723,7 @@ func execCredHelper(helper, dir string) (user, pass string, err error) {
 	line := strings.TrimSpace(string(out))
 	idx := strings.IndexByte(line, ':')
 	if idx < 0 {
-		return "", "", fmt.Errorf("credential helper output must be formatted as user:password")
+		return "", line, nil
 	}
 	return line[:idx], line[idx+1:], nil
 }

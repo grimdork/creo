@@ -170,6 +170,7 @@ The image places the binary at `/app/<name>` (override with `appdir=`).
 | `ociuser=` | Registry username (for basic auth) |
 | `ocipass=` | Registry password or token |
 | `ocicred=` | Credential helper command — prints `user:password` to stdout (see below) |
+| `region=` | Registry region for `ecr` / `scw` aliases (e.g. `us-west-2`, `nl-ams`) |
 | `cacert=` | CA certificate bundle — `auto` to download from curl.se, or a path to a local file |
 
 If no `tarball=` is set and no `repo=` is set, a tarball path defaults
@@ -181,6 +182,58 @@ CA certificates (`cacert=`) embed a bundle at `/etc/ssl/certs/ca-certificates.cr
 in the image, allowing the binary to make HTTPS calls.  Set `cacert=auto`
 to download the latest bundle from `https://curl.se/ca/cacert.pem`, or
 point it to a local file (e.g. `cacert=/etc/ssl/certs/ca-certificates.crt`).
+
+### Registry aliases
+
+Instead of writing out the full `repo=` URL, use a registry alias in
+the language field:
+
+```fiat
+deploy: oci:ghcr OWNER=myorg
+    tag=latest
+    os=linux
+    arch=amd64
+```
+
+The part after `oci:` is an alias that pre-fills `repo=` and, for ECR,
+sets up the credential helper automatically.
+
+| Alias | `repo=` | Auth |
+|-------|---------|------|
+| `ghcr` | `ghcr.io/<owner>/<name>` | keychain |
+| `docker` / `dockerhub` | `docker.io/<owner>/<name>` | keychain |
+| `ecr` | `<owner>.dkr.ecr.<region>.amazonaws.com/<name>` | `ociuser=AWS` + `ocicred=aws ecr get-login-password --region <region>` |
+| `gcr` | `gcr.io/<owner>/<name>` | keychain |
+| `acr` | `<owner>.azurecr.io/<name>` | keychain |
+| `scw` | `rg.<region>.scw.cloud/<owner>/<name>` | keychain |
+
+`<owner>` is resolved from (in order):
+
+1. Target-level `OWNER=myorg` (`deploy: oci:ghcr OWNER=myorg`)
+2. File-level `$OWNER=myorg`
+3. `CREO_OWNER` environment variable
+4. Git remote owner (ghcr only, from `git remote get-url origin`)
+5. Directory basename
+
+`<region>` is resolved from (in order):
+
+1. `region=` property
+2. File-level `$REGION`
+3. `CREO_REGION` environment variable
+4. Default: `us-east-1` (ECR) or `fr-par` (Scaleway)
+
+Scaleway region shortcuts:
+
+| Input | Resolved |
+|-------|----------|
+| `fr` / `fr-par` | `fr-par` (Paris) |
+| `nl` / `nl-ams` | `nl-ams` (Amsterdam) |
+| `pl` / `pl-waw` | `pl-waw` (Warsaw) |
+| `it` / `it-mil` | `it-mil` (Milan) |
+| anything else | passed through verbatim |
+
+Explicit `repo=`, `ociuser=`, `ocicred=`, or `region=` always override
+the alias defaults.
 
 ### Output variables
 
@@ -304,6 +357,7 @@ alongside the build artefacts from `bin=`.
 | `ociuser=` | Registry username (basic auth) |
 | `ocipass=` | Registry password or token |
 | `ocicred=` | Credential helper command — prints `user:password` to stdout |
+| `region=` | Registry region for `ecr` / `scw` aliases |
 | `cacert=` | CA certificate bundle — `auto` to download, or path to local file |
 | `from=` | Base image for OCI (e.g. `alpine:latest`) |
 | `sbom=` | Generate SPDX 2.3 SBOM in OCI image (`true`/`false`) |
