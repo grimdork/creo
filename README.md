@@ -57,7 +57,10 @@ Two built-in variables are available in every target:
 | `$DIR` | Absolute path to the directory containing the fiat file |
 
 After a dependency completes, `$OUTPUT_<name>` is set to its binary
-path for the requiring target.
+path for the requiring target.  When the dependency uses `arch=` or
+`os=`, each architecture/OS combo gets its own `$OUTPUT_<name>` value
+— the OCI target reads the binary matching its own `arch`/`os`
+combination.
 
 Lines starting with `#` are comments.  Inline `#` (on property lines)
 strips the rest of the line.
@@ -138,11 +141,13 @@ The image places the binary at `/app/<name>` (override with `appdir=`).
 ### OCI properties
 
 | Property | What it does |
-|---|---|
+|---|---|---|
 | `repo=` | Container registry (e.g. `ghcr.io/user/repo`) |
 | `tag=` | Image tag (default: `latest` for tarball; push uses this if set) |
 | `tarball=` | Write image as a docker-compatible `.tar` file |
 | `appdir=` | Directory in the image for the binary (default: `/app`) |
+| `arch=` | Subset of architectures from the dependency (e.g. `amd64 arm64`) |
+| `os=` | Subset of operating systems from the dependency (e.g. `linux`) |
 | `ociuser=` | Registry username (for basic auth) |
 | `ocipass=` | Registry password or token |
 
@@ -219,6 +224,26 @@ nix: c
     arch=arm64
     $CC=aarch64-linux-gnu-gcc
 ```
+
+OCI targets respect `arch=`/`os=` from their dependency but may
+declare a subset.  Each OCI combo reads the correct binary from
+its dependency's `$OUTPUT_<name>` for the matching platform:
+
+```
+build: go
+    os=linux darwin
+    arch=amd64 arm64
+    bin=./bin/$name-$os-$arch
+
+image: oci
+    repo=ghcr.io/myorg/myapp
+    tag=$os-$arch
+    require=build
+```
+
+Here `image` builds four images (one per platform).  If you only
+want Linux images, set `os=linux` on the OCI target — a warning
+is printed for any dependency combos the OCI target skips.
 
 ### Install
 

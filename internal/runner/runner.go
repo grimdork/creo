@@ -14,6 +14,36 @@ import (
 	"github.com/grimdork/creo/internal/oci"
 )
 
+type Outputs struct {
+	mu sync.RWMutex
+	m  map[string]string
+}
+
+func (o *Outputs) Store(target, arch, os, bin string) {
+	o.mu.Lock()
+	o.m[target+"/"+arch+"+"+os] = bin
+	o.mu.Unlock()
+}
+
+func (o *Outputs) Load(target, arch, os string) string {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.m[target+"/"+arch+"+"+os]
+}
+
+func (o *Outputs) LoadAll(target string) []string {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	prefix := target + "/"
+	var out []string
+	for k := range o.m {
+		if strings.HasPrefix(k, prefix) {
+			out = append(out, k[len(prefix):])
+		}
+	}
+	return out
+}
+
 type RunOpts struct {
 	Rebuild   bool
 	Clean     bool
@@ -25,10 +55,10 @@ type RunOpts struct {
 }
 
 func RunTarget(f *fiat.File, name string, opts RunOpts) error {
-	return runTargetWithDeps(f, name, opts, map[string]bool{}, map[string]bool{}, map[string]string{})
+	return runTargetWithDeps(f, name, opts, map[string]bool{}, map[string]bool{}, &Outputs{m: make(map[string]string)})
 }
 
-func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done map[string]bool, outputs map[string]string) error {
+func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done map[string]bool, outputs *Outputs) error {
 	if name == "all" {
 		var allErrs []error
 		report := func(err error) {
@@ -101,10 +131,28 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			if err := runTargetWithDeps(f, dep, opts, visited, done, outputs); err != nil {
 				return err
 			}
-			dt := fiat.FindTarget(f, dep)
-			if dt != nil && dt.Bin != "" {
-				expandedBin := fiat.ExpandWithTarget(dt.Bin, f.Vars, dt)
-				outputs[dep] = expandedBin
+		}
+	}
+
+	if t.OCI != nil && !opts.Clean && (len(t.Arch) > 0 || len(t.OS) > 0) {
+		ociArchs := t.Arch
+		if len(ociArchs) == 0 {
+			ociArchs = []string{runtime.GOARCH}
+		}
+		ociOSs := t.OS
+		if len(ociOSs) == 0 {
+			ociOSs = []string{runtime.GOOS}
+		}
+		for _, dep := range t.Requires {
+			for _, key := range outputs.LoadAll(dep) {
+				parts := strings.SplitN(key, "+", 2)
+				if len(parts) != 2 {
+					continue
+				}
+				if !hasCombo(ociArchs, ociOSs, parts[0], parts[1]) {
+					fmt.Fprintf(os.Stderr, "Warning: %s: %q built %s but %q only targets subset %s/%s\n",
+						f.Path(), dep, key, t.Name, strings.Join(t.Arch, ","), strings.Join(t.OS, ","))
+				}
 			}
 		}
 	}
@@ -260,8 +308,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				comboVars["os"] = &fiat.Var{Name: "os", Value: activeOS}
 				comboVars["THIS"] = &fiat.Var{Name: "THIS", Value: t.Name}
 
-				for depName, depBin := range outputs {
-					comboVars["OUTPUT_"+depName] = &fiat.Var{Name: "OUTPUT_" + depName, Value: depBin}
+				for _, dep := range t.Requires {
+					if binPath := outputs.Load(dep, activeArch, activeOS); binPath != "" {
+						comboVars["OUTPUT_"+dep] = &fiat.Var{Name: "OUTPUT_" + dep, Value: binPath}
+					}
 				}
 
 				bp := ""
@@ -271,6 +321,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						bp = strings.ReplaceAll(bp, "$bin", "")
 					}
 				}
+
 				combos = append(combos, combo{arch, osval, bp})
 			}
 		}
@@ -330,8 +381,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				comboVars["os"] = &fiat.Var{Name: "os", Value: activeOS}
 				comboVars["THIS"] = &fiat.Var{Name: "THIS", Value: t.Name}
 
-				for depName, depBin := range outputs {
-					comboVars["OUTPUT_"+depName] = &fiat.Var{Name: "OUTPUT_" + depName, Value: depBin}
+				for _, dep := range t.Requires {
+					if binPath := outputs.Load(dep, activeArch, activeOS); binPath != "" {
+						comboVars["OUTPUT_"+dep] = &fiat.Var{Name: "OUTPUT_" + dep, Value: binPath}
+					}
 				}
 
 				if t.Bin != "" {
@@ -370,6 +423,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						errCh <- fmt.Errorf("%s: binary %q was not created by target %q", f.Path(), c.bin, name)
 						return
 					}
+					outputs.Store(name, activeArch, activeOS, c.bin)
 				}
 
 				for _, inst := range t.Install {
@@ -394,82 +448,82 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					}
 				}
 
-			// OCI packaging: use $OUTPUT_<dep> to find binary
-			if t.OCI != nil && !opts.DryRun {
-				binSrc := ""
-				for _, dep := range t.Requires {
-					outVar := "OUTPUT_" + dep
-					if v, ok := comboVars[outVar]; ok && v.Value != "" {
-						binSrc = v.Value
-						break
-					}
-				}
-				if binSrc == "" {
-					binSrc = c.bin
-				}
-
-				if binSrc != "" {
-					absBin, err := filepath.Abs(binSrc)
-					if err != nil {
-						errCh <- fmt.Errorf("%s: resolving binary path: %w", f.Path(), err)
-						return
-					}
-					if _, err := os.Stat(absBin); err != nil {
-						errCh <- fmt.Errorf("%s: OCI binary %q not found: %w", f.Path(), absBin, err)
-						return
-					}
-					binSrc = absBin
-					binaryName := filepath.Base(binSrc)
-					appDir := t.OCI.AppDir
-					if appDir == "" {
-						appDir = "/app"
-					}
-
-					img, err := oci.Build(oci.Config{
-						Binary: binSrc,
-						AppDir: appDir,
-						Name:   binaryName,
-					})
-					if err != nil {
-						errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)
-						return
-					}
-
-					tarballPath := fiat.Expand(t.OCI.Tarball, comboVars, 0)
-					if tarballPath != "" {
-						tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
-						if tag == "" {
-							tag = "latest"
+				// OCI packaging: use $OUTPUT_<dep> to find binary
+				if t.OCI != nil && !opts.DryRun {
+					binSrc := ""
+					for _, dep := range t.Requires {
+						outVar := "OUTPUT_" + dep
+						if v, ok := comboVars[outVar]; ok && v.Value != "" {
+							binSrc = v.Value
+							break
 						}
-						if err := oci.WriteTarball(img, tarballPath, tag); err != nil {
-							errCh <- fmt.Errorf("%s: OCI tarball: %w", f.Path(), err)
+					}
+					if binSrc == "" {
+						binSrc = c.bin
+					}
+
+					if binSrc != "" {
+						absBin, err := filepath.Abs(binSrc)
+						if err != nil {
+							errCh <- fmt.Errorf("%s: resolving binary path: %w", f.Path(), err)
 							return
 						}
-						fmt.Printf("  Wrote %s\n", tarballPath)
-					}
-
-					repo := fiat.Expand(t.OCI.Repo, comboVars, 0)
-					if repo != "" {
-						tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
-						user := os.ExpandEnv(fiat.Expand(t.OCI.User, comboVars, 0))
-						pass := os.ExpandEnv(fiat.Expand(t.OCI.Pass, comboVars, 0))
-						if err := oci.Push(img, oci.PushConfig{
-							Repo: repo,
-							Tag:  tag,
-							User: user,
-							Pass: pass,
-						}); err != nil {
-							errCh <- fmt.Errorf("%s: OCI push: %w", f.Path(), err)
+						if _, err := os.Stat(absBin); err != nil {
+							errCh <- fmt.Errorf("%s: OCI binary %q not found: %w", f.Path(), absBin, err)
 							return
 						}
-						ref := repo
-						if tag != "" {
-							ref += ":" + tag
+						binSrc = absBin
+						binaryName := filepath.Base(binSrc)
+						appDir := t.OCI.AppDir
+						if appDir == "" {
+							appDir = "/app"
 						}
-						fmt.Printf("  Pushed %s\n", ref)
+
+						img, err := oci.Build(oci.Config{
+							Binary: binSrc,
+							AppDir: appDir,
+							Name:   binaryName,
+						})
+						if err != nil {
+							errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)
+							return
+						}
+
+						tarballPath := fiat.Expand(t.OCI.Tarball, comboVars, 0)
+						if tarballPath != "" {
+							tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
+							if tag == "" {
+								tag = "latest"
+							}
+							if err := oci.WriteTarball(img, tarballPath, tag); err != nil {
+								errCh <- fmt.Errorf("%s: OCI tarball: %w", f.Path(), err)
+								return
+							}
+							fmt.Printf("  Wrote %s\n", tarballPath)
+						}
+
+						repo := fiat.Expand(t.OCI.Repo, comboVars, 0)
+						if repo != "" {
+							tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
+							user := os.ExpandEnv(fiat.Expand(t.OCI.User, comboVars, 0))
+							pass := os.ExpandEnv(fiat.Expand(t.OCI.Pass, comboVars, 0))
+							if err := oci.Push(img, oci.PushConfig{
+								Repo: repo,
+								Tag:  tag,
+								User: user,
+								Pass: pass,
+							}); err != nil {
+								errCh <- fmt.Errorf("%s: OCI push: %w", f.Path(), err)
+								return
+							}
+							ref := repo
+							if tag != "" {
+								ref += ":" + tag
+							}
+							fmt.Printf("  Pushed %s\n", ref)
+						}
 					}
 				}
-			}
 			}(c)
 		}
 
@@ -570,4 +624,15 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 		}
 		return nil
 	})
+}
+
+func hasCombo(archs, oses []string, arch, os string) bool {
+	for _, a := range archs {
+		for _, o := range oses {
+			if a == arch && o == os {
+				return true
+			}
+		}
+	}
+	return false
 }
