@@ -86,7 +86,7 @@ func (f *File) Write() error {
 }
 
 func serializeTarget(b *strings.Builder, t *Target) {
-	if t.IsVirtual {
+	if t.IsVirtual && !strings.HasPrefix(t.Name, ".") {
 		b.WriteByte('.')
 	}
 	b.WriteString(t.Name)

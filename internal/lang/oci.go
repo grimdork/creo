@@ -145,10 +145,23 @@ func ownerFromGit() string {
 		return ""
 	}
 	s := strings.TrimSpace(string(out))
+	s = strings.TrimSuffix(s, ".git")
+
+	if strings.Contains(s, "://") {
+		parts := strings.SplitN(s, "/", 4)
+		if len(parts) >= 4 {
+			ownerAndRepo := parts[3]
+			if idx := strings.IndexByte(ownerAndRepo, '/'); idx >= 0 {
+				return ownerAndRepo[:idx]
+			}
+			return ownerAndRepo
+		}
+		return ""
+	}
+
 	if idx := strings.LastIndexByte(s, ':'); idx >= 0 {
 		s = s[idx+1:]
 	}
-	s = strings.TrimSuffix(s, ".git")
 	if idx := strings.IndexByte(s, '/'); idx >= 0 {
 		return s[:idx]
 	}

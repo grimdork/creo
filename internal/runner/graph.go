@@ -79,7 +79,6 @@ func renderTree(f *fiat.File, dir string, checkStatus bool) (string, error) {
 			b.WriteByte('\n')
 		}
 		renderTreeNode(f, dir, root, &b, "", "", "", checkStatus, map[string]bool{})
-		_ = i
 	}
 	return b.String(), nil
 }
@@ -159,8 +158,11 @@ func renderSVG(f *fiat.File, dir string, checkStatus bool) (string, error) {
 	layers := map[int][]string{}
 	layerOf := map[string]int{}
 
-	var compLayer func(name string) int
-	compLayer = func(name string) int {
+	var compLayer func(name string, stack map[string]bool) int
+	compLayer = func(name string, stack map[string]bool) int {
+		if stack[name] {
+			return 0
+		}
 		if l, ok := layerOf[name]; ok {
 			return l
 		}
@@ -169,19 +171,21 @@ func renderSVG(f *fiat.File, dir string, checkStatus bool) (string, error) {
 			layerOf[name] = 0
 			return 0
 		}
+		stack[name] = true
 		maxDep := 0
 		for _, dep := range t.Requires {
-			dl := compLayer(dep) + 1
+			dl := compLayer(dep, stack) + 1
 			if dl > maxDep {
 				maxDep = dl
 			}
 		}
+		delete(stack, name)
 		layerOf[name] = maxDep
 		return maxDep
 	}
 
 	for _, t := range f.Targets {
-		compLayer(t.Name)
+		compLayer(t.Name, map[string]bool{})
 	}
 
 	for name, l := range layerOf {

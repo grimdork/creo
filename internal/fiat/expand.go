@@ -69,12 +69,6 @@ func ExpandWithTarget(s string, global map[string]*Var, t *Target) string {
 	for _, v := range t.Vars {
 		vars[v.Name] = v
 	}
-	if t.Bin != "" {
-		vars["bin"] = &Var{Name: "bin", Value: Expand(t.Bin, vars, 0)}
-	}
-	if t.Sources != "" {
-		vars["sources"] = &Var{Name: "sources", Value: Expand(t.Sources, vars, 0)}
-	}
 	arch := runtime.GOARCH
 	if len(t.Arch) > 0 {
 		arch = t.Arch[0]
@@ -86,5 +80,11 @@ func ExpandWithTarget(s string, global map[string]*Var, t *Target) string {
 	vars["arch"] = &Var{Name: "arch", Value: arch}
 	vars["os"] = &Var{Name: "os", Value: osval}
 	vars["THIS"] = &Var{Name: "THIS", Value: t.Name}
+	if t.Bin != "" {
+		vars["bin"] = &Var{Name: "bin", Value: Expand(t.Bin, vars, 0)}
+	}
+	if t.Sources != "" {
+		vars["sources"] = &Var{Name: "sources", Value: Expand(t.Sources, vars, 0)}
+	}
 	return Expand(s, vars, 0)
 }

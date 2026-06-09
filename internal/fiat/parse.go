@@ -142,8 +142,9 @@ func Parse(path string) (*File, error) {
 			continue
 		}
 
-		if isVar && curTarget == nil {
+		if isVar {
 			flushSeg()
+			curTarget = nil
 			curSeg = &segment{kind: segVar}
 			curSeg.raw = append(curSeg.raw, raw)
 			parseVarLine(line, f, nil)

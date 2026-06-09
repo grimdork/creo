@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grimdork/climate/paths"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -19,6 +18,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/grimdork/climate/paths"
 )
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
@@ -39,6 +39,9 @@ type Config struct {
 }
 
 func digestPath(path string) string {
+	if len(path) < 4 || !strings.HasSuffix(path, ".tar") {
+		return path + ".digest"
+	}
 	return path[:len(path)-4] + ".digest"
 }
 
@@ -217,6 +220,14 @@ func saveToCache(img v1.Image, path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
+
+	raw, err := img.RawManifest()
+	if err != nil {
+		return err
+	}
+	h := sha256.Sum256(raw)
+	digest := "sha256:" + hex.EncodeToString(h[:])
+
 	tmpPath := path + ".tmp"
 	ref, err := name.NewTag("creo-cache:latest")
 	if err != nil {
@@ -231,12 +242,7 @@ func saveToCache(img v1.Image, path string) error {
 		return err
 	}
 
-	raw, err := img.RawManifest()
-	if err != nil {
-		return err
-	}
-	h := sha256.Sum256(raw)
-	if err := os.WriteFile(digestPath(path), []byte("sha256:"+hex.EncodeToString(h[:])+"\n"), 0644); err != nil {
+	if err := os.WriteFile(digestPath(path), []byte(digest+"\n"), 0644); err != nil {
 		return err
 	}
 	return nil
