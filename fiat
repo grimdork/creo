@@ -15,3 +15,7 @@ install: go
 	desc=Build and install to ~/bin
 	install=$bin:$HOME/bin/
 	require=build
+
+test:
+	desc=Run tests with verbose output
+	cmd=go test -v ./...
