@@ -13,6 +13,7 @@ type OCIConfig struct {
 	AppDir  string
 	User    string
 	Pass    string
+	CACert  string
 }
 
 type Target struct {

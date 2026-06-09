@@ -3,7 +3,9 @@ package oci
 import (
 	"archive/tar"
 	"bytes"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,10 +17,15 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
+const caCertPath = "etc/ssl/certs/ca-certificates.crt"
+
+var caCertURL = "https://curl.se/ca/cacert.pem"
+
 type Config struct {
 	Binary string
 	AppDir string
 	Name   string
+	CACert string
 }
 
 func Build(cfg Config) (v1.Image, error) {
@@ -30,6 +37,17 @@ func Build(cfg Config) (v1.Image, error) {
 	img, err := mutate.AppendLayers(empty.Image, layer)
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.CACert != "" {
+		cl, err := certsLayer(cfg.CACert)
+		if err != nil {
+			return nil, fmt.Errorf("CA certs: %w", err)
+		}
+		img, err = mutate.AppendLayers(img, cl)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	img, err = mutate.Config(img, v1.Config{
@@ -45,6 +63,63 @@ func Build(cfg Config) (v1.Image, error) {
 	}
 
 	return img, nil
+}
+
+func certsLayer(caCert string) (v1.Layer, error) {
+	var data []byte
+	var err error
+
+	if caCert == "auto" {
+		data, err = downloadCACert()
+	} else {
+		data, err = os.ReadFile(caCert)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     caCertPath,
+		Size:     int64(len(data)),
+		Mode:     0644,
+		ModTime:  time.Time{},
+		Typeflag: tar.TypeReg,
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := tw.Write(data); err != nil {
+		return nil, err
+	}
+
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+
+	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	})
+}
+
+func downloadCACert() ([]byte, error) {
+	resp, err := http.Get(caCertURL)
+	if err != nil {
+		return nil, fmt.Errorf("downloading %s: %w", caCertURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("downloading %s: %s", caCertURL, resp.Status)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response: %w", err)
+	}
+
+	return data, nil
 }
 
 func WriteTarball(img v1.Image, path, tag string) error {

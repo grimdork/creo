@@ -126,7 +126,7 @@ All variables are overridable in the fiat file.
 
 For `oci`: packages a compiled binary into an OCI container image and
 writes a tarball or pushes to a registry.  OCI targets are packaging-only
-(no compilation themselves) — use `require=` to reference a Go build
+(no compilation themselves) — use `require=` to reference a build
 target and `$OUTPUT_<target>` to locate its binary.  Example:
 
 ```
@@ -153,11 +153,17 @@ The image places the binary at `/app/<name>` (override with `appdir=`).
 | `os=` | Subset of operating systems from the dependency (e.g. `linux`) |
 | `ociuser=` | Registry username (for basic auth) |
 | `ocipass=` | Registry password or token |
+| `cacert=` | CA certificate bundle — `auto` to download from curl.se, or a path to a local file |
 
 If no `tarball=` is set, the image is only pushed.  If no `repo=` is
 set, the image is only written to a tarball.  Auth: when both
 `ociuser=` and `ocipass=` are set, basic auth is used; otherwise the
 default Docker keychain (`~/.docker/config.json`) is consulted.
+
+CA certificates (`cacert=`) embed a bundle at `/etc/ssl/certs/ca-certificates.crt`
+in the image, allowing the binary to make HTTPS calls.  Set `cacert=auto`
+to download the latest bundle from `https://curl.se/ca/cacert.pem`, or
+point it to a local file (e.g. `cacert=/etc/ssl/certs/ca-certificates.crt`).
 
 ### Output variables
 

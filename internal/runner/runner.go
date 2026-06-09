@@ -483,6 +483,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							Binary: binSrc,
 							AppDir: appDir,
 							Name:   binaryName,
+							CACert: t.OCI.CACert,
 						})
 						if err != nil {
 							errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)
