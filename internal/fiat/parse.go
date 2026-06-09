@@ -264,9 +264,16 @@ func Parse(path string) (*File, error) {
 		}
 	}
 	for _, t := range f.Targets {
+		vars := make(map[string]*Var)
+		for k, v := range f.Vars {
+			vars[k] = v
+		}
+		for _, v := range t.Vars {
+			vars[v.Name] = v
+		}
 		for _, v := range t.Vars {
 			if v.Eager {
-				v.Value = Expand(v.Value, f.Vars, 0)
+				v.Value = Expand(v.Value, vars, 0)
 			}
 		}
 	}

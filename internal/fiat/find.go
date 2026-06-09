@@ -1,7 +1,6 @@
 package fiat
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,10 +12,8 @@ func FindFiat(explicitPath string) (string, bool) {
 	if explicitPath != "" {
 		if _, err := os.Stat(explicitPath); err == nil {
 			return explicitPath, true
-		} else {
-			fmt.Fprintln(os.Stderr, "Error:", explicitPath, err)
-			return "", false
 		}
+		return "", false
 	}
 	if _, err := os.Stat("fiat"); err == nil {
 		return "fiat", true
@@ -24,12 +21,10 @@ func FindFiat(explicitPath string) (string, bool) {
 
 	matches, err := filepath.Glob("*.fiat")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error scanning for .fiat files:", err)
 		return "", false
 	}
 
 	if len(matches) == 0 {
-		fmt.Fprintln(os.Stderr, "No .fiat files found")
 		return "", false
 	}
 
@@ -41,11 +36,9 @@ func FindFiat(explicitPath string) (string, bool) {
 
 	selected, err := picker.Run(matches)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Picker error:", err)
 		return "", false
 	}
 	if selected == "" {
-		fmt.Fprintln(os.Stderr, "Cancelled")
 		return "", false
 	}
 	return selected, true

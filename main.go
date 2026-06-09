@@ -94,7 +94,7 @@ func runGraph(opt *arg.Options) {
 
 	fiatPath, ok := fiat.FindFiat(opt.GetString("file"))
 	if !ok {
-		fmt.Fprintln(os.Stderr, "Error: no fiat file found")
+		fmt.Fprintln(os.Stderr, "Error: no fiat file found or file inaccessible")
 		os.Exit(1)
 	}
 	dir := filepath.Dir(fiatPath)
@@ -141,7 +141,7 @@ func runBuild(opt *arg.Options) {
 
 	fiatPath, ok := fiat.FindFiat(opt.GetString("file"))
 	if !ok {
-		fmt.Fprintln(os.Stderr, "Error: no fiat file found")
+		fmt.Fprintln(os.Stderr, "Error: no fiat file found or file inaccessible")
 		os.Exit(1)
 	}
 

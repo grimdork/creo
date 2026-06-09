@@ -267,6 +267,12 @@ func renderSVG(f *fiat.File, dir string, checkStatus bool) (string, error) {
 	return b.String(), nil
 }
 
+func dotEscape(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	return s
+}
+
 func renderDOT(f *fiat.File, dir string, checkStatus bool) (string, error) {
 	var b strings.Builder
 	b.WriteString("digraph \"creo\" {\n")
@@ -283,12 +289,12 @@ func renderDOT(f *fiat.File, dir string, checkStatus bool) (string, error) {
 				extra = ",color=darkorange,fontcolor=darkorange"
 			}
 		}
-		fmt.Fprintf(&b, "\t\"%s\" [label=\"%s\"%s];\n", t.Name, targetLabel(t), extra)
+		fmt.Fprintf(&b, "\t\"%s\" [label=\"%s\"%s];\n", dotEscape(t.Name), dotEscape(targetLabel(t)), extra)
 	}
 
 	for _, t := range f.Targets {
 		for _, dep := range t.Requires {
-			fmt.Fprintf(&b, "\t\"%s\" -> \"%s\";\n", t.Name, dep)
+			fmt.Fprintf(&b, "\t\"%s\" -> \"%s\";\n", dotEscape(t.Name), dotEscape(dep))
 		}
 	}
 

@@ -58,7 +58,6 @@ func Login() error {
 
 	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
 
-
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("home dir: %w", err)

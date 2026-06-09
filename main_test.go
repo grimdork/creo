@@ -37,8 +37,13 @@ func TestGenerateCompletion(t *testing.T) {
 
 func TestListTargets(t *testing.T) {
 	dir := t.TempDir()
-	wd, _ := os.Getwd()
-	os.Chdir(dir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Chdir(wd)
 
 	fiatContent := "build: go\n\tdesc=Build the binary\n"
@@ -61,11 +66,16 @@ func TestListTargets(t *testing.T) {
 
 func TestListTargetsNoFiat(t *testing.T) {
 	dir := t.TempDir()
-	wd, _ := os.Getwd()
-	os.Chdir(dir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Chdir(wd)
 
-	_, err := listTargets("")
+	_, err = listTargets("")
 	if err == nil {
 		t.Fatal("expected error for missing fiat file")
 	}
@@ -80,8 +90,13 @@ func TestListTargetsNotFound(t *testing.T) {
 
 func TestInitProjectNoLangs(t *testing.T) {
 	dir := t.TempDir()
-	wd, _ := os.Getwd()
-	os.Chdir(dir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Chdir(wd)
 
 	if err := lang.InitProject([]string{}, false, false); err != nil {
@@ -95,8 +110,13 @@ func TestInitProjectNoLangs(t *testing.T) {
 
 func TestInitProjectGo(t *testing.T) {
 	dir := t.TempDir()
-	wd, _ := os.Getwd()
-	os.Chdir(dir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Chdir(wd)
 
 	if err := lang.InitProject([]string{"go"}, false, false); err != nil {
@@ -113,11 +133,16 @@ func TestInitProjectGo(t *testing.T) {
 
 func TestInitProjectUnknown(t *testing.T) {
 	dir := t.TempDir()
-	wd, _ := os.Getwd()
-	os.Chdir(dir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Chdir(wd)
 
-	err := lang.InitProject([]string{"rust"}, false, false)
+	err = lang.InitProject([]string{"rust"}, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown language")
 	}
@@ -128,8 +153,13 @@ func TestInitProjectUnknown(t *testing.T) {
 
 func TestInitProjectForceRemovesCreo(t *testing.T) {
 	dir := t.TempDir()
-	wd, _ := os.Getwd()
-	os.Chdir(dir)
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Chdir(wd)
 
 	os.MkdirAll(".creo", 0755)

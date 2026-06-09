@@ -1,21 +1,31 @@
 build: go
 	desc=Build the project binary
+	# Binary: ./creo (inferred from go.mod module name).
+	# Uses release flags: stripped symbols, reproducible build ID.
 
 debug: go
 	desc=Debug build with symbols
+	# Enables debug flags (-gcflags="all=-N -l") instead of
+	# stripping symbols. Binary: ./creo-debug.
 
 nix: go
 	desc=Cross-compile for linux/freebsd
 	os=linux freebsd
 	arch=amd64 arm64
 	bin=$bin-$os-$arch
+	# Produces four binaries:
+	#   ./creo-linux-amd64   ./creo-linux-arm64
+	#   ./creo-freebsd-amd64 ./creo-freebsd-arm64
 
 # Install to ~/bin
 install: go
 	desc=Build and install to ~/bin
 	install=$bin:$HOME/bin/
 	require=build
+	# Copies ./creo to $HOME/bin/creo after a successful build.
+	# Also invoked by ./bootstrap.sh for bootstrapping.
 
 test:
 	desc=Run tests with verbose output
 	cmd=go test -v ./...
+	# Runs the full test suite across all packages.
