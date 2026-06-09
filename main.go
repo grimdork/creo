@@ -9,6 +9,7 @@ import (
 	"github.com/grimdork/climate/arg"
 	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
+	"github.com/grimdork/creo/internal/oci"
 	"github.com/grimdork/creo/internal/runner"
 )
 
@@ -59,6 +60,8 @@ func main() {
 	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
 	opt.SetFlag(arg.GroupDefault, "", "refresh-cacerts", "Re-download cached CA certificates")
 	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
+	opt.SetFlag(arg.GroupDefault, "L", "login", "Store registry credentials in Docker config")
+	opt.SetOption(arg.GroupDefault, "I", "inspect", "Inspect a remote image", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
@@ -81,6 +84,23 @@ func main() {
 
 	if opt.GetBool("completion") {
 		fmt.Print(generateCompletion(opt))
+		return
+	}
+
+	if opt.GetBool("login") {
+		if err := oci.Login(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Credentials stored")
+		return
+	}
+
+	if ref := opt.GetString("inspect"); ref != "" {
+		if err := oci.Inspect(ref); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 

@@ -26,6 +26,10 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 			cfg.Pass = v.Value
 		case "cacert":
 			cfg.CACert = v.Value
+		case "from":
+			cfg.BaseImage = v.Value
+		case "sbom":
+			cfg.SBOM = v.Value == "true" || v.Value == "1"
 		}
 	}
 

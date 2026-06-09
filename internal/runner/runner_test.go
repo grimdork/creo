@@ -420,6 +420,154 @@ func TestFindFiatInDir(t *testing.T) {
 	}
 }
 
+func TestExecShebangShell(t *testing.T) {
+	err := execShebang("#!/bin/sh\necho hello", t.TempDir(), nil)
+	if err != nil {
+		t.Fatalf("execShebang: %v", err)
+	}
+}
+
+func TestExecShebangFails(t *testing.T) {
+	err := execShebang("#!/nonexistent/interpreter\nexit 0", t.TempDir(), nil)
+	if err == nil {
+		t.Fatal("execShebang with bad interpreter expected error, got nil")
+	}
+}
+
+func TestExecCmdShebang(t *testing.T) {
+	err := execCmd("#!/bin/sh\necho shebang-ok", t.TempDir(), nil)
+	if err != nil {
+		t.Fatalf("execCmd with shebang: %v", err)
+	}
+}
+
+func TestExecCmdNormal(t *testing.T) {
+	err := execCmd("echo normal-ok", t.TempDir(), nil)
+	if err != nil {
+		t.Fatalf("execCmd normal: %v", err)
+	}
+}
+
+func TestComputeCacheKey(t *testing.T) {
+	dir := t.TempDir()
+	runInDir(t, dir)
+
+	src := filepath.Join(dir, "main.go")
+	if err := os.WriteFile(src, []byte("package main"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	key1 := computeCacheKey([]string{src}, []string{"go build"})
+	key2 := computeCacheKey([]string{src}, []string{"go build"})
+	if key1 != key2 {
+		t.Fatal("cache key not deterministic")
+	}
+
+	key3 := computeCacheKey([]string{src}, []string{"go build -v"})
+	if key1 == key3 {
+		t.Fatal("cache key should change when command changes")
+	}
+}
+
+func TestCheckCacheMiss(t *testing.T) {
+	dir := t.TempDir()
+	if checkCache(dir, "nonexistent", nil, nil) {
+		t.Fatal("expected false for missing cache")
+	}
+}
+
+func TestCheckCacheHitAndMiss(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "main.go")
+	if err := os.WriteFile(src, []byte("package main"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	sources := []string{src}
+	cmds := []string{"go build"}
+
+	if err := writeCache(dir, "test-target", sources, cmds); err != nil {
+		t.Fatalf("writeCache: %v", err)
+	}
+
+	if !checkCache(dir, "test-target", sources, cmds) {
+		t.Fatal("expected cache hit after write")
+	}
+
+	if cc := checkCache(dir, "test-target", sources, []string{"different cmd"}); cc {
+		t.Fatal("expected cache miss after cmd change")
+	}
+
+	if err := os.WriteFile(src, []byte("package main\n// changed"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if checkCache(dir, "test-target", sources, cmds) {
+		t.Fatal("expected cache miss after source change")
+	}
+}
+
+func TestCollectFilePaths(t *testing.T) {
+	dir := t.TempDir()
+	runInDir(t, dir)
+	writeFiat(t, dir, "build: go\n\tsources=*.go\n")
+	writeFile(t, dir, "main.go", "package main\n")
+	writeFile(t, dir, "helper.go", "package main\n")
+	f := parseAndApply(t, dir)
+	target := fiat.FindTarget(f, "build")
+	if target == nil {
+		t.Fatal("target not found")
+	}
+	paths := collectFilePaths(target, f, dir)
+	if len(paths) < 2 {
+		t.Fatalf("expected at least 2 paths (main.go, helper.go), got %d", len(paths))
+	}
+}
+
+func TestCachedBuildSkips(t *testing.T) {
+	dir := t.TempDir()
+	runInDir(t, dir)
+	writeFiat(t, dir, "build: go\n\tsources=*.go\n")
+	writeFile(t, dir, "go.mod", "module test\n")
+	writeFile(t, dir, "main.go", "package main; func main() {}\n")
+	f := parseAndApply(t, dir)
+
+	// First build: should run
+	if err := RunTarget(f, "build", RunOpts{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Cache should now exist
+	if _, err := os.Stat(".creo/cache/build.json"); os.IsNotExist(err) {
+		t.Fatal("expected cache file after build")
+	}
+
+	// Second build: should skip (cached)
+	if err := RunTarget(f, "build", RunOpts{}); err != nil {
+		t.Fatal(err)
+	}
+	// We can't easily verify the skip message, but we can verify no error
+}
+
+func TestCachedBuildRebuildsAfterChange(t *testing.T) {
+	dir := t.TempDir()
+	runInDir(t, dir)
+	writeFiat(t, dir, "build: go\n\tsources=*.go\n")
+	writeFile(t, dir, "go.mod", "module test\n")
+	writeFile(t, dir, "main.go", "package main; func main() {}\n")
+	f := parseAndApply(t, dir)
+
+	if err := RunTarget(f, "build", RunOpts{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Modify source
+	writeFile(t, dir, "main.go", "package main; func main() { println(\"v2\") }\n")
+
+	// Rebuild: should run again (source changed)
+	if err := RunTarget(f, "build", RunOpts{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestMultiArchBuild(t *testing.T) {
 	dir := t.TempDir()
 	defer runInDir(t, dir)()

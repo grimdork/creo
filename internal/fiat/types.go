@@ -7,13 +7,15 @@ type Var struct {
 }
 
 type OCIConfig struct {
-	Repo    string
-	Tag     string
-	Tarball string
-	AppDir  string
-	User    string
-	Pass    string
-	CACert  string
+	Repo      string
+	Tag       string
+	Tarball   string
+	AppDir    string
+	User      string
+	Pass      string
+	CACert    string
+	BaseImage string
+	SBOM      bool
 }
 
 type Target struct {

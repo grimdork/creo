@@ -256,26 +256,13 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 	if !t.IsVirtual && !multi && !opts.Rebuild && t.Bin != "" && t.Sources != "" {
 		existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
-		binStat, err := os.Stat(existsBinPath)
-		if err == nil {
-			binMod := binStat.ModTime()
+		if _, err := os.Stat(existsBinPath); err == nil {
 			needsRun = false
-			srcPatterns := strings.Fields(fiat.ExpandWithTarget(t.Sources, f.Vars, t))
-			if len(srcPatterns) == 0 {
+			sources := collectFilePaths(t, f, dir)
+			if len(sources) == 0 {
 				needsRun = true
-			}
-			for _, pat := range srcPatterns {
-				files := globFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
-				for _, sf := range files {
-					sStat, sErr := os.Stat(sf)
-					if sErr != nil || sStat.ModTime().After(binMod) {
-						needsRun = true
-						break
-					}
-				}
-				if needsRun {
-					break
-				}
+			} else if !checkCache(dir, name, sources, t.Cmds) {
+				needsRun = true
 			}
 		}
 	}
@@ -332,13 +319,13 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		}
 
 		allExist := !t.IsVirtual && !opts.Rebuild && t.Bin != "" && len(t.Install) == 0 && t.OCI == nil
-		if allExist {
-			for _, c := range combos {
-				if c.bin != "" {
-					if _, err := os.Stat(c.bin); err != nil {
-						allExist = false
-						break
-					}
+		if allExist && t.Sources != "" {
+			allExist = false
+			existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
+			if _, err := os.Stat(existsBinPath); err == nil {
+				sources := collectFilePaths(t, f, dir)
+				if len(sources) > 0 && checkCache(dir, name, sources, t.Cmds) {
+					allExist = true
 				}
 			}
 		}
@@ -523,10 +510,14 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					}
 
 					img, err := oci.Build(oci.Config{
-						Binary: binSrc,
-						AppDir: appDir,
-						Name:   binaryName,
-						CACert: caCert,
+						Binary:    binSrc,
+						AppDir:    appDir,
+						Name:      binaryName,
+						CACert:    caCert,
+						BaseImage: t.OCI.BaseImage,
+						Arch:      activeArch,
+						OS:        activeOS,
+						SBOM:      t.OCI.SBOM,
 					})
 						if err != nil {
 							errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)
@@ -583,6 +574,11 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				return errs[0]
 			}
 			return fmt.Errorf("some combos failed")
+		}
+
+		if needsRun && !opts.DryRun && !t.IsVirtual && t.Bin != "" && t.Sources != "" {
+			sources := collectFilePaths(t, f, dir)
+			writeCache(dir, name, sources, t.Cmds)
 		}
 
 		if opts.Verbose {

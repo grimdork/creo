@@ -471,6 +471,58 @@ func TestApplyOciDefaultTarball(t *testing.T) {
 	}
 }
 
+func TestApplyOciFrom(t *testing.T) {
+	content := []byte("img: oci\n\tfrom=alpine:latest\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.OCI == nil {
+		t.Fatal("expected OCI config")
+	}
+	if trg.OCI.BaseImage != "alpine:latest" {
+		t.Fatalf("expected BaseImage 'alpine:latest', got %q", trg.OCI.BaseImage)
+	}
+}
+
+func TestApplyOciSBOM(t *testing.T) {
+	content := []byte("img: oci\n\tsbom=true\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.OCI == nil {
+		t.Fatal("expected OCI config")
+	}
+	if !trg.OCI.SBOM {
+		t.Fatal("expected SBOM to be true")
+	}
+}
+
 func TestModuleName(t *testing.T) {
 	dir1 := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir1, "go.mod"), []byte("module github.com/foo/bar\n"), 0644); err != nil {

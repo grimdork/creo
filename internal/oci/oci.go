@@ -3,6 +3,7 @@ package oci
 import (
 	"archive/tar"
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,10 +11,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/grimdork/climate/paths"
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
@@ -24,19 +28,36 @@ const caCertPath = "etc/ssl/certs/ca-certificates.crt"
 var caCertURL = "https://curl.se/ca/cacert.pem"
 
 type Config struct {
-	Binary string
-	AppDir string
-	Name   string
-	CACert string
+	Binary    string
+	AppDir    string
+	Name      string
+	CACert    string
+	BaseImage string
+	Arch      string
+	OS        string
+	SBOM      bool
 }
 
+const cacheTTL = 24 * time.Hour
+
 func Build(cfg Config) (v1.Image, error) {
+	var img v1.Image
+	if cfg.BaseImage != "" {
+		var err error
+		img, err = pullImage(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("base image: %w", err)
+		}
+	} else {
+		img = empty.Image
+	}
+
 	layer, err := binaryLayer(cfg.Binary, cfg.AppDir, cfg.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	img, err := mutate.AppendLayers(empty.Image, layer)
+	img, err = mutate.AppendLayers(img, layer)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +68,21 @@ func Build(cfg Config) (v1.Image, error) {
 			return nil, fmt.Errorf("CA certs: %w", err)
 		}
 		img, err = mutate.AppendLayers(img, cl)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if cfg.SBOM {
+		sbomData, err := generateSBOM(cfg.Binary, cfg.Name)
+		if err != nil {
+			return nil, fmt.Errorf("SBOM: %w", err)
+		}
+		sl, err := sbomLayer(sbomData)
+		if err != nil {
+			return nil, fmt.Errorf("SBOM layer: %w", err)
+		}
+		img, err = mutate.AppendLayers(img, sl)
 		if err != nil {
 			return nil, err
 		}
@@ -65,6 +101,100 @@ func Build(cfg Config) (v1.Image, error) {
 	}
 
 	return img, nil
+}
+
+func pullImage(cfg Config) (v1.Image, error) {
+	cacheDir, err := cacheDirectory()
+	if err != nil {
+		return nil, err
+	}
+
+	cacheKey := cacheKeyName(cfg.BaseImage, cfg.Arch, cfg.OS)
+	cachePath := filepath.Join(cacheDir, cacheKey+".tar")
+
+	if img := loadFromCache(cachePath); img != nil {
+		return img, nil
+	}
+
+	ref, err := name.ParseReference(cfg.BaseImage)
+	if err != nil {
+		return nil, fmt.Errorf("invalid reference %q: %w", cfg.BaseImage, err)
+	}
+
+	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
+	if err != nil {
+		return nil, fmt.Errorf("auth: %w", err)
+	}
+
+	opts := []remote.Option{remote.WithAuth(auth)}
+	if cfg.Arch != "" && cfg.OS != "" {
+		opts = append(opts, remote.WithPlatform(v1.Platform{
+			Architecture: cfg.Arch,
+			OS:           cfg.OS,
+		}))
+	}
+
+	img, err := remote.Image(ref, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("pulling %q: %w", cfg.BaseImage, err)
+	}
+
+	if err := saveToCache(img, cachePath); err != nil {
+		return img, nil
+	}
+
+	return img, nil
+}
+
+func cacheDirectory() (string, error) {
+	p, err := paths.New("creo")
+	if err != nil {
+		return "", fmt.Errorf("paths: %w", err)
+	}
+	dir := filepath.Join(p.UserBase, "oci")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("creating cache dir %q: %w", dir, err)
+	}
+	return dir, nil
+}
+
+func cacheKeyName(ref, arch, os string) string {
+	s := ref + "|" + arch + "|" + os
+	h := sha256.Sum256([]byte(s))
+	return fmt.Sprintf("%x", h[:16])
+}
+
+func loadFromCache(path string) v1.Image {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil
+	}
+	if time.Since(info.ModTime()) > cacheTTL {
+		os.Remove(path)
+		return nil
+	}
+	img, err := tarball.ImageFromPath(path, nil)
+	if err != nil {
+		os.Remove(path)
+		return nil
+	}
+	return img
+}
+
+func saveToCache(img v1.Image, path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	tmpPath := path + ".tmp"
+	ref, err := name.NewTag("creo-cache:latest")
+	if err != nil {
+		return err
+	}
+	if err := tarball.WriteToFile(tmpPath, ref, img); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }
 
 func certsLayer(caCert string) (v1.Layer, error) {
@@ -161,4 +291,3 @@ func binaryLayer(binary, appDir, name string) (v1.Layer, error) {
 		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 	})
 }
-
