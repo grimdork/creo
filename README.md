@@ -18,10 +18,15 @@ $ creo -i go oci   # initialise multiple languages
 $ creo             # build
 $ creo -v          # see what's happening
 $ creo all         # run every target
+$ ./bootstrap.sh   # build from source and install to ~/bin
 ```
 
 Running `creo -i go` in a directory with some files already present
 creates only the ones that are missing — safe to run repeatedly.
+
+If you're building creo from source, `./bootstrap.sh` compiles the
+binary and installs it to `~/bin/` in one step.  The embedded version
+is derived from `git describe --tags`.
 
 A minimal Go project:
 
