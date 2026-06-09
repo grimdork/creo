@@ -83,7 +83,7 @@ func generateSBOM(binaryPath, name string) ([]byte, error) {
 		SPDXID:      "SPDXRef-DOCUMENT",
 		Name:        name + "-" + version,
 		CreationInfo: spdxCreation{
-			Created:  time.Now().UTC().Format(time.RFC3339),
+			Created:  "1970-01-01T00:00:00Z",
 			Creators: []string{"Tool: creo"},
 		},
 		Packages: []spdxPackage{

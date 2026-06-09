@@ -41,7 +41,7 @@ A file named `fiat` (or multiple files ending in `.fiat`) defines variables and 
 
 ```
 $GO=go build
-$GOFLAGS := -trimpath -ldflags="-s -w"
+$GOFLAGS := -trimpath -buildvcs=false -ldflags="-s -w -buildid=reproducible"
 ```
 
 Variables start with `$`.  `=` is lazy (re-evaluated every time), `:=`
@@ -318,7 +318,7 @@ When not explicitly defined by the user:
 | Variable | Default |
 |---|---|
 | `$GO` | `go build` |
-| `$GOFLAGS` | `-trimpath -ldflags="-s -w -X main.version=$VERSION"` (release) or `-gcflags="all=-N -l"` (debug) |
+| `$GOFLAGS` | `-trimpath -buildvcs=false -ldflags="-s -w -buildid=reproducible -X main.version=$VERSION"` (release) or `-gcflags="all=-N -l"` (debug) |
 | `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
 | `$CC` | `cc` (C compiler) |
 | `$CFLAGS` | `-O2 -Wall` (release), `$CDEBUGFLAGS`: `-O0 -g -Wall` (debug) |

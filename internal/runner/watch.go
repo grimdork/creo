@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,11 +33,10 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 
 	fmt.Printf("Watching target %q for changes...\n", name)
 
+	prevHash := fileHash(t, f, dir)
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-
-	prevMods := make(map[string]time.Time)
-	collectSources(t, f, dir, prevMods)
 
 	for range ticker.C {
 		curFiat, err := fiat.Parse(f.Path())
@@ -60,35 +61,27 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 			continue
 		}
 
-		currentMods := make(map[string]time.Time)
-		collectSources(curT, curFiat, dir, currentMods)
+		curHash := fileHash(curT, curFiat, dir)
 
-		changed := false
-		if len(currentMods) != len(prevMods) {
-			changed = true
-		} else {
-			for f, m := range currentMods {
-				if prev, ok := prevMods[f]; !ok || !m.Equal(prev) {
-					changed = true
-					break
-				}
-			}
-		}
-
-		if changed {
+		if curHash != prevHash {
 			fmt.Println("\n  Change detected, rebuilding...")
 			if err := RunTarget(curFiat, name, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "  Error: %v\n", err)
 			}
-			prevMods = currentMods
+			prevHash = curHash
 		}
 	}
 }
 
-func collectSources(t *fiat.Target, f *fiat.File, dir string, mods map[string]time.Time) {
-	for _, p := range collectFilePaths(t, f, dir) {
-		if si, err := os.Stat(p); err == nil {
-			mods[p] = si.ModTime()
+func fileHash(t *fiat.Target, f *fiat.File, dir string) string {
+	paths := collectFilePaths(t, f, dir)
+	h := sha256.New()
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
 		}
+		h.Write(data)
 	}
+	return hex.EncodeToString(h.Sum(nil))
 }

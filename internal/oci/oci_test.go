@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/grimdork/creo/internal/util"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -388,13 +387,13 @@ func TestCacheKeyName(t *testing.T) {
 }
 
 func TestLoadFromCache_Missing(t *testing.T) {
-	img := loadFromCache("/nonexistent/path.tar")
+	img := loadFromCache("/nonexistent/path.tar", nil, nil, nil)
 	if img != nil {
 		t.Fatal("expected nil for missing cache")
 	}
 }
 
-func TestSaveAndLoadCache(t *testing.T) {
+func TestSaveToCache(t *testing.T) {
 	img := buildStubImage(t)
 	cachePath := filepath.Join(t.TempDir(), "cache.tar")
 
@@ -402,28 +401,17 @@ func TestSaveAndLoadCache(t *testing.T) {
 		t.Fatalf("saveToCache: %v", err)
 	}
 
-	loaded := loadFromCache(cachePath)
-	if loaded == nil {
-		t.Fatal("loadFromCache returned nil for valid cache")
-	}
-}
-
-func TestLoadFromCache_Expired(t *testing.T) {
-	img := buildStubImage(t)
-	cachePath := filepath.Join(t.TempDir(), "expired.tar")
-
-	if err := saveToCache(img, cachePath); err != nil {
-		t.Fatalf("saveToCache: %v", err)
+	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+		t.Fatal("saveToCache did not create tarball")
 	}
 
-	past := time.Now().Add(-48 * time.Hour)
-	if err := os.Chtimes(cachePath, past, past); err != nil {
-		t.Fatal(err)
+	dp := cachePath[:len(cachePath)-4] + ".digest"
+	data, err := os.ReadFile(dp)
+	if err != nil {
+		t.Fatal("saveToCache did not create digest file")
 	}
-
-	loaded := loadFromCache(cachePath)
-	if loaded != nil {
-		t.Fatal("loadFromCache should return nil for expired cache")
+	if len(data) == 0 {
+		t.Fatal("digest file is empty")
 	}
 }
 

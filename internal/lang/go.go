@@ -131,15 +131,15 @@ func applyGo(f *fiat.File, t *fiat.Target) {
 		if !hasGoFlags {
 			if isDebug(t) {
 				flags = "$GODEBUGFLAGS"
-				verPost = ` -ldflags="-X main.version=$VERSION"`
+				verPost = ` -ldflags="-buildid=reproducible -X main.version=$VERSION"`
 			} else {
-				flags = `-trimpath -ldflags="-s -w -X main.version=$VERSION"`
+				flags = `-trimpath -ldflags="-s -w -buildid=reproducible -X main.version=$VERSION"`
 			}
 		}
 		pkg := ""
 		if srcDir != "" {
 			pkg = " " + srcDir
 		}
-		t.Cmds = append(t.Cmds, "$GO $args "+flags+verPost+" -o $bin"+pkg)
+		t.Cmds = append(t.Cmds, "$GO $args -buildvcs=false "+flags+verPost+" -o $bin"+pkg)
 	}
 }

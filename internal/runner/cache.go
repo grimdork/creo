@@ -5,13 +5,31 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/grimdork/creo/internal/fiat"
+	"github.com/grimdork/creo/internal/oci"
 	"github.com/grimdork/creo/internal/util"
 )
+
+var (
+	goVersionOnce sync.Once
+	goVersion     string
+)
+
+func getGoVersion() string {
+	goVersionOnce.Do(func() {
+		out, err := exec.Command("go", "version").Output()
+		if err == nil {
+			goVersion = strings.TrimSpace(string(out))
+		}
+	})
+	return goVersion
+}
 
 type cacheEntry struct {
 	Key string `json:"key"`
@@ -19,6 +37,19 @@ type cacheEntry struct {
 
 func cachePath(dir, targetName string) string {
 	return filepath.Join(dir, ".creo", "cache", targetName+".json")
+}
+
+func CleanCache(dir string) error {
+	creoDir := filepath.Join(dir, ".creo")
+	if _, err := os.Stat(creoDir); err == nil {
+		if err := os.RemoveAll(creoDir); err != nil {
+			return err
+		}
+	}
+	if p, err := oci.OCICachePath(); err == nil {
+		os.RemoveAll(p)
+	}
+	return nil
 }
 
 func computeCacheKey(sources []string, cmds []string) (string, error) {
@@ -35,6 +66,10 @@ func computeCacheKey(sources []string, cmds []string) (string, error) {
 	}
 	for _, cmd := range cmds {
 		h.Write([]byte(cmd))
+		h.Write([]byte{0})
+	}
+	if v := getGoVersion(); v != "" {
+		h.Write([]byte(v))
 		h.Write([]byte{0})
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil

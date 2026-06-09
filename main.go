@@ -108,6 +108,7 @@ func runBuild(opt *arg.Options) {
 
 	fiatPath, ok := fiat.FindFiat(opt.GetString("file"))
 	if !ok {
+		fmt.Fprintln(os.Stderr, "Error: no fiat file found")
 		os.Exit(1)
 	}
 
@@ -156,6 +157,7 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "n", "dry-run", "Print commands without running them")
 	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
 	opt.SetFlag(arg.GroupDefault, "", "refresh-cacerts", "Re-download cached CA certificates")
+	opt.SetFlag(arg.GroupDefault, "", "clean-cache", "Remove cached build artifacts")
 	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
 	opt.SetFlag(arg.GroupDefault, "L", "login", "Store registry credentials in Docker config")
 	opt.SetOption(arg.GroupDefault, "I", "inspect", "Inspect a remote image", "", false, arg.VarString, nil)
@@ -165,13 +167,19 @@ func main() {
 	if err := opt.Parse(os.Args[1:]); err != nil {
 		if !errors.Is(err, arg.ErrNonFatal) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+		os.Exit(1)
 		}
 	}
 
 	switch {
 	case opt.GetBool("version"):
 		printVersion()
+	case opt.GetBool("clean-cache"):
+		if err := runner.CleanCache("."); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+		}
+		fmt.Println("Cache cleaned")
 	case opt.GetBool("completion"):
 		fmt.Print(generateCompletion(opt))
 	case opt.GetBool("login"):

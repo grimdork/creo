@@ -383,7 +383,9 @@ func WriteIgnores(lines []string, verbose bool) {
 		}
 	} else {
 		content := strings.Join(lines, "\n") + "\n"
-		os.WriteFile(".gitignore", []byte(content), 0644)
+		if err := os.WriteFile(".gitignore", []byte(content), 0644); err != nil {
+			return
+		}
 		if verbose {
 			fmt.Println("  Created .gitignore")
 		}

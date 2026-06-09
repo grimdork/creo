@@ -2,11 +2,13 @@ package oci
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/grimdork/climate/paths"
@@ -36,7 +38,9 @@ type Config struct {
 	SBOM      bool
 }
 
-const cacheTTL = 24 * time.Hour
+func digestPath(path string) string {
+	return path[:len(path)-4] + ".digest"
+}
 
 func Build(cfg Config) (v1.Image, error) {
 	var img v1.Image
@@ -110,10 +114,6 @@ func pullImage(cfg Config) (v1.Image, error) {
 	cacheKey := cacheKeyName(cfg.BaseImage, cfg.Arch, cfg.OS)
 	cachePath := filepath.Join(cacheDir, cacheKey+".tar")
 
-	if img := loadFromCache(cachePath); img != nil {
-		return img, nil
-	}
-
 	ref, err := name.ParseReference(cfg.BaseImage)
 	if err != nil {
 		return nil, fmt.Errorf("invalid reference %q: %w", cfg.BaseImage, err)
@@ -124,12 +124,18 @@ func pullImage(cfg Config) (v1.Image, error) {
 		return nil, fmt.Errorf("auth: %w", err)
 	}
 
-	opts := []remote.Option{remote.WithAuth(auth)}
+	var plat *v1.Platform
 	if cfg.Arch != "" && cfg.OS != "" {
-		opts = append(opts, remote.WithPlatform(v1.Platform{
-			Architecture: cfg.Arch,
-			OS:           cfg.OS,
-		}))
+		plat = &v1.Platform{Architecture: cfg.Arch, OS: cfg.OS}
+	}
+
+	if img := loadFromCache(cachePath, ref, auth, plat); img != nil {
+		return img, nil
+	}
+
+	opts := []remote.Option{remote.WithAuth(auth)}
+	if plat != nil {
+		opts = append(opts, remote.WithPlatform(*plat))
 	}
 
 	img, err := remote.Image(ref, opts...)
@@ -138,10 +144,18 @@ func pullImage(cfg Config) (v1.Image, error) {
 	}
 
 	if err := saveToCache(img, cachePath); err != nil {
-		return img, nil
+		fmt.Fprintf(os.Stderr, "  Warning: OCI cache write failed: %v ", err)
 	}
 
 	return img, nil
+}
+
+func OCICachePath() (string, error) {
+	p, err := paths.New("creo")
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(p.UserBase, "oci"), nil
 }
 
 func cacheDirectory() (string, error) {
@@ -162,18 +176,38 @@ func cacheKeyName(ref, arch, os string) string {
 	return fmt.Sprintf("%x", h[:16])
 }
 
-func loadFromCache(path string) v1.Image {
-	info, err := os.Stat(path)
-	if err != nil {
+func loadFromCache(path string, ref name.Reference, auth authn.Authenticator, plat *v1.Platform) v1.Image {
+	if _, err := os.Stat(path); err != nil {
 		return nil
 	}
-	if time.Since(info.ModTime()) > cacheTTL {
+
+	dp := digestPath(path)
+	data, err := os.ReadFile(dp)
+	if err != nil {
 		os.Remove(path)
 		return nil
 	}
+	storedDigest := strings.TrimSpace(string(data))
+
+	opts := []remote.Option{remote.WithAuth(auth)}
+	if plat != nil {
+		opts = append(opts, remote.WithPlatform(*plat))
+	}
+	desc, err := remote.Get(ref, opts...)
+	if err != nil {
+		return nil
+	}
+
+	if desc.Digest.String() != storedDigest {
+		os.Remove(path)
+		os.Remove(dp)
+		return nil
+	}
+
 	img, err := tarball.ImageFromPath(path, nil)
 	if err != nil {
 		os.Remove(path)
+		os.Remove(dp)
 		return nil
 	}
 	return img
@@ -192,7 +226,20 @@ func saveToCache(img v1.Image, path string) error {
 		os.Remove(tmpPath)
 		return err
 	}
-	return os.Rename(tmpPath, path)
+	if err := os.Rename(tmpPath, path); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	raw, err := img.RawManifest()
+	if err != nil {
+		return err
+	}
+	h := sha256.Sum256(raw)
+	if err := os.WriteFile(digestPath(path), []byte("sha256:"+hex.EncodeToString(h[:])+"\n"), 0644); err != nil {
+		return err
+	}
+	return nil
 }
 
 func certsLayer(caCert string) (v1.Layer, error) {

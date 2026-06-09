@@ -117,7 +117,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			for _, m := range matches {
 				if err := os.Remove(m); err != nil {
 					if opts.Verbose {
-						fmt.Printf("  Failed to remove stale %s: %v\n", m, err)
+						fmt.Fprintf(os.Stderr, "  Failed to remove stale %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
 					fmt.Printf("  Removed stale %s\n", m)
@@ -207,7 +207,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						if _, err := os.Stat(bp); err == nil {
 							if err := os.Remove(bp); err != nil {
 								if opts.Verbose {
-									fmt.Printf("  Failed to remove %s: %v\n", bp, err)
+									fmt.Fprintf(os.Stderr, "  Failed to remove %s: %v\n", bp, err)
 								}
 							} else if opts.Verbose {
 								fmt.Printf("  Removed %s\n", bp)
@@ -230,7 +230,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					if _, err := os.Stat(dest); err == nil {
 						if err := os.Remove(dest); err != nil {
 							if opts.Verbose {
-								fmt.Printf("  Failed to remove installed %s: %v\n", dest, err)
+								fmt.Fprintf(os.Stderr, "  Failed to remove installed %s: %v\n", dest, err)
 							}
 						} else if opts.Verbose {
 							fmt.Printf("  Removed installed %s\n", dest)
@@ -318,7 +318,11 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 		}
 		if allExist {
-			fmt.Printf("Target %q: binaries already exist. Skipping.\n", name)
+			if t.Sources != "" {
+				fmt.Printf("Target %q: up to date (cached)\n", name)
+			} else {
+				fmt.Printf("Target %q: already exists. Skipping.\n", name)
+			}
 			done[name] = true
 			return nil
 		}
@@ -352,11 +356,24 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 				comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
 
+				if !opts.Rebuild && !t.IsVirtual && c.bin != "" && t.Sources != "" {
+					if _, err := os.Stat(c.bin); err == nil {
+						comboKey := name + "_" + activeArch + "_" + activeOS
+						if checkCache(dir, comboKey, sources, t.Cmds) {
+							if opts.Verbose {
+								fmt.Printf("  %s up to date (cached)\n", c.bin)
+							}
+							outputs.Store(name, activeArch, activeOS, c.bin)
+							return
+						}
+					}
+				}
+
 				if t.Bin != "" {
 					comboVars["bin"] = &fiat.Var{Name: "bin", Value: c.bin}
 					if !opts.DryRun && opts.Rebuild && len(t.Cmds) > 0 {
 						if err := os.Remove(c.bin); err != nil && !os.IsNotExist(err) && opts.Verbose {
-							fmt.Printf("  Failed to remove %s: %v\n", c.bin, err)
+							fmt.Fprintf(os.Stderr, "  Failed to remove %s: %v\n", c.bin, err)
 						}
 					}
 				}
@@ -389,6 +406,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						return
 					}
 					outputs.Store(name, activeArch, activeOS, c.bin)
+					if t.Sources != "" && multi {
+						comboKey := name + "_" + activeArch + "_" + activeOS
+						if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose { fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err) }
+					}
 				}
 
 				for _, inst := range t.Install {
@@ -472,6 +493,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 								return
 							}
 							if err := os.Rename(tmpPath, cachePath); err != nil {
+								os.Remove(tmpPath)
 								errCh <- fmt.Errorf("%s: renaming CA cert cache: %w", f.Path(), err)
 								return
 							}
@@ -549,8 +571,8 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			return fmt.Errorf("some combos failed")
 		}
 
-		if needsRun && !opts.DryRun && !t.IsVirtual && t.Bin != "" && t.Sources != "" {
-			writeCache(dir, name, sources, t.Cmds)
+		if needsRun && !opts.DryRun && !t.IsVirtual && !multi && t.Bin != "" && t.Sources != "" {
+			if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose { fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err) }
 		}
 
 		if opts.Verbose {
@@ -563,13 +585,15 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			for _, m := range matches {
 				if err := os.Remove(m); err != nil {
 					if opts.Verbose {
-						fmt.Printf("  Failed to clean %s: %v\n", m, err)
+						fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
 					fmt.Printf("  Cleaned %s\n", m)
 				}
 			}
 		}
+	} else if t.Sources != "" {
+		fmt.Printf("Target %q: up to date (cached)\n", name)
 	} else {
 		fmt.Printf("Target %q: binary %q already exists. Skipping.\n", name, existsBinPath)
 	}

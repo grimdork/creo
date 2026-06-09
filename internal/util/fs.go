@@ -88,6 +88,7 @@ func CopyFile(src, dest string) (err error) {
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return err
 	}
+
 	sf, err := os.Open(src)
 	if err != nil {
 		return err
@@ -99,18 +100,25 @@ func CopyFile(src, dest string) (err error) {
 		return err
 	}
 
-	df, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, si.Mode())
+	tmpPath := dest + ".tmp"
+	df, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, si.Mode())
 	if err != nil {
 		return err
 	}
 
 	if _, err := io.Copy(df, sf); err != nil {
 		df.Close()
-		os.Remove(dest)
+		os.Remove(tmpPath)
 		return err
 	}
 
 	if err := df.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	if err := os.Rename(tmpPath, dest); err != nil {
+		os.Remove(tmpPath)
 		return err
 	}
 	return nil
