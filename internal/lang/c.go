@@ -44,7 +44,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 		t.Bin += "-debug"
 	}
 	if t.Sources == "" {
-		t.Sources = "*.c"
+		t.Sources = "*.c *.h"
 	}
 	if len(t.Cmds) == 0 && len(t.Install) == 0 {
 		flags := "$CFLAGS"
@@ -128,7 +128,7 @@ func applyCxx(f *fiat.File, t *fiat.Target) {
 		t.Bin += "-debug"
 	}
 	if t.Sources == "" {
-		t.Sources = "*.cpp"
+		t.Sources = "*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp"
 	}
 	if len(t.Cmds) == 0 && len(t.Install) == 0 {
 		flags := "$CXXFLAGS"

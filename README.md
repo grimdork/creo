@@ -35,8 +35,7 @@ whether the binary is newer than the sources before rebuilding.
 
 ## Format
 
-A file named `fiat` (or `*.fiat` if you run without one) defines
-variables and targets.
+A file named `fiat` (or multiple files ending in `.fiat`) defines variables and targets.
 
 ### Variables
 
@@ -108,8 +107,8 @@ target: go
 | Language | `bin=` | `cmd=` | `sources=` |
 |---|---|---|---|
 | `go` | `./<name>` (from `go.mod`) | `$GO $GOFLAGS -o $bin` | `*.go go.mod go.sum` |
-| `c` | `./<name>` (from directory) | `$CC $CFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.c` |
-| `cxx` / `cpp` | `./<name>` (from directory) | `$CXX $CXXFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.cpp` |
+| `c` | `./<name>` (from directory) | `$CC $CFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.c *.h` |
+| `cxx` / `cpp` | `./<name>` (from directory) | `$CXX $CXXFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp` |
 | `oci` | — | — (packaging-only; uses `$OUTPUT_<target>` from required build) | — |
 
 For `go`: `build` targets get release flags; `debug` and any target
@@ -118,6 +117,10 @@ ending in `-debug` get debug flags.  Define `$GOFLAGS` to override.
 For `c`: `build` targets get `$CFLAGS` (`-O2 -Wall`); `debug` targets
 get `$CDEBUGFLAGS` (`-O0 -g -Wall`).  Same pattern for `cxx`/`cpp`
 with `$CXXFLAGS` / `$CXXDEBUGFLAGS`.
+
+For `c` and `cxx`/`cpp`, header files (`*.h`, `*.hpp`, `*.hxx`, `*.hh`)
+and C++20 module interfaces (`*.cppm`, `*.ixx`, `*.mpp`) are included in
+the default source patterns — changes to them trigger rebuilds.
 
 All variables are overridable in the fiat file.
 
