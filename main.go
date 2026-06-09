@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/grimdork/climate/arg"
@@ -77,6 +78,38 @@ func runInit(langs []string, force, verbose bool) {
 
 func runList(filePath string) {
 	out, err := listTargets(filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Print(out)
+}
+
+func runGraph(opt *arg.Options) {
+	format := opt.GetString("graph")
+	if format != "tree" && format != "dot" {
+		fmt.Fprintln(os.Stderr, "Error: --graph must be 'tree' or 'dot'")
+		os.Exit(1)
+	}
+
+	fiatPath, ok := fiat.FindFiat(opt.GetString("file"))
+	if !ok {
+		fmt.Fprintln(os.Stderr, "Error: no fiat file found")
+		os.Exit(1)
+	}
+	dir := filepath.Dir(fiatPath)
+
+	file, err := fiat.Parse(fiatPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
+		os.Exit(1)
+	}
+	if err := lang.Apply(file); err != nil {
+		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
+		os.Exit(1)
+	}
+
+	out, err := runner.RenderGraph(file, dir, format, opt.GetBool("status"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -162,12 +195,14 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "L", "login", "Store registry credentials in Docker config")
 	opt.SetOption(arg.GroupDefault, "I", "inspect", "Inspect a remote image", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
+	opt.SetOption(arg.GroupDefault, "", "graph", "Show dependency graph (tree|dot)", "", false, arg.VarString, nil)
+	opt.SetFlag(arg.GroupDefault, "", "status", "Check cache state when showing graph")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
 	if err := opt.Parse(os.Args[1:]); err != nil {
 		if !errors.Is(err, arg.ErrNonFatal) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+			os.Exit(1)
 		}
 	}
 
@@ -177,7 +212,7 @@ func main() {
 	case opt.GetBool("clean-cache"):
 		if err := runner.CleanCache("."); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+			os.Exit(1)
 		}
 		fmt.Println("Cache cleaned")
 	case opt.GetBool("completion"):
@@ -191,6 +226,8 @@ func main() {
 		runInit(opt.GetPosStringSlice("targets"), opt.GetBool("F"), opt.GetBool("v"))
 	case opt.GetBool("l"):
 		runList(opt.GetString("file"))
+	case opt.GetString("graph") != "":
+		runGraph(opt)
 	default:
 		runBuild(opt)
 	}

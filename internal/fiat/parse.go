@@ -74,11 +74,11 @@ func parseProperty(line string, t *Target) string {
 	case "tmp":
 		t.Tmp = strings.Fields(value)
 	case "require":
-		t.Requires = strings.Fields(value)
+		t.Requires = append(t.Requires, strings.Fields(value)...)
 	case "arch":
-		t.Arch = strings.Fields(value)
+		t.Arch = append(t.Arch, strings.Fields(value)...)
 	case "os":
-		t.OS = strings.Fields(value)
+		t.OS = append(t.OS, strings.Fields(value)...)
 	case "desc":
 		t.Desc = value
 	case "install":
