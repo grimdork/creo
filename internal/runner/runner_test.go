@@ -597,3 +597,55 @@ func TestMultiArchBuild(t *testing.T) {
 		t.Fatal("expected test-linux-arm64 binary")
 	}
 }
+
+func TestExecCredHelperColonFormat(t *testing.T) {
+	dir := t.TempDir()
+	helper := filepath.Join(dir, "helper.sh")
+	writeFile(t, dir, "helper.sh", `#!/bin/sh
+echo "user:password"
+`)
+	if err := os.Chmod(helper, 0755); err != nil {
+		t.Fatal(err)
+	}
+	user, pass, err := execCredHelper(helper, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user != "user" {
+		t.Fatalf("expected user 'user', got %q", user)
+	}
+	if pass != "password" {
+		t.Fatalf("expected pass 'password', got %q", pass)
+	}
+}
+
+func TestExecCredHelperNoColon(t *testing.T) {
+	dir := t.TempDir()
+	helper := filepath.Join(dir, "helper.sh")
+	writeFile(t, dir, "helper.sh", `#!/bin/sh
+echo "token123"
+`)
+	if err := os.Chmod(helper, 0755); err != nil {
+		t.Fatal(err)
+	}
+	user, pass, err := execCredHelper(helper, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user != "" {
+		t.Fatalf("expected empty user for colon-less output, got %q", user)
+	}
+	if pass != "token123" {
+		t.Fatalf("expected pass 'token123', got %q", pass)
+	}
+}
+
+func TestExecCredHelperError(t *testing.T) {
+	user, pass, err := execCredHelper("nonexistent-command-nonexistent", "/tmp")
+	if err == nil {
+		t.Fatal("expected error for missing helper")
+	}
+	if user != "" || pass != "" {
+		t.Fatal("expected empty user/pass on error")
+	}
+}

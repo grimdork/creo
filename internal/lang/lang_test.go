@@ -979,11 +979,6 @@ func TestTestAliasWithRegionAndTag(t *testing.T) {
 	}
 }
 
-func TestExecCredHelperNoColon(t *testing.T) {
-	// This tests that execCredHelper handles output without a colon
-	// (e.g. output from aws ecr get-login-password)
-}
-
 func TestApplyWithArgs(t *testing.T) {
 	content := []byte("build: go args=-v\n")
 	dir := t.TempDir()

@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // String returns a version from git describe. Appends -dirty if the
@@ -23,7 +24,17 @@ func String() string {
 	if exec.Command("git", "diff-index", "--quiet", "HEAD").Run() != nil {
 		ver += "-dirty"
 	}
-	return ver
+	return sanitize(ver)
+}
+
+func sanitize(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '-' || r == '_' || r == '+' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // CommitString returns the short commit hash. Returns "unknown" if not

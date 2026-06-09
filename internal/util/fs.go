@@ -31,45 +31,68 @@ func GlobFiles(pattern, dir string) []string {
 	suffix = strings.TrimPrefix(suffix, "/")
 
 	var files []string
-
-	if strings.Contains(suffix, "**") {
-		segments := strings.Split(suffix, "/")
-		filePat := segments[len(segments)-1]
-		filepath.WalkDir(walkRoot, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if !d.IsDir() {
-				matched, _ := filepath.Match(filePat, filepath.Base(path))
-				if matched {
-					files = append(files, path)
-				}
-			}
-			return nil
-		})
-		return files
-	}
-
 	filepath.WalkDir(walkRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
-		if !d.IsDir() {
-			matched := false
-			if suffix == "" {
-				matched = true
-			} else if strings.ContainsAny(suffix, "*?[") {
-				matched, _ = filepath.Match(suffix, filepath.Base(path))
+		if d.IsDir() {
+			return nil
+		}
+		var matched bool
+		if suffix == "" {
+			matched = true
+		} else if strings.Contains(suffix, "**") {
+			rel, _ := filepath.Rel(walkRoot, path)
+			matched = matchGlob(suffix, rel)
+		} else if strings.ContainsAny(suffix, "*?[") {
+			if strings.Contains(suffix, "/") {
+				rel, _ := filepath.Rel(walkRoot, path)
+				matched, _ = filepath.Match(suffix, rel)
 			} else {
-				matched = strings.HasSuffix(filepath.Base(path), suffix)
+				matched, _ = filepath.Match(suffix, filepath.Base(path))
 			}
-			if matched {
-				files = append(files, path)
-			}
+		} else {
+			rel, _ := filepath.Rel(walkRoot, path)
+			matched = rel == suffix || strings.HasSuffix(rel, "/"+suffix)
+		}
+		if matched {
+			files = append(files, path)
 		}
 		return nil
 	})
 	return files
+}
+
+func matchGlob(pattern, name string) bool {
+	parts := strings.Split(pattern, "/")
+	nameParts := strings.Split(name, "/")
+
+	var match func(pi, ni int) bool
+	match = func(pi, ni int) bool {
+		for pi < len(parts) && ni < len(nameParts) {
+			if parts[pi] == "**" {
+				pi++
+				if pi >= len(parts) {
+					return true
+				}
+				for ni <= len(nameParts) {
+					if match(pi, ni) {
+						return true
+					}
+					ni++
+				}
+				return false
+			}
+			m, _ := filepath.Match(parts[pi], nameParts[ni])
+			if !m {
+				return false
+			}
+			pi++
+			ni++
+		}
+		return pi == len(parts) && ni == len(nameParts)
+	}
+	return match(0, 0)
 }
 
 func CopyFile(src, dest string) (err error) {

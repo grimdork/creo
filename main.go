@@ -195,7 +195,7 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "L", "login", "Store registry credentials in Docker config")
 	opt.SetOption(arg.GroupDefault, "I", "inspect", "Inspect a remote image", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
-	opt.SetOption(arg.GroupDefault, "", "graph", "Show dependency graph (tree|dot)", "", false, arg.VarString, nil)
+	opt.SetOption(arg.GroupDefault, "", "graph", "Show dependency graph (tree|dot|svg)", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "status", "Check cache state when showing graph")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 

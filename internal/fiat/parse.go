@@ -114,8 +114,11 @@ func Parse(path string) (*File, error) {
 
 	for _, raw := range rawLines {
 		stripped := raw
-		if idx := strings.IndexByte(stripped, '#'); idx >= 0 {
-			stripped = stripped[:idx]
+		for i := 0; i < len(stripped); i++ {
+			if stripped[i] == '#' && (i == 0 || stripped[i-1] == ' ' || stripped[i-1] == '\t') {
+				stripped = stripped[:i]
+				break
+			}
 		}
 		line := strings.TrimSpace(stripped)
 

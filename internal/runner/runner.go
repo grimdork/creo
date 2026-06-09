@@ -250,14 +250,8 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	if !t.IsVirtual && t.Bin != "" && t.Sources != "" {
 		sources = collectFilePaths(t, f, dir)
 	}
-	archs := t.Arch
-	if len(archs) == 0 {
-		archs = []string{""}
-	}
-	oses := t.OS
-	if len(oses) == 0 {
-		oses = []string{""}
-	}
+	archs := archOrEmpty(t.Arch)
+	oses := osOrEmpty(t.OS)
 	multi := len(archs) > 1 || len(oses) > 1
 
 	if !t.IsVirtual && !multi && !opts.Rebuild && t.Bin != "" && t.Sources != "" {
@@ -285,14 +279,8 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		var combos []combo
 		for _, arch := range archs {
 			for _, osval := range oses {
-				activeArch := arch
-				activeOS := osval
-				if activeArch == "" {
-					activeArch = runtime.GOARCH
-				}
-				if activeOS == "" {
-					activeOS = runtime.GOOS
-				}
+				activeArch := ensureArch(arch)
+				activeOS := ensureOS(osval)
 
 				comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
 
@@ -345,14 +333,8 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				defer func() { <-sem }()
 
 				comboEnv := os.Environ()
-				activeArch := c.arch
-				activeOS := c.osval
-				if activeArch == "" {
-					activeArch = runtime.GOARCH
-				}
-				if activeOS == "" {
-					activeOS = runtime.GOOS
-				}
+				activeArch := ensureArch(c.arch)
+				activeOS := ensureOS(c.osval)
 				comboEnv = append(comboEnv, lang.CrossEnv(t.Language, c.arch, c.osval)...)
 
 				comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
@@ -696,6 +678,34 @@ func baseComboVars(f *fiat.File, t *fiat.Target, activeArch, activeOS string, ou
 		}
 	}
 	return comboVars
+}
+
+func archOrEmpty(a []string) []string {
+	if len(a) == 0 {
+		return []string{""}
+	}
+	return a
+}
+
+func osOrEmpty(o []string) []string {
+	if len(o) == 0 {
+		return []string{""}
+	}
+	return o
+}
+
+func ensureArch(a string) string {
+	if a == "" {
+		return runtime.GOARCH
+	}
+	return a
+}
+
+func ensureOS(o string) string {
+	if o == "" {
+		return runtime.GOOS
+	}
+	return o
 }
 
 func hasCombo(archs, oses []string, arch, os string) bool {
