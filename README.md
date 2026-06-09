@@ -169,12 +169,13 @@ The image places the binary at `/app/<name>` (override with `appdir=`).
 | `sbom=` | Set `sbom=true` to attach an SPDX 2.3 JSON SBOM at `/sbom.spdx.json` |
 | `ociuser=` | Registry username (for basic auth) |
 | `ocipass=` | Registry password or token |
+| `ocicred=` | Credential helper command — prints `user:password` to stdout (see below) |
 | `cacert=` | CA certificate bundle — `auto` to download from curl.se, or a path to a local file |
 
 If no `tarball=` is set and no `repo=` is set, a tarball path defaults
-to `build/<target>.tar`.  Auth: when both `ociuser=` and `ocipass=` are
-set, basic auth is used; otherwise the default Docker keychain
-(`~/.docker/config.json`) is consulted.
+to `build/<target>.tar`.  Auth priority: (1) `ociuser`+`ocipass` wins,
+(2) `ocicred=` runs the helper command, (3) otherwise the default Docker
+keychain (`~/.docker/config.json`) is consulted.
 
 CA certificates (`cacert=`) embed a bundle at `/etc/ssl/certs/ca-certificates.crt`
 in the image, allowing the binary to make HTTPS calls.  Set `cacert=auto`
@@ -302,6 +303,7 @@ alongside the build artefacts from `bin=`.
 | `appdir=` | Directory in the OCI image for the binary (default: `/app`) |
 | `ociuser=` | Registry username (basic auth) |
 | `ocipass=` | Registry password or token |
+| `ocicred=` | Credential helper command — prints `user:password` to stdout |
 | `cacert=` | CA certificate bundle — `auto` to download, or path to local file |
 | `from=` | Base image for OCI (e.g. `alpine:latest`) |
 | `sbom=` | Generate SPDX 2.3 SBOM in OCI image (`true`/`false`) |

@@ -24,6 +24,8 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 			cfg.User = v.Value
 		case "ocipass":
 			cfg.Pass = v.Value
+		case "ocicred":
+			cfg.CredHelper = v.Value
 		case "cacert":
 			cfg.CACert = v.Value
 		case "from":

@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -408,7 +409,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					outputs.Store(name, activeArch, activeOS, c.bin)
 					if t.Sources != "" && multi {
 						comboKey := name + "_" + activeArch + "_" + activeOS
-						if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose { fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err) }
+						if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
+							fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err)
+						}
 					}
 				}
 
@@ -466,54 +469,54 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						}
 
 						caCert := t.OCI.CACert
-					if caCert == "auto" {
-						cacheDir := filepath.Join(filepath.Dir(f.Path()), ".creo")
-						cachePath := filepath.Join(cacheDir, "cacert.pem")
+						if caCert == "auto" {
+							cacheDir := filepath.Join(filepath.Dir(f.Path()), ".creo")
+							cachePath := filepath.Join(cacheDir, "cacert.pem")
 
-						if opts.RefreshCACerts {
-							os.Remove(cachePath)
-							if opts.Verbose {
-								fmt.Printf("  Refreshed cached CA certs\n")
+							if opts.RefreshCACerts {
+								os.Remove(cachePath)
+								if opts.Verbose {
+									fmt.Printf("  Refreshed cached CA certs\n")
+								}
 							}
+
+							if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+								if err := os.MkdirAll(cacheDir, 0755); err != nil {
+									errCh <- fmt.Errorf("%s: creating cache dir: %w", f.Path(), err)
+									return
+								}
+								data, err := oci.FetchCACert()
+								if err != nil {
+									errCh <- fmt.Errorf("%s: %w", f.Path(), err)
+									return
+								}
+								tmpPath := cachePath + ".tmp"
+								if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+									errCh <- fmt.Errorf("%s: writing CA cert cache: %w", f.Path(), err)
+									return
+								}
+								if err := os.Rename(tmpPath, cachePath); err != nil {
+									os.Remove(tmpPath)
+									errCh <- fmt.Errorf("%s: renaming CA cert cache: %w", f.Path(), err)
+									return
+								}
+								if opts.Verbose {
+									fmt.Printf("  Downloaded CA certs to .creo/cacert.pem\n")
+								}
+							}
+							caCert = cachePath
 						}
 
-						if _, err := os.Stat(cachePath); os.IsNotExist(err) {
-							if err := os.MkdirAll(cacheDir, 0755); err != nil {
-								errCh <- fmt.Errorf("%s: creating cache dir: %w", f.Path(), err)
-								return
-							}
-							data, err := oci.FetchCACert()
-							if err != nil {
-								errCh <- fmt.Errorf("%s: %w", f.Path(), err)
-								return
-							}
-							tmpPath := cachePath + ".tmp"
-							if err := os.WriteFile(tmpPath, data, 0644); err != nil {
-								errCh <- fmt.Errorf("%s: writing CA cert cache: %w", f.Path(), err)
-								return
-							}
-							if err := os.Rename(tmpPath, cachePath); err != nil {
-								os.Remove(tmpPath)
-								errCh <- fmt.Errorf("%s: renaming CA cert cache: %w", f.Path(), err)
-								return
-							}
-							if opts.Verbose {
-								fmt.Printf("  Downloaded CA certs to .creo/cacert.pem\n")
-							}
-						}
-						caCert = cachePath
-					}
-
-					img, err := oci.Build(oci.Config{
-						Binary:    binSrc,
-						AppDir:    appDir,
-						Name:      binaryName,
-						CACert:    caCert,
-						BaseImage: t.OCI.BaseImage,
-						Arch:      activeArch,
-						OS:        activeOS,
-						SBOM:      t.OCI.SBOM,
-					})
+						img, err := oci.Build(oci.Config{
+							Binary:    binSrc,
+							AppDir:    appDir,
+							Name:      binaryName,
+							CACert:    caCert,
+							BaseImage: t.OCI.BaseImage,
+							Arch:      activeArch,
+							OS:        activeOS,
+							SBOM:      t.OCI.SBOM,
+						})
 						if err != nil {
 							errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)
 							return
@@ -537,6 +540,15 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
 							user := os.ExpandEnv(fiat.Expand(t.OCI.User, comboVars, 0))
 							pass := os.ExpandEnv(fiat.Expand(t.OCI.Pass, comboVars, 0))
+							if user == "" && pass == "" && t.OCI.CredHelper != "" {
+								helper := os.ExpandEnv(fiat.Expand(t.OCI.CredHelper, comboVars, 0))
+								var helpErr error
+								user, pass, helpErr = execCredHelper(helper, dir)
+								if helpErr != nil {
+									errCh <- fmt.Errorf("%s: credential helper: %w", f.Path(), helpErr)
+									return
+								}
+							}
 							if err := oci.Push(img, oci.PushConfig{
 								Repo: repo,
 								Tag:  tag,
@@ -572,7 +584,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		}
 
 		if needsRun && !opts.DryRun && !t.IsVirtual && !multi && t.Bin != "" && t.Sources != "" {
-			if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose { fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err) }
+			if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose {
+				fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err)
+			}
 		}
 
 		if opts.Verbose {
@@ -690,4 +704,23 @@ func hasCombo(archs, oses []string, arch, os string) bool {
 		}
 	}
 	return false
+}
+
+func execCredHelper(helper, dir string) (user, pass string, err error) {
+	parts := strings.Fields(helper)
+	if len(parts) == 0 {
+		return "", "", fmt.Errorf("empty credential helper")
+	}
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Dir = dir
+	out, execErr := cmd.Output()
+	if execErr != nil {
+		return "", "", fmt.Errorf("%s: %w", helper, execErr)
+	}
+	line := strings.TrimSpace(string(out))
+	idx := strings.IndexByte(line, ':')
+	if idx < 0 {
+		return "", "", fmt.Errorf("credential helper output must be formatted as user:password")
+	}
+	return line[:idx], line[idx+1:], nil
 }
