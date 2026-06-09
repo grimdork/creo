@@ -144,7 +144,7 @@ The image places the binary at `/app/<name>` (override with `appdir=`).
 ### OCI properties
 
 | Property | What it does |
-|---|---|---|
+|---|---|
 | `repo=` | Container registry (e.g. `ghcr.io/user/repo`) |
 | `tag=` | Image tag (default: `latest` for tarball; push uses this if set) |
 | `tarball=` | Write image as a docker-compatible `.tar` file |
@@ -432,6 +432,7 @@ creo [flags] [target...]
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries and installed files |
 | `-v`, `--verbose` | Show what's happening |
+| `--refresh-cacerts` | Re-download cached CA certificates |
 | `--completion` | Print bash shell completion script |
 | `--version` | Print version and exit |
 | `-h`, `--help` | Show help |

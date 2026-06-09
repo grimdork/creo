@@ -45,13 +45,14 @@ func (o *Outputs) LoadAll(target string) []string {
 }
 
 type RunOpts struct {
-	Rebuild   bool
-	Clean     bool
-	Recursive bool
-	Verbose   bool
-	Jobs      int
-	KeepGoing bool
-	DryRun    bool
+	Rebuild        bool
+	Clean          bool
+	Recursive      bool
+	Verbose        bool
+	Jobs           int
+	KeepGoing      bool
+	DryRun         bool
+	RefreshCACerts bool
 }
 
 func RunTarget(f *fiat.File, name string, opts RunOpts) error {
@@ -479,12 +480,50 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							appDir = "/app"
 						}
 
-						img, err := oci.Build(oci.Config{
-							Binary: binSrc,
-							AppDir: appDir,
-							Name:   binaryName,
-							CACert: t.OCI.CACert,
-						})
+						caCert := t.OCI.CACert
+					if caCert == "auto" {
+						cacheDir := filepath.Join(filepath.Dir(f.Path()), ".creo")
+						cachePath := filepath.Join(cacheDir, "cacert.pem")
+
+						if opts.RefreshCACerts {
+							os.Remove(cachePath)
+							if opts.Verbose {
+								fmt.Printf("  Refreshed cached CA certs\n")
+							}
+						}
+
+						if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+							if err := os.MkdirAll(cacheDir, 0755); err != nil {
+								errCh <- fmt.Errorf("%s: creating cache dir: %w", f.Path(), err)
+								return
+							}
+							data, err := oci.FetchCACert()
+							if err != nil {
+								errCh <- fmt.Errorf("%s: %w", f.Path(), err)
+								return
+							}
+							tmpPath := cachePath + ".tmp"
+							if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+								errCh <- fmt.Errorf("%s: writing CA cert cache: %w", f.Path(), err)
+								return
+							}
+							if err := os.Rename(tmpPath, cachePath); err != nil {
+								errCh <- fmt.Errorf("%s: renaming CA cert cache: %w", f.Path(), err)
+								return
+							}
+							if opts.Verbose {
+								fmt.Printf("  Downloaded CA certs to .creo/cacert.pem\n")
+							}
+						}
+						caCert = cachePath
+					}
+
+					img, err := oci.Build(oci.Config{
+						Binary: binSrc,
+						AppDir: appDir,
+						Name:   binaryName,
+						CACert: caCert,
+					})
 						if err != nil {
 							errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)
 							return

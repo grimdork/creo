@@ -66,14 +66,7 @@ func Build(cfg Config) (v1.Image, error) {
 }
 
 func certsLayer(caCert string) (v1.Layer, error) {
-	var data []byte
-	var err error
-
-	if caCert == "auto" {
-		data, err = downloadCACert()
-	} else {
-		data, err = os.ReadFile(caCert)
-	}
+	data, err := os.ReadFile(caCert)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +96,7 @@ func certsLayer(caCert string) (v1.Layer, error) {
 	})
 }
 
-func downloadCACert() ([]byte, error) {
+func FetchCACert() ([]byte, error) {
 	resp, err := http.Get(caCertURL)
 	if err != nil {
 		return nil, fmt.Errorf("downloading %s: %w", caCertURL, err)

@@ -59,6 +59,7 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "n", "dry-run", "Print commands without running them")
 	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
 	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
+	opt.SetFlag(arg.GroupDefault, "", "refresh-cacerts", "Re-download cached CA certificates")
 	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
@@ -91,13 +92,14 @@ func main() {
 	}
 
 	opts := runner.RunOpts{
-		Rebuild:   opt.GetBool("F"),
-		Recursive: opt.GetBool("r"),
-		Clean:     opt.GetBool("c"),
-		Verbose:   opt.GetBool("v"),
-		Jobs:      opt.GetInt("j"),
-		KeepGoing: opt.GetBool("k"),
-		DryRun:    opt.GetBool("n"),
+		Rebuild:        opt.GetBool("F"),
+		Recursive:      opt.GetBool("r"),
+		Clean:          opt.GetBool("c"),
+		Verbose:        opt.GetBool("v"),
+		Jobs:           opt.GetInt("j"),
+		KeepGoing:      opt.GetBool("k"),
+		DryRun:         opt.GetBool("n"),
+		RefreshCACerts: opt.GetBool("refresh-cacerts"),
 	}
 
 	if opt.GetBool("l") {
