@@ -379,6 +379,26 @@ Prints every target, its language, and its `desc=` description:
 
 Add a description to any target with the `desc=` property.
 
+### Dependency graph
+
+```
+creo --graph tree
+creo --graph dot | dot -Tpng -o graph.png
+creo --graph svg > graph.svg
+creo --graph svg --status > graph.svg
+```
+
+Three formats:
+
+- **`tree`** — box-drawing text forest, shows targets as roots with
+  their transitive dependencies as children.  `--status` appends
+  `[cached]`/`[stale]` annotations.
+- **`dot`** — Graphviz DOT output.  Pipe to `dot -Tpng -o graph.png`
+  for a rendered image.  `--status` colours nodes green/orange.
+- **`svg`** — standalone SVG with layered DAG layout, inline rendering,
+  zero external dependencies.  `--status` colours node borders green
+  (cached) or orange (stale).  Open in any browser.
+
 ### Watch mode
 
 ```
@@ -437,6 +457,8 @@ creo [flags] [target...]
 | `-v`, `--verbose` | Show what's happening |
 | `-L`, `--login` | Store registry credentials in `~/.docker/config.json` |
 | `-I`, `--inspect` | Inspect a remote OCI image manifest and config |
+| `--graph` | Draw dependency graph — `tree` (text tree), `dot` (Graphviz), or `svg` (inline SVG) |
+| `--status` | With `--graph`: annotate nodes with cache state (`[cached]`/`[stale]` or green/orange borders) |
 | `--refresh-cacerts` | Re-download cached CA certificates |
 | `--completion` | Print bash shell completion script |
 | `--version` | Print version and exit |

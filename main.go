@@ -87,8 +87,8 @@ func runList(filePath string) {
 
 func runGraph(opt *arg.Options) {
 	format := opt.GetString("graph")
-	if format != "tree" && format != "dot" {
-		fmt.Fprintln(os.Stderr, "Error: --graph must be 'tree' or 'dot'")
+	if format != "tree" && format != "dot" && format != "svg" {
+		fmt.Fprintln(os.Stderr, "Error: --graph must be 'tree', 'dot', or 'svg'")
 		os.Exit(1)
 	}
 

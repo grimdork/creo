@@ -58,7 +58,7 @@ const completionFunc = `_creo() {
 			complete_files
 			;;
 		--graph)
-			COMPREPLY=( $(compgen -W "tree dot" -- "$cur") )
+			COMPREPLY=( $(compgen -W "tree dot svg" -- "$cur") )
 			;;
 		*)
 			__creo_targets
