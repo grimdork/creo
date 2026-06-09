@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/grimdork/creo/internal/fiat"
+	"github.com/grimdork/creo/internal/util"
 )
 
 type cacheEntry struct {
@@ -20,13 +21,13 @@ func cachePath(dir, targetName string) string {
 	return filepath.Join(dir, ".creo", "cache", targetName+".json")
 }
 
-func computeCacheKey(sources []string, cmds []string) string {
+func computeCacheKey(sources []string, cmds []string) (string, error) {
 	sort.Strings(sources)
 	h := sha256.New()
 	for _, src := range sources {
 		data, err := os.ReadFile(src)
 		if err != nil {
-			continue
+			return "", err
 		}
 		h.Write([]byte(src))
 		h.Write([]byte{0})
@@ -36,11 +37,14 @@ func computeCacheKey(sources []string, cmds []string) string {
 		h.Write([]byte(cmd))
 		h.Write([]byte{0})
 	}
-	return hex.EncodeToString(h.Sum(nil))
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func checkCache(dir, targetName string, sources []string, cmds []string) bool {
-	expected := computeCacheKey(sources, cmds)
+	expected, err := computeCacheKey(sources, cmds)
+	if err != nil {
+		return false
+	}
 	data, err := os.ReadFile(cachePath(dir, targetName))
 	if err != nil {
 		return false
@@ -53,7 +57,10 @@ func checkCache(dir, targetName string, sources []string, cmds []string) bool {
 }
 
 func writeCache(dir, targetName string, sources []string, cmds []string) error {
-	key := computeCacheKey(sources, cmds)
+	key, err := computeCacheKey(sources, cmds)
+	if err != nil {
+		return err
+	}
 	entry := cacheEntry{Key: key}
 	data, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
@@ -78,7 +85,7 @@ func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) []string {
 		if t.Sources != "" {
 			srcPatterns := strings.Fields(fiat.ExpandWithTarget(t.Sources, f.Vars, t))
 			for _, pat := range srcPatterns {
-				files := globFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
+				files := util.GlobFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
 				paths = append(paths, files...)
 			}
 		}

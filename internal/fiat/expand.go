@@ -3,12 +3,9 @@ package fiat
 import (
 	"runtime"
 	"strings"
-)
 
-func IsIdent(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-		(c >= '0' && c <= '9') || c == '_'
-}
+	"github.com/grimdork/creo/internal/util"
+)
 
 func Expand(s string, vars map[string]*Var, depth int) string {
 	if depth > 10 {
@@ -46,7 +43,7 @@ func Expand(s string, vars map[string]*Var, depth int) string {
 			continue
 		}
 		j := i + 1
-		for j < len(s) && IsIdent(s[j]) {
+		for j < len(s) && util.IsIdent(s[j]) {
 			j++
 		}
 		if j > i+1 {

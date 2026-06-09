@@ -15,20 +15,21 @@ import (
 
 var version string
 
-func listTargets(explicitPath string) error {
+func listTargets(explicitPath string) (string, error) {
 	fiatPath, ok := fiat.FindFiat(explicitPath)
 	if !ok {
-		return fmt.Errorf("no fiat file found")
+		return "", fmt.Errorf("no fiat file found")
 	}
 	file, err := fiat.Parse(fiatPath)
 	if err != nil {
-		return fmt.Errorf("parsing %s: %w", fiatPath, err)
+		return "", fmt.Errorf("parsing %s: %w", fiatPath, err)
 	}
 	if err := lang.Apply(file); err != nil {
-		return fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
+		return "", fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
 	}
 
-	fmt.Println("Available targets:")
+	var b strings.Builder
+	b.WriteString("Available targets:\n")
 	for _, t := range file.Targets {
 		ln := t.Language
 		if ln == "" {
@@ -36,83 +37,54 @@ func listTargets(explicitPath string) error {
 		}
 		if t.Desc != "" {
 			desc := fiat.ExpandWithTarget(t.Desc, file.Vars, t)
-			fmt.Printf("  %-15s (%s)   %s\n", t.Name, ln, desc)
+			fmt.Fprintf(&b, "  %-15s (%s)   %s\n", t.Name, ln, desc)
 		} else {
-			fmt.Printf("  %-15s (%s)\n", t.Name, ln)
+			fmt.Fprintf(&b, "  %-15s (%s)\n", t.Name, ln)
 		}
 	}
-	return nil
+	return b.String(), nil
 }
 
-func main() {
-	opt := arg.New("creo", "A make-like build tool")
-	opt.SetDefaultHelp(true)
-	opt.SetFlag(arg.GroupDefault, "i", "init", "Initialise project with base files")
-	opt.SetOption(arg.GroupDefault, "f", "file", "Alternative fiat file path", "", false, arg.VarString, nil)
-	opt.SetFlag(arg.GroupDefault, "F", "force", "Force rebuild")
-	opt.SetFlag(arg.GroupDefault, "r", "recursive", "Recurse into subdirectories")
-	opt.SetFlag(arg.GroupDefault, "c", "clean", "Remove target binaries")
-	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
-	opt.SetFlag(arg.GroupDefault, "l", "list", "List available targets")
-	opt.SetFlag(arg.GroupDefault, "w", "watch", "Watch sources and rebuild on change")
-	opt.SetFlag(arg.GroupDefault, "k", "keep-going", "Continue despite errors")
-	opt.SetFlag(arg.GroupDefault, "n", "dry-run", "Print commands without running them")
-	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
-	opt.SetFlag(arg.GroupDefault, "", "refresh-cacerts", "Re-download cached CA certificates")
-	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
-	opt.SetFlag(arg.GroupDefault, "L", "login", "Store registry credentials in Docker config")
-	opt.SetOption(arg.GroupDefault, "I", "inspect", "Inspect a remote image", "", false, arg.VarString, nil)
-	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
-	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
+func printVersion() {
+	if version == "" {
+		fmt.Println("creo (dev)")
+	} else {
+		fmt.Println("creo " + version)
+	}
+}
 
-	err := opt.Parse(os.Args[1:])
+func runLogin() {
+	if err := oci.Login(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Credentials stored")
+}
+
+func runInspect(ref string) {
+	if err := oci.Inspect(ref); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runInit(langs []string, force, verbose bool) {
+	if err := lang.InitProject(langs, force, verbose); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runList(filePath string) {
+	out, err := listTargets(filePath)
 	if err != nil {
-		if !errors.Is(err, arg.ErrNonFatal) {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
+	fmt.Print(out)
+}
 
-	if opt.GetBool("version") {
-		if version == "" {
-			fmt.Println("creo (dev)")
-		} else {
-			fmt.Println("creo " + version)
-		}
-		return
-	}
-
-	if opt.GetBool("completion") {
-		fmt.Print(generateCompletion(opt))
-		return
-	}
-
-	if opt.GetBool("login") {
-		if err := oci.Login(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println("Credentials stored")
-		return
-	}
-
-	if ref := opt.GetString("inspect"); ref != "" {
-		if err := oci.Inspect(ref); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
-
-	if opt.GetBool("i") {
-		langs := opt.GetPosStringSlice("targets")
-		if err := initProject(langs, opt.GetBool("F"), opt.GetBool("v")); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
-
+func runBuild(opt *arg.Options) {
 	opts := runner.RunOpts{
 		Rebuild:        opt.GetBool("F"),
 		Recursive:      opt.GetBool("r"),
@@ -122,14 +94,6 @@ func main() {
 		KeepGoing:      opt.GetBool("k"),
 		DryRun:         opt.GetBool("n"),
 		RefreshCACerts: opt.GetBool("refresh-cacerts"),
-	}
-
-	if opt.GetBool("l") {
-		if err := listTargets(opt.GetString("file")); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		return
 	}
 
 	targets := opt.GetPosStringSlice("targets")
@@ -177,6 +141,53 @@ func main() {
 	}
 }
 
+func main() {
+	opt := arg.New("creo", "A make-like build tool")
+	opt.SetDefaultHelp(true)
+	opt.SetFlag(arg.GroupDefault, "i", "init", "Initialise project with base files")
+	opt.SetOption(arg.GroupDefault, "f", "file", "Alternative fiat file path", "", false, arg.VarString, nil)
+	opt.SetFlag(arg.GroupDefault, "F", "force", "Force rebuild")
+	opt.SetFlag(arg.GroupDefault, "r", "recursive", "Recurse into subdirectories")
+	opt.SetFlag(arg.GroupDefault, "c", "clean", "Remove target binaries")
+	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Verbose diagnostic output")
+	opt.SetFlag(arg.GroupDefault, "l", "list", "List available targets")
+	opt.SetFlag(arg.GroupDefault, "w", "watch", "Watch sources and rebuild on change")
+	opt.SetFlag(arg.GroupDefault, "k", "keep-going", "Continue despite errors")
+	opt.SetFlag(arg.GroupDefault, "n", "dry-run", "Print commands without running them")
+	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
+	opt.SetFlag(arg.GroupDefault, "", "refresh-cacerts", "Re-download cached CA certificates")
+	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
+	opt.SetFlag(arg.GroupDefault, "L", "login", "Store registry credentials in Docker config")
+	opt.SetOption(arg.GroupDefault, "I", "inspect", "Inspect a remote image", "", false, arg.VarString, nil)
+	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
+	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
+
+	if err := opt.Parse(os.Args[1:]); err != nil {
+		if !errors.Is(err, arg.ErrNonFatal) {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	switch {
+	case opt.GetBool("version"):
+		printVersion()
+	case opt.GetBool("completion"):
+		fmt.Print(generateCompletion(opt))
+	case opt.GetBool("login"):
+		runLogin()
+	case opt.GetString("inspect") != "":
+		ref := opt.GetString("inspect")
+		runInspect(ref)
+	case opt.GetBool("i"):
+		runInit(opt.GetPosStringSlice("targets"), opt.GetBool("F"), opt.GetBool("v"))
+	case opt.GetBool("l"):
+		runList(opt.GetString("file"))
+	default:
+		runBuild(opt)
+	}
+}
+
 func generateCompletion(opt *arg.Options) string {
 	base, err := opt.Completions()
 	if err != nil {
@@ -205,71 +216,3 @@ func generateCompletion(opt *arg.Options) string {
 	sb.WriteString(base[completeLine:])
 	return sb.String()
 }
-
-const targetsHelper = `__creo_targets() {
-	local fiat_file
-	if [ -f "fiat" ]; then
-		fiat_file="fiat"
-	else
-		for f in *.fiat; do
-			if [ -f "$f" ]; then
-				fiat_file="$f"
-				break
-			fi
-		done
-	fi
-	if [ -n "$fiat_file" ]; then
-		local targets
-		targets=$(grep -E '^[a-zA-Z0-9._-]+:' "$fiat_file" | sed 's/:.*//' 2>/dev/null)
-		COMPREPLY+=( $(compgen -W "$targets" -- "$cur") )
-	fi
-}`
-
-const langsHelper = `__creo_langs() {
-	COMPREPLY+=( $(compgen -W "go c cxx cpp oci" -- "$cur") )
-}`
-
-const completionFunc = `_creo() {
-	COMPREPLY=()
-	local cur prev
-	_get_comp_words_by_ref cur prev
-
-	if [ ${COMP_CWORD} -eq 1 ]; then
-		if [[ ${cur} == -* ]]; then
-			COMPREPLY=( $(compgen -W "${options}" -- $cur) )
-			return 0
-		fi
-
-		__creo_targets
-		return 0
-	fi
-
-	if [[ ${cur} == -* ]]; then
-		case ${prev} in
-		*)
-			if [[ $(hasword ${prev} ${options}) == "1" ]]; then
-				COMPREPLY=( $(compgen -W "${options}" -- $cur) )
-				return 0
-			fi
-			;;
-		esac
-	fi
-
-	if [[ $(hasword ${prev} ${options}) == "1" ]]; then
-		case ${prev} in
-		-i|--init)
-			__creo_langs
-			;;
-		-f|--file)
-			complete_files
-			;;
-		*)
-			__creo_targets
-			;;
-		esac
-		return 0
-	fi
-
-	__creo_targets
-	return 0
-}`

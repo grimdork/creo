@@ -1,8 +1,6 @@
 package oci
 
 import (
-	"archive/tar"
-	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -202,30 +200,7 @@ func certsLayer(caCert string) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
-
-	if err := tw.WriteHeader(&tar.Header{
-		Name:     caCertPath,
-		Size:     int64(len(data)),
-		Mode:     0644,
-		ModTime:  time.Time{},
-		Typeflag: tar.TypeReg,
-	}); err != nil {
-		return nil, err
-	}
-	if _, err := tw.Write(data); err != nil {
-		return nil, err
-	}
-
-	if err := tw.Close(); err != nil {
-		return nil, err
-	}
-
-	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
-	})
+	return layerFromBytes(caCertPath, data, 0644)
 }
 
 func FetchCACert() ([]byte, error) {
@@ -266,28 +241,5 @@ func binaryLayer(binary, appDir, name string) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
-
-	if err := tw.WriteHeader(&tar.Header{
-		Name:     filepath.Join(appDir, name),
-		Size:     int64(len(data)),
-		Mode:     0755,
-		ModTime:  time.Time{},
-		Typeflag: tar.TypeReg,
-	}); err != nil {
-		return nil, err
-	}
-	if _, err := tw.Write(data); err != nil {
-		return nil, err
-	}
-
-	if err := tw.Close(); err != nil {
-		return nil, err
-	}
-
-	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
-	})
+	return layerFromBytes(filepath.Join(appDir, name), data, 0755)
 }

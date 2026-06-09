@@ -105,11 +105,11 @@ target: go
 ```
 
 | Language | `bin=` | `cmd=` | `sources=` |
-|---|---|---|---|
-| `go` | `./<name>` (from `go.mod`) | `$GO $GOFLAGS -o $bin` | `*.go go.mod go.sum` |
-| `c` | `./<name>` (from directory) | `$CC $CFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.c *.h` |
-| `cxx` / `cpp` | `./<name>` (from directory) | `$CXX $CXXFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp` |
-| `oci` | — | — (packaging-only; uses `$OUTPUT_<target>` from required build) | — |
+|---|---|---|---|---|
+| `go` | `./<name>` (from `go.mod`) | `$GO $args $GOFLAGS -o $bin` | `*.go go.mod go.sum` |
+| `c` | `./<name>` (from directory) | `$CC $args $CFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.c *.h` |
+| `cxx` / `cpp` | `./<name>` (from directory) | `$CXX $args $CXXFLAGS $LDFLAGS -o $bin $sources $LIBS` | `*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp` |
+| `oci` | `build/<name>.tar` (default tarball) | — (packaging-only; uses `$OUTPUT_<target>` from required build) | — |
 
 For `go`: `build` targets get release flags; `debug` and any target
 ending in `-debug` get debug flags.  Define `$GOFLAGS` to override.
@@ -138,6 +138,20 @@ image: oci
     require=build
 ```
 
+With a base image (e.g. Alpine for `/bin/sh` and libc):
+
+```
+build: go
+
+image: oci
+    from=alpine:latest
+    repo=ghcr.io/myorg/myapp
+    require=build
+```
+
+The base image is pulled once and cached at `~/.config/creo/oci/` for 24 hours.
+Multi-arch images resolve to the correct platform per combo.
+
 After `build` completes, its binary path is available as `$OUTPUT_build`.
 The image places the binary at `/app/<name>` (override with `appdir=`).
 
@@ -149,16 +163,18 @@ The image places the binary at `/app/<name>` (override with `appdir=`).
 | `tag=` | Image tag (default: `latest` for tarball; push uses this if set) |
 | `tarball=` | Write image as a docker-compatible `.tar` file |
 | `appdir=` | Directory in the image for the binary (default: `/app`) |
+| `from=` | Base image to layer the binary on (e.g. `from=alpine:latest`); pulls and caches to `~/.config/creo/oci/` |
 | `arch=` | Subset of architectures from the dependency (e.g. `amd64 arm64`) |
 | `os=` | Subset of operating systems from the dependency (e.g. `linux`) |
+| `sbom=` | Set `sbom=true` to attach an SPDX 2.3 JSON SBOM at `/sbom.spdx.json` |
 | `ociuser=` | Registry username (for basic auth) |
 | `ocipass=` | Registry password or token |
 | `cacert=` | CA certificate bundle — `auto` to download from curl.se, or a path to a local file |
 
-If no `tarball=` is set, the image is only pushed.  If no `repo=` is
-set, the image is only written to a tarball.  Auth: when both
-`ociuser=` and `ocipass=` are set, basic auth is used; otherwise the
-default Docker keychain (`~/.docker/config.json`) is consulted.
+If no `tarball=` is set and no `repo=` is set, a tarball path defaults
+to `build/<target>.tar`.  Auth: when both `ociuser=` and `ocipass=` are
+set, basic auth is used; otherwise the default Docker keychain
+(`~/.docker/config.json`) is consulted.
 
 CA certificates (`cacert=`) embed a bundle at `/etc/ssl/certs/ca-certificates.crt`
 in the image, allowing the binary to make HTTPS calls.  Set `cacert=auto`
@@ -286,6 +302,9 @@ alongside the build artefacts from `bin=`.
 | `appdir=` | Directory in the OCI image for the binary (default: `/app`) |
 | `ociuser=` | Registry username (basic auth) |
 | `ocipass=` | Registry password or token |
+| `cacert=` | CA certificate bundle — `auto` to download, or path to local file |
+| `from=` | Base image for OCI (e.g. `alpine:latest`) |
+| `sbom=` | Generate SPDX 2.3 SBOM in OCI image (`true`/`false`) |
 
 Source patterns: `*` matches files in the current directory, `**.go` and
 `**/*.go` match `.go` files recursively, and `src/**/*.go` matches `.go`
@@ -299,9 +318,8 @@ When not explicitly defined by the user:
 | Variable | Default |
 |---|---|
 | `$GO` | `go build` |
-| `$GOFLAGS` | `-trimpath -ldflags="-s -w"` (release) or `-gcflags="all=-N -l"` (debug) |
+| `$GOFLAGS` | `-trimpath -ldflags="-s -w -X main.version=$VERSION"` (release) or `-gcflags="all=-N -l"` (debug) |
 | `$GODEBUGFLAGS` | `-gcflags="all=-N -l"` |
-| `$APPDIR` | `/app` (OCI app directory; overridable per target via `appdir=`) |
 | `$CC` | `cc` (C compiler) |
 | `$CFLAGS` | `-O2 -Wall` (release), `$CDEBUGFLAGS`: `-O0 -g -Wall` (debug) |
 | `$CXX`, `$CPP` | `c++` (C++ compiler) |
@@ -417,6 +435,8 @@ creo [flags] [target...]
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
 | `-c`, `--clean` | Remove target binaries and installed files |
 | `-v`, `--verbose` | Show what's happening |
+| `-L`, `--login` | Store registry credentials in `~/.docker/config.json` |
+| `-I`, `--inspect` | Inspect a remote OCI image manifest and config |
 | `--refresh-cacerts` | Re-download cached CA certificates |
 | `--completion` | Print bash shell completion script |
 | `--version` | Print version and exit |
@@ -425,10 +445,10 @@ creo [flags] [target...]
 Targets are positional: `creo debug test` runs both.  Without targets,
 `build` is the default.  `all` runs every target.
 
-Error messages include the fiat file path and line number by default:
+Error messages include the fiat file path by default:
 
 ```
-Error: fiat:12: install of ./creo: no such file or directory
+Error: fiat: install of ./creo: no such file or directory
 ```
 
 ## Why not Make?

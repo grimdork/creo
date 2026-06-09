@@ -72,13 +72,9 @@ func generateSBOM(binaryPath, name string) ([]byte, error) {
 	h := sha256.Sum256(data)
 
 	version := "unknown"
-	f, err := os.Open(binaryPath)
-	if err == nil {
-		info, err := buildinfo.Read(f)
-		f.Close()
-		if err == nil && info.Main.Version != "" {
-			version = info.Main.Version
-		}
+	info, err := buildinfo.Read(bytes.NewReader(data))
+	if err == nil && info.Main.Version != "" {
+		version = info.Main.Version
 	}
 
 	doc := spdxDocument{

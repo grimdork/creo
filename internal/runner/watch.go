@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/grimdork/creo/internal/fiat"
@@ -87,31 +86,9 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 }
 
 func collectSources(t *fiat.Target, f *fiat.File, dir string, mods map[string]time.Time) {
-	visited := map[string]bool{}
-	var walk func(t *fiat.Target)
-	walk = func(t *fiat.Target) {
-		if visited[t.Name] {
-			return
-		}
-		visited[t.Name] = true
-		if t.Sources != "" {
-			srcPatterns := strings.Fields(fiat.ExpandWithTarget(t.Sources, f.Vars, t))
-			for _, pat := range srcPatterns {
-				files := globFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
-				for _, sf := range files {
-					si, err := os.Stat(sf)
-					if err == nil {
-						mods[sf] = si.ModTime()
-					}
-				}
-			}
-		}
-		for _, dep := range t.Requires {
-			dt := fiat.FindTarget(f, dep)
-			if dt != nil {
-				walk(dt)
-			}
+	for _, p := range collectFilePaths(t, f, dir) {
+		if si, err := os.Stat(p); err == nil {
+			mods[p] = si.ModTime()
 		}
 	}
-	walk(t)
 }

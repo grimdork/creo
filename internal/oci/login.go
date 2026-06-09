@@ -65,22 +65,27 @@ func Login() error {
 	}
 	configPath := filepath.Join(home, ".docker", "config.json")
 
-	cfg := dockerConfig{Auths: make(map[string]dockerAuthEntry)}
+	var raw map[string]any
 	if data, err := os.ReadFile(configPath); err == nil {
-		if err := json.Unmarshal(data, &cfg); err != nil {
+		if err := json.Unmarshal(data, &raw); err != nil {
 			return fmt.Errorf("parsing existing config: %w", err)
 		}
 	}
-	if cfg.Auths == nil {
-		cfg.Auths = make(map[string]dockerAuthEntry)
+	if raw == nil {
+		raw = make(map[string]any)
 	}
-	cfg.Auths[registry] = dockerAuthEntry{Auth: auth}
+	auths, _ := raw["auths"].(map[string]any)
+	if auths == nil {
+		auths = make(map[string]any)
+	}
+	auths[registry] = dockerAuthEntry{Auth: auth}
+	raw["auths"] = auths
 
 	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
 
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encoding config: %w", err)
 	}

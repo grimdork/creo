@@ -162,7 +162,7 @@ func Parse(path string) (*File, error) {
 			name := strings.TrimSpace(parts[0])
 			if name != "" {
 				virtual := name[0] == '.'
-				curTarget = &Target{Name: name, Line: len(f.Targets) + 1, IsVirtual: virtual}
+				curTarget = &Target{Name: name, IsVirtual: virtual}
 				if len(parts) > 1 {
 					tokens := strings.Fields(parts[1])
 					if len(tokens) > 0 {
@@ -174,7 +174,6 @@ func Parse(path string) (*File, error) {
 						}
 					}
 				}
-				curTarget.Line = len(f.Targets) + 1
 				f.Targets = append(f.Targets, curTarget)
 				curSeg = &segment{
 					kind:      segTarget,

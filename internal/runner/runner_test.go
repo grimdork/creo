@@ -7,6 +7,7 @@ import (
 
 	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
+	"github.com/grimdork/creo/internal/util"
 )
 
 func writeFiat(t *testing.T, dir, content string) {
@@ -263,7 +264,7 @@ func TestGlobFiles(t *testing.T) {
 	writeFile(t, dir, "sub/c.go", "")
 	writeFile(t, dir, "sub/d.h", "")
 
-	got := globFiles("*.go", dir)
+	got := util.GlobFiles("*.go", dir)
 	if len(got) != 2 {
 		t.Fatalf("expected 2 .go files, got %d: %v", len(got), got)
 	}
@@ -275,12 +276,12 @@ func TestGlobFiles(t *testing.T) {
 		t.Fatal("expected a.go and b.go")
 	}
 
-	got = globFiles("**/*.go", dir)
+	got = util.GlobFiles("**/*.go", dir)
 	if len(got) != 3 {
 		t.Fatalf("expected 3 .go files with **, got %d: %v", len(got), got)
 	}
 
-	got = globFiles("nonexistent", dir)
+	got = util.GlobFiles("nonexistent", dir)
 	if len(got) != 0 {
 		t.Fatalf("expected empty, got %d: %v", len(got), got)
 	}
@@ -338,7 +339,7 @@ func TestCopyFile(t *testing.T) {
 	}
 
 	dest := filepath.Join(dir, "dest.txt")
-	if err := copyFile(src, dest); err != nil {
+	if err := util.CopyFile(src, dest); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(dest)
@@ -354,7 +355,7 @@ func TestCopyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	dest2 := filepath.Join(dir, "dest2.txt")
-	if err := copyFile(src2, dest2); err != nil {
+	if err := util.CopyFile(src2, dest2); err != nil {
 		t.Fatal(err)
 	}
 	si, err := os.Stat(dest2)
@@ -365,11 +366,11 @@ func TestCopyFile(t *testing.T) {
 		t.Fatalf("expected 0755 permissions, got %#o", si.Mode().Perm())
 	}
 
-	if err := copyFile(src, src); err != nil {
-		t.Fatal("copyFile(src, src) should be a no-op")
+	if err := util.CopyFile(src, src); err != nil {
+		t.Fatal("CopyFile(src, src) should be a no-op")
 	}
 
-	if err := copyFile(filepath.Join(dir, "nonexistent"), dest); err == nil {
+	if err := util.CopyFile(filepath.Join(dir, "nonexistent"), dest); err == nil {
 		t.Fatal("expected error for non-existent source")
 	}
 }
@@ -457,13 +458,22 @@ func TestComputeCacheKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	key1 := computeCacheKey([]string{src}, []string{"go build"})
-	key2 := computeCacheKey([]string{src}, []string{"go build"})
+	key1, err := computeCacheKey([]string{src}, []string{"go build"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	key2, err := computeCacheKey([]string{src}, []string{"go build"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if key1 != key2 {
 		t.Fatal("cache key not deterministic")
 	}
 
-	key3 := computeCacheKey([]string{src}, []string{"go build -v"})
+	key3, err := computeCacheKey([]string{src}, []string{"go build -v"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if key1 == key3 {
 		t.Fatal("cache key should change when command changes")
 	}

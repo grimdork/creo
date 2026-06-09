@@ -152,7 +152,7 @@ func (p *picker) run() string {
 					return ""
 				}
 			} else {
-				n, _ = in.Read(buf[:1])
+				_, _ = in.Read(buf[:1])
 			}
 			if buf[0] != '[' {
 				return ""

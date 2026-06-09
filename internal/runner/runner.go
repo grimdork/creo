@@ -12,6 +12,7 @@ import (
 	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
 	"github.com/grimdork/creo/internal/oci"
+	"github.com/grimdork/creo/internal/util"
 )
 
 type Outputs struct {
@@ -112,7 +113,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	if !opts.Clean {
 		for _, pattern := range t.Tmp {
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
-			matches := globFiles(expanded, dir)
+			matches := util.GlobFiles(expanded, dir)
 			for _, m := range matches {
 				if err := os.Remove(m); err != nil {
 					if opts.Verbose {
@@ -244,6 +245,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 	needsRun := true
 	var existsBinPath string
+	var sources []string
+	if !t.IsVirtual && t.Bin != "" && t.Sources != "" {
+		sources = collectFilePaths(t, f, dir)
+	}
 	archs := t.Arch
 	if len(archs) == 0 {
 		archs = []string{""}
@@ -258,7 +263,6 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
 		if _, err := os.Stat(existsBinPath); err == nil {
 			needsRun = false
-			sources := collectFilePaths(t, f, dir)
 			if len(sources) == 0 {
 				needsRun = true
 			} else if !checkCache(dir, name, sources, t.Cmds) {
@@ -289,22 +293,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					activeOS = runtime.GOOS
 				}
 
-				comboVars := make(map[string]*fiat.Var)
-				for k, v := range f.Vars {
-					comboVars[k] = v
-				}
-				for _, v := range t.Vars {
-					comboVars[v.Name] = v
-				}
-				comboVars["arch"] = &fiat.Var{Name: "arch", Value: activeArch}
-				comboVars["os"] = &fiat.Var{Name: "os", Value: activeOS}
-				comboVars["THIS"] = &fiat.Var{Name: "THIS", Value: t.Name}
-
-				for _, dep := range t.Requires {
-					if binPath := outputs.Load(dep, activeArch, activeOS); binPath != "" {
-						comboVars["OUTPUT_"+dep] = &fiat.Var{Name: "OUTPUT_" + dep, Value: binPath}
-					}
-				}
+				comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
 
 				bp := ""
 				if t.Bin != "" {
@@ -323,7 +312,6 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			allExist = false
 			existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
 			if _, err := os.Stat(existsBinPath); err == nil {
-				sources := collectFilePaths(t, f, dir)
 				if len(sources) > 0 && checkCache(dir, name, sources, t.Cmds) {
 					allExist = true
 				}
@@ -362,22 +350,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				}
 				comboEnv = append(comboEnv, lang.CrossEnv(t.Language, c.arch, c.osval)...)
 
-				comboVars := make(map[string]*fiat.Var)
-				for k, v := range f.Vars {
-					comboVars[k] = v
-				}
-				for _, v := range t.Vars {
-					comboVars[v.Name] = v
-				}
-				comboVars["arch"] = &fiat.Var{Name: "arch", Value: activeArch}
-				comboVars["os"] = &fiat.Var{Name: "os", Value: activeOS}
-				comboVars["THIS"] = &fiat.Var{Name: "THIS", Value: t.Name}
-
-				for _, dep := range t.Requires {
-					if binPath := outputs.Load(dep, activeArch, activeOS); binPath != "" {
-						comboVars["OUTPUT_"+dep] = &fiat.Var{Name: "OUTPUT_" + dep, Value: binPath}
-					}
-				}
+				comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
 
 				if t.Bin != "" {
 					comboVars["bin"] = &fiat.Var{Name: "bin", Value: c.bin}
@@ -434,7 +407,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					if opts.DryRun {
 						continue
 					}
-					if err := copyFile(src, dest); err != nil {
+					if err := util.CopyFile(src, dest); err != nil {
 						errCh <- fmt.Errorf("%s: install of %s: %w", f.Path(), src, err)
 						return
 					}
@@ -577,7 +550,6 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		}
 
 		if needsRun && !opts.DryRun && !t.IsVirtual && t.Bin != "" && t.Sources != "" {
-			sources := collectFilePaths(t, f, dir)
 			writeCache(dir, name, sources, t.Cmds)
 		}
 
@@ -587,7 +559,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 		for _, pattern := range t.Tmp {
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
-			matches := globFiles(expanded, dir)
+			matches := util.GlobFiles(expanded, dir)
 			for _, m := range matches {
 				if err := os.Remove(m); err != nil {
 					if opts.Verbose {
@@ -664,6 +636,25 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 		}
 		return nil
 	})
+}
+
+func baseComboVars(f *fiat.File, t *fiat.Target, activeArch, activeOS string, outputs *Outputs) map[string]*fiat.Var {
+	comboVars := make(map[string]*fiat.Var)
+	for k, v := range f.Vars {
+		comboVars[k] = v
+	}
+	for _, v := range t.Vars {
+		comboVars[v.Name] = v
+	}
+	comboVars["arch"] = &fiat.Var{Name: "arch", Value: activeArch}
+	comboVars["os"] = &fiat.Var{Name: "os", Value: activeOS}
+	comboVars["THIS"] = &fiat.Var{Name: "THIS", Value: t.Name}
+	for _, dep := range t.Requires {
+		if binPath := outputs.Load(dep, activeArch, activeOS); binPath != "" {
+			comboVars["OUTPUT_"+dep] = &fiat.Var{Name: "OUTPUT_" + dep, Value: binPath}
+		}
+	}
+	return comboVars
 }
 
 func hasCombo(archs, oses []string, arch, os string) bool {

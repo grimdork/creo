@@ -21,7 +21,6 @@ type OCIConfig struct {
 type Target struct {
 	Name      string
 	Language  string
-	Line      int
 	Desc      string
 	IsVirtual bool
 	Cmds      []string

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/grimdork/climate/arg"
+	"github.com/grimdork/creo/internal/lang"
 )
 
 func TestGenerateCompletion(t *testing.T) {
@@ -46,26 +46,16 @@ func TestListTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	err := listTargets("")
-
-	w.Close()
-	os.Stdout = old
-
+	out, err := listTargets("")
 	if err != nil {
 		t.Fatalf("listTargets returned error: %v", err)
 	}
 
-	out, _ := io.ReadAll(r)
-	output := string(out)
-	if !strings.Contains(output, "build") {
-		t.Fatalf("expected output to contain 'build', got %q", output)
+	if !strings.Contains(out, "build") {
+		t.Fatalf("expected output to contain 'build', got %q", out)
 	}
-	if !strings.Contains(output, "Build the binary") {
-		t.Fatalf("expected output to contain description, got %q", output)
+	if !strings.Contains(out, "Build the binary") {
+		t.Fatalf("expected output to contain description, got %q", out)
 	}
 }
 
@@ -75,14 +65,14 @@ func TestListTargetsNoFiat(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(wd)
 
-	err := listTargets("")
+	_, err := listTargets("")
 	if err == nil {
 		t.Fatal("expected error for missing fiat file")
 	}
 }
 
 func TestListTargetsNotFound(t *testing.T) {
-	err := listTargets("/nonexistent/path/fiat")
+	_, err := listTargets("/nonexistent/path/fiat")
 	if err == nil {
 		t.Fatal("expected error for non-existent path")
 	}
@@ -94,8 +84,8 @@ func TestInitProjectNoLangs(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(wd)
 
-	if err := initProject([]string{}, false, false); err != nil {
-		t.Fatalf("initProject returned error: %v", err)
+	if err := lang.InitProject([]string{}, false, false); err != nil {
+		t.Fatalf("lang.InitProject returned error: %v", err)
 	}
 
 	if _, err := os.Stat("fiat"); err != nil {
@@ -109,8 +99,8 @@ func TestInitProjectGo(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(wd)
 
-	if err := initProject([]string{"go"}, false, false); err != nil {
-		t.Fatalf("initProject returned error: %v", err)
+	if err := lang.InitProject([]string{"go"}, false, false); err != nil {
+		t.Fatalf("lang.InitProject returned error: %v", err)
 	}
 
 	if _, err := os.Stat("fiat"); err != nil {
@@ -127,7 +117,7 @@ func TestInitProjectUnknown(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(wd)
 
-	err := initProject([]string{"rust"}, false, false)
+	err := lang.InitProject([]string{"rust"}, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown language")
 	}
@@ -147,8 +137,8 @@ func TestInitProjectForceRemovesCreo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := initProject([]string{}, true, false); err != nil {
-		t.Fatalf("initProject returned error: %v", err)
+	if err := lang.InitProject([]string{}, true, false); err != nil {
+		t.Fatalf("lang.InitProject returned error: %v", err)
 	}
 
 	if _, err := os.Stat(".creo"); err == nil {

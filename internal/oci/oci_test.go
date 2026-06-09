@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/grimdork/creo/internal/util"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
@@ -312,7 +313,7 @@ func TestFmtSize(t *testing.T) {
 		{1073741824, "1.0 GiB"},
 	}
 	for _, tt := range tests {
-		got := fmtSize(tt.size)
+		got := util.FmtSize(tt.size)
 		if got != tt.want {
 			t.Errorf("fmtSize(%d) = %q, want %q", tt.size, got, tt.want)
 		}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/grimdork/creo/internal/fiat"
+	"github.com/grimdork/creo/internal/util"
 )
 
 func tryWrite(path, content string, force, verbose bool, label string) error {
@@ -91,7 +92,7 @@ func absDirName(dir string) (string, string) {
 	return absDir, filepath.Base(absDir)
 }
 
-func ensureFiat(dir string, _ bool) (*fiat.File, error) {
+func ensureFiat(dir string) (*fiat.File, error) {
 	fiatPath := filepath.Join(dir, "fiat")
 	if _, err := os.Stat(fiatPath); err == nil {
 		file, err := fiat.Parse(fiatPath)
@@ -147,7 +148,7 @@ var version string
 
 func Init(dir, ver string, force, verbose bool) ([]string, error) {
 	_, name := absDirName(dir)
-	file, err := ensureFiat(dir, force)
+	file, err := ensureFiat(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +195,7 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 }
 
 func InitC(dir string, force, verbose bool) ([]string, error) {
-	file, err := ensureFiat(dir, force)
+	file, err := ensureFiat(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +229,7 @@ int main(int argc, char **argv) {
 }
 
 func InitCxx(dir string, force, verbose bool) ([]string, error) {
-	file, err := ensureFiat(dir, force)
+	file, err := ensureFiat(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +263,7 @@ int main(int argc, char **argv) {
 }
 
 func InitOci(dir string, force, verbose bool) ([]string, error) {
-	file, err := ensureFiat(dir, force)
+	file, err := ensureFiat(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +308,17 @@ func InitOci(dir string, force, verbose bool) ([]string, error) {
 }
 
 func InitProject(langs []string, force, verbose bool) error {
+	if force {
+		if _, err := os.Stat(".creo"); err == nil {
+			if err := os.RemoveAll(".creo"); err != nil {
+				return fmt.Errorf("removing .creo: %w", err)
+			}
+			if verbose {
+				fmt.Println("  Removed .creo/")
+			}
+		}
+	}
+
 	if len(langs) == 0 {
 		return fiat.WriteDefaultFile("fiat", force, verbose)
 	}
@@ -345,7 +357,7 @@ func InitProject(langs []string, force, verbose bool) error {
 }
 
 func WriteIgnores(lines []string, verbose bool) {
-	lines = unique(lines)
+	lines = util.Unique(lines)
 	if _, err := os.Stat(".gitignore"); err == nil {
 		data, _ := os.ReadFile(".gitignore")
 		content := string(data)
@@ -378,14 +390,4 @@ func WriteIgnores(lines []string, verbose bool) {
 	}
 }
 
-func unique(s []string) []string {
-	seen := map[string]bool{}
-	r := make([]string, 0, len(s))
-	for _, v := range s {
-		if !seen[v] {
-			seen[v] = true
-			r = append(r, v)
-		}
-	}
-	return r
-}
+

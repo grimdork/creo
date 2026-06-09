@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/grimdork/creo/internal/util"
 )
 
 func TestParseEmpty(t *testing.T) {
@@ -838,28 +840,28 @@ func TestSplitLines(t *testing.T) {
 }
 
 func TestIsIdent(t *testing.T) {
-	if !IsIdent('a') {
+	if !util.IsIdent('a') {
 		t.Error("expected 'a' to be ident")
 	}
-	if !IsIdent('Z') {
+	if !util.IsIdent('Z') {
 		t.Error("expected 'Z' to be ident")
 	}
-	if !IsIdent('0') {
+	if !util.IsIdent('0') {
 		t.Error("expected '0' to be ident")
 	}
-	if !IsIdent('_') {
+	if !util.IsIdent('_') {
 		t.Error("expected '_' to be ident")
 	}
-	if IsIdent('$') {
+	if util.IsIdent('$') {
 		t.Error("expected '$' not to be ident")
 	}
-	if IsIdent('-') {
+	if util.IsIdent('-') {
 		t.Error("expected '-' not to be ident")
 	}
-	if IsIdent(' ') {
+	if util.IsIdent(' ') {
 		t.Error("expected ' ' not to be ident")
 	}
-	if IsIdent(0) {
+	if util.IsIdent(0) {
 		t.Error("expected null byte not to be ident")
 	}
 }
