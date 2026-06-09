@@ -203,3 +203,239 @@ func TestCrossEnv(t *testing.T) {
 		}
 	}
 }
+
+func TestOutputsStoreLoad(t *testing.T) {
+	o := Outputs{m: make(map[string]string)}
+	o.Store("build", "amd64", "linux", "/tmp/mybin")
+	if v := o.Load("build", "amd64", "linux"); v != "/tmp/mybin" {
+		t.Fatalf("expected /tmp/mybin, got %q", v)
+	}
+	if v := o.Load("build", "arm64", "linux"); v != "" {
+		t.Fatalf("expected empty, got %q", v)
+	}
+	if v := o.Load("other", "amd64", "linux"); v != "" {
+		t.Fatalf("expected empty, got %q", v)
+	}
+}
+
+func TestOutputsLoadAll(t *testing.T) {
+	o := Outputs{m: make(map[string]string)}
+	o.Store("build", "amd64", "linux", "b1")
+	o.Store("build", "arm64", "linux", "b2")
+	o.Store("other", "amd64", "linux", "o1")
+	all := o.LoadAll("build")
+	if len(all) != 2 {
+		t.Fatalf("expected 2 keys, got %d: %v", len(all), all)
+	}
+	expected := map[string]bool{"amd64+linux": true, "arm64+linux": true}
+	for _, v := range all {
+		if !expected[v] {
+			t.Fatalf("unexpected key %q", v)
+		}
+	}
+	if got := o.LoadAll("nonexistent"); len(got) != 0 {
+		t.Fatalf("expected empty, got %v", got)
+	}
+}
+
+func TestHasCombo(t *testing.T) {
+	if !hasCombo([]string{"amd64", "arm64"}, []string{"linux"}, "amd64", "linux") {
+		t.Fatal("expected true for amd64+linux")
+	}
+	if !hasCombo([]string{"amd64", "arm64"}, []string{"linux"}, "arm64", "linux") {
+		t.Fatal("expected true for arm64+linux")
+	}
+	if hasCombo([]string{"amd64", "arm64"}, []string{"linux"}, "amd64", "darwin") {
+		t.Fatal("expected false for amd64+darwin")
+	}
+	if hasCombo([]string{}, []string{}, "amd64", "linux") {
+		t.Fatal("expected false for empty archs/oses")
+	}
+}
+
+func TestGlobFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, dir, "a.go", "")
+	writeFile(t, dir, "b.go", "")
+	writeFile(t, dir, "sub/c.go", "")
+	writeFile(t, dir, "sub/d.h", "")
+
+	got := globFiles("*.go", dir)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 .go files, got %d: %v", len(got), got)
+	}
+	names := make(map[string]bool)
+	for _, f := range got {
+		names[filepath.Base(f)] = true
+	}
+	if !names["a.go"] || !names["b.go"] {
+		t.Fatal("expected a.go and b.go")
+	}
+
+	got = globFiles("**/*.go", dir)
+	if len(got) != 3 {
+		t.Fatalf("expected 3 .go files with **, got %d: %v", len(got), got)
+	}
+
+	got = globFiles("nonexistent", dir)
+	if len(got) != 0 {
+		t.Fatalf("expected empty, got %d: %v", len(got), got)
+	}
+}
+
+func TestAllTarget(t *testing.T) {
+	dir := t.TempDir()
+	defer runInDir(t, dir)()
+	writeFiat(t, dir, "build: go\n\ntest:\n\tcmd=touch marker\n")
+	writeFile(t, dir, "go.mod", "module test\n")
+	writeFile(t, dir, "main.go", "package main; func main() {}\n")
+	f := parseAndApply(t, dir)
+
+	if err := RunTarget(f, "all", RunOpts{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat("./test"); os.IsNotExist(err) {
+		t.Fatal("expected binary from build target")
+	}
+
+	if _, err := os.Stat("./marker"); os.IsNotExist(err) {
+		t.Fatal("expected marker file from test target")
+	}
+}
+
+func TestCircularDependency(t *testing.T) {
+	dir := t.TempDir()
+	writeFiat(t, dir, ".a:\n\trequire=.b\n\n.b:\n\trequire=.a\n")
+	f := parseAndApply(t, dir)
+
+	err := RunTarget(f, ".a", RunOpts{})
+	if err == nil {
+		t.Fatal("expected error for circular dependency")
+	}
+}
+
+func TestDependencyNotFound(t *testing.T) {
+	dir := t.TempDir()
+	writeFiat(t, dir, ".a:\n\trequire=nonexistent\n")
+	f := parseAndApply(t, dir)
+
+	err := RunTarget(f, ".a", RunOpts{})
+	if err == nil {
+		t.Fatal("expected error for missing dependency")
+	}
+}
+
+func TestCopyFile(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.txt")
+	content := "hello world"
+	if err := os.WriteFile(src, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dest := filepath.Join(dir, "dest.txt")
+	if err := copyFile(src, dest); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != content {
+		t.Fatalf("expected %q, got %q", content, string(data))
+	}
+
+	src2 := filepath.Join(dir, "src2.txt")
+	if err := os.WriteFile(src2, []byte("perm"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	dest2 := filepath.Join(dir, "dest2.txt")
+	if err := copyFile(src2, dest2); err != nil {
+		t.Fatal(err)
+	}
+	si, err := os.Stat(dest2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if si.Mode().Perm() != 0755 {
+		t.Fatalf("expected 0755 permissions, got %#o", si.Mode().Perm())
+	}
+
+	if err := copyFile(src, src); err != nil {
+		t.Fatal("copyFile(src, src) should be a no-op")
+	}
+
+	if err := copyFile(filepath.Join(dir, "nonexistent"), dest); err == nil {
+		t.Fatal("expected error for non-existent source")
+	}
+}
+
+func TestFindFiatInDir(t *testing.T) {
+	dir1 := t.TempDir()
+	writeFiat(t, dir1, "build: go\n")
+	path, ok := findFiatInDir(dir1, false)
+	if !ok {
+		t.Fatal("expected to find fiat file")
+	}
+	if path != filepath.Join(dir1, "fiat") {
+		t.Fatalf("expected %q, got %q", filepath.Join(dir1, "fiat"), path)
+	}
+
+	dir2 := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir2, "project.fiat"), []byte("build: go\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	path, ok = findFiatInDir(dir2, false)
+	if !ok {
+		t.Fatal("expected to find .fiat file")
+	}
+	if path != filepath.Join(dir2, "project.fiat") {
+		t.Fatalf("expected %q, got %q", filepath.Join(dir2, "project.fiat"), path)
+	}
+
+	dir3 := t.TempDir()
+	path, ok = findFiatInDir(dir3, false)
+	if ok {
+		t.Fatal("expected not to find fiat file")
+	}
+	if path != "" {
+		t.Fatalf("expected empty path, got %q", path)
+	}
+
+	dir4 := t.TempDir()
+	writeFiat(t, dir4, "build: go\n")
+	if err := os.WriteFile(filepath.Join(dir4, "other.fiat"), []byte("build: go\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	path, ok = findFiatInDir(dir4, false)
+	if !ok {
+		t.Fatal("expected to find fiat file when both exist")
+	}
+	if path != filepath.Join(dir4, "fiat") {
+		t.Fatalf("expected %q (fiat preferred), got %q", filepath.Join(dir4, "fiat"), path)
+	}
+}
+
+func TestMultiArchBuild(t *testing.T) {
+	dir := t.TempDir()
+	defer runInDir(t, dir)()
+	writeFiat(t, dir, "build: go\n\tos=linux\n\tarch=amd64 arm64\n\tbin=$bin-$os-$arch\n")
+	writeFile(t, dir, "go.mod", "module test\n")
+	writeFile(t, dir, "main.go", "package main; func main() {}\n")
+	f := parseAndApply(t, dir)
+
+	if err := RunTarget(f, "build", RunOpts{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat("./test-linux-amd64"); os.IsNotExist(err) {
+		t.Fatal("expected test-linux-amd64 binary")
+	}
+	if _, err := os.Stat("./test-linux-arm64"); os.IsNotExist(err) {
+		t.Fatal("expected test-linux-arm64 binary")
+	}
+}

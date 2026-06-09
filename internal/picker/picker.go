@@ -128,7 +128,10 @@ func (p *picker) run() string {
 
 	for {
 		n, err := in.Read(buf[:1])
-		if err != nil || n == 0 {
+		if err != nil {
+			return ""
+		}
+		if n == 0 {
 			continue
 		}
 

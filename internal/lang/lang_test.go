@@ -3,6 +3,7 @@ package lang
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/grimdork/creo/internal/fiat"
@@ -267,5 +268,446 @@ func TestGlobalVars(t *testing.T) {
 	}
 	if _, ok := f.Vars["DATE"]; !ok {
 		t.Fatal("expected DATE var to be set")
+	}
+}
+
+func chdir(t *testing.T, dir string) func() {
+	t.Helper()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	return func() { os.Chdir(old) }
+}
+
+func TestApplyUnknownLanguage(t *testing.T) {
+	content := []byte("build: python\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Apply(f)
+	if err == nil {
+		t.Fatal("expected error for unknown language")
+	}
+	if !strings.Contains(err.Error(), "unknown language") {
+		t.Fatalf("expected error containing 'unknown language', got %q", err.Error())
+	}
+}
+
+func TestApplyC(t *testing.T) {
+	content := []byte("build: c\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.Sources != "*.c *.h" {
+		t.Fatalf("expected sources '*.c *.h', got %q", trg.Sources)
+	}
+	if !strings.HasPrefix(trg.Bin, "./") {
+		t.Fatalf("expected Bin to start with './', got %q", trg.Bin)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected at least one cmd")
+	}
+	if !strings.Contains(trg.Cmds[0], "$CC") {
+		t.Fatalf("expected cmd to contain '$CC', got %q", trg.Cmds[0])
+	}
+}
+
+func TestApplyCxx(t *testing.T) {
+	content := []byte("build: cxx\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.Sources != "*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp" {
+		t.Fatalf("expected sources '*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp', got %q", trg.Sources)
+	}
+}
+
+func TestApplyCpp(t *testing.T) {
+	content := []byte("build: cpp\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.Sources != "*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp" {
+		t.Fatalf("expected sources '*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp', got %q", trg.Sources)
+	}
+}
+
+func TestApplyOci(t *testing.T) {
+	content := []byte("image: oci\n\trepo=ghcr.io/u/r\n\ttag=v1\n\tappdir=/srv\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.OCI == nil {
+		t.Fatal("expected OCI config")
+	}
+	if trg.OCI.Repo != "ghcr.io/u/r" {
+		t.Fatalf("expected repo 'ghcr.io/u/r', got %q", trg.OCI.Repo)
+	}
+	if trg.OCI.Tag != "v1" {
+		t.Fatalf("expected tag 'v1', got %q", trg.OCI.Tag)
+	}
+	if trg.OCI.AppDir != "/srv" {
+		t.Fatalf("expected appdir '/srv', got %q", trg.OCI.AppDir)
+	}
+	if trg.OCI.Tarball != "" {
+		t.Fatalf("expected empty tarball (repo is set), got %q", trg.OCI.Tarball)
+	}
+}
+
+func TestApplyOciCacert(t *testing.T) {
+	content := []byte("image: oci\n\tcacert=auto\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.OCI == nil {
+		t.Fatal("expected OCI config")
+	}
+	if trg.OCI.CACert != "auto" {
+		t.Fatalf("expected CACert 'auto', got %q", trg.OCI.CACert)
+	}
+}
+
+func TestApplyOciDefaultTarball(t *testing.T) {
+	content := []byte("img: oci\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.OCI == nil {
+		t.Fatal("expected OCI config")
+	}
+	if trg.OCI.Tarball != "build/img.tar" {
+		t.Fatalf("expected tarball 'build/img.tar', got %q", trg.OCI.Tarball)
+	}
+	if trg.Bin != "build/img.tar" {
+		t.Fatalf("expected Bin to be 'build/img.tar', got %q", trg.Bin)
+	}
+}
+
+func TestModuleName(t *testing.T) {
+	dir1 := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir1, "go.mod"), []byte("module github.com/foo/bar\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := ModuleName(dir1); got != "bar" {
+		t.Fatalf("ModuleName for github.com/foo/bar: expected 'bar', got %q", got)
+	}
+
+	dir2 := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir2, "go.mod"), []byte("module example.com/my/app\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := ModuleName(dir2); got != "app" {
+		t.Fatalf("ModuleName for example.com/my/app: expected 'app', got %q", got)
+	}
+
+	dir3 := t.TempDir()
+	expected := filepath.Base(dir3)
+	if got := ModuleName(dir3); got != expected {
+		t.Fatalf("ModuleName without go.mod: expected %q, got %q", expected, got)
+	}
+}
+
+func TestApplyGoCustomGOFLAGS(t *testing.T) {
+	content := []byte("$GOFLAGS=-tags=netgo\nbuild: go\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected at least one cmd")
+	}
+	if !strings.Contains(trg.Cmds[0], "$GOFLAGS") {
+		t.Fatalf("expected cmd to contain '$GOFLAGS', got %q", trg.Cmds[0])
+	}
+}
+
+func TestInitC(t *testing.T) {
+	dir := t.TempDir()
+	ignores, err := InitC(dir, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fiat")); os.IsNotExist(err) {
+		t.Fatal("expected fiat file to exist")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "main.c")); os.IsNotExist(err) {
+		t.Fatal("expected main.c to exist")
+	}
+	if len(ignores) == 0 {
+		t.Fatal("expected at least one ignore entry")
+	}
+}
+
+func TestInitCxx(t *testing.T) {
+	dir := t.TempDir()
+	ignores, err := InitCxx(dir, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fiat")); os.IsNotExist(err) {
+		t.Fatal("expected fiat file to exist")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "main.cpp")); os.IsNotExist(err) {
+		t.Fatal("expected main.cpp to exist")
+	}
+	if len(ignores) == 0 {
+		t.Fatal("expected at least one ignore entry")
+	}
+}
+
+func TestInitOci(t *testing.T) {
+	dir := t.TempDir()
+	ignores, err := InitOci(dir, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fiat")); os.IsNotExist(err) {
+		t.Fatal("expected fiat file to exist")
+	}
+	f, err := fiat.Parse(filepath.Join(dir, "fiat"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := fiat.FindTarget(f, "build")
+	if build == nil {
+		t.Fatal("expected 'build' target")
+	}
+	if build.Language != "go" {
+		t.Fatalf("expected build target language 'go', got %q", build.Language)
+	}
+	image := fiat.FindTarget(f, "image")
+	if image == nil {
+		t.Fatal("expected 'image' target")
+	}
+	if image.Language != "oci" {
+		t.Fatalf("expected image target language 'oci', got %q", image.Language)
+	}
+	if len(ignores) == 0 {
+		t.Fatal("expected at least one ignore entry")
+	}
+}
+
+func TestWriteIgnores(t *testing.T) {
+	dir := t.TempDir()
+	restore := chdir(t, dir)
+	defer restore()
+
+	WriteIgnores([]string{"/.creo"}, false)
+	data, err := os.ReadFile(".gitignore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "/.creo") {
+		t.Fatalf("expected .gitignore to contain '/.creo', got %q", content)
+	}
+
+	WriteIgnores([]string{"/.creo"}, false)
+	data2, err := os.ReadFile(".gitignore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data2) != string(data) {
+		t.Fatal("expected .gitignore content to not change after duplicate call")
+	}
+}
+
+func TestInitProjectNoLangs(t *testing.T) {
+	dir := t.TempDir()
+	restore := chdir(t, dir)
+	defer restore()
+
+	err := InitProject([]string{}, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat("fiat"); os.IsNotExist(err) {
+		t.Fatal("expected fiat file to exist")
+	}
+}
+
+func TestInitProjectGo(t *testing.T) {
+	dir := t.TempDir()
+	restore := chdir(t, dir)
+	defer restore()
+
+	err := InitProject([]string{"go"}, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat("fiat"); os.IsNotExist(err) {
+		t.Fatal("expected fiat file to exist")
+	}
+	if _, err := os.Stat("main.go"); os.IsNotExist(err) {
+		t.Fatal("expected main.go to exist")
+	}
+}
+
+func TestInitProjectUnknown(t *testing.T) {
+	dir := t.TempDir()
+	restore := chdir(t, dir)
+	defer restore()
+
+	err := InitProject([]string{"rust"}, false, false)
+	if err == nil {
+		t.Fatal("expected error for unknown language")
+	}
+	if !strings.Contains(err.Error(), "unknown language") {
+		t.Fatalf("expected error containing 'unknown language', got %q", err.Error())
+	}
+}
+
+func TestApplyGoDebug(t *testing.T) {
+	content := []byte("debug: go\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if !strings.HasSuffix(trg.Bin, "-debug") {
+		t.Fatalf("expected Bin to end with '-debug', got %q", trg.Bin)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected at least one cmd")
+	}
+	if !strings.Contains(trg.Cmds[0], "$GODEBUGFLAGS") {
+		t.Fatalf("expected cmd to contain '$GODEBUGFLAGS', got %q", trg.Cmds[0])
+	}
+}
+
+func TestApplyWithArgs(t *testing.T) {
+	content := []byte("build: go args=-v\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected at least one cmd")
+	}
+	if !strings.Contains(trg.Cmds[0], "$args") {
+		t.Fatalf("expected cmd to contain '$args', got %q", trg.Cmds[0])
 	}
 }

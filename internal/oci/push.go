@@ -2,7 +2,6 @@ package oci
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -19,7 +18,7 @@ type PushConfig struct {
 
 func Push(img v1.Image, cfg PushConfig) error {
 	refStr := cfg.Repo
-	if !strings.Contains(refStr, ":") && cfg.Tag != "" {
+	if cfg.Tag != "" {
 		refStr = cfg.Repo + ":" + cfg.Tag
 	}
 

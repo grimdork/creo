@@ -116,6 +116,7 @@ func copyFile(src, dest string) (err error) {
 
 	if _, err := io.Copy(df, sf); err != nil {
 		df.Close()
+		os.Remove(dest)
 		return err
 	}
 

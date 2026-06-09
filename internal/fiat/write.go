@@ -9,6 +9,7 @@ import (
 func (f *File) Write() error {
 	var b strings.Builder
 	covered := make(map[int]bool)
+	coveredVars := make(map[string]bool)
 
 	for _, seg := range f.segs {
 		switch seg.kind {
@@ -19,12 +20,9 @@ func (f *File) Write() error {
 			}
 
 		case segVar:
+			coveredVars[seg.varName] = true
 			// Write reconstructed var line if the var still exists
 			if v, ok := f.Vars[seg.varName]; ok {
-				for range seg.raw {
-					// Write the raw lines for multi-line vars
-				}
-				// Just write the first line reconstructed
 				sep := "="
 				if v.Eager {
 					sep = ":="
@@ -34,9 +32,11 @@ func (f *File) Write() error {
 				b.WriteString(sep)
 				b.WriteString(v.Value)
 				b.WriteByte('\n')
-				for _, extra := range seg.raw[1:] {
-					b.WriteString(extra)
-					b.WriteByte('\n')
+				if len(seg.raw) > 1 {
+					for _, extra := range seg.raw[1:] {
+						b.WriteString(extra)
+						b.WriteByte('\n')
+					}
 				}
 			}
 
@@ -56,6 +56,25 @@ func (f *File) Write() error {
 			continue
 		}
 		serializeTarget(&b, t)
+	}
+
+	// Append vars not covered by any segment
+	for _, v := range f.Vars {
+		if coveredVars[v.Name] {
+			continue
+		}
+		if v.Name == "DIR" {
+			continue
+		}
+		sep := "="
+		if v.Eager {
+			sep = ":="
+		}
+		b.WriteByte('$')
+		b.WriteString(v.Name)
+		b.WriteString(sep)
+		b.WriteString(v.Value)
+		b.WriteByte('\n')
 	}
 
 	data := b.String()
@@ -174,6 +193,29 @@ func NewFile(path string) *File {
 
 func (f *File) Path() string {
 	return f.path
+}
+
+func WriteDefaultFile(path string, force, verbose bool) error {
+	if _, err := os.Stat(path); err == nil {
+		if force {
+			if err := os.WriteFile(path, []byte("build: go\n"), 0644); err != nil {
+				return fmt.Errorf("writing %s: %w", path, err)
+			}
+			if verbose {
+				fmt.Println("  Replaced fiat")
+			}
+		} else if verbose {
+			fmt.Println("  Skipped fiat (already exists)")
+		}
+	} else {
+		if err := os.WriteFile(path, []byte("build: go\n"), 0644); err != nil {
+			return fmt.Errorf("writing %s: %w", path, err)
+		}
+		if verbose {
+			fmt.Println("  Created fiat")
+		}
+	}
+	return nil
 }
 
 // FormatVar serialises a single variable for the fiat header section.

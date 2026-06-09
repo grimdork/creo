@@ -12,19 +12,19 @@ import (
 	"github.com/grimdork/creo/internal/runner"
 )
 
-func listTargets(explicitPath string) {
-	fiatPath, ok := findFiat(explicitPath)
+var version string
+
+func listTargets(explicitPath string) error {
+	fiatPath, ok := fiat.FindFiat(explicitPath)
 	if !ok {
-		os.Exit(1)
+		return fmt.Errorf("no fiat file found")
 	}
 	file, err := fiat.Parse(fiatPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
-		os.Exit(1)
+		return fmt.Errorf("parsing %s: %w", fiatPath, err)
 	}
 	if err := lang.Apply(file); err != nil {
-		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
-		os.Exit(1)
+		return fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
 	}
 
 	fmt.Println("Available targets:")
@@ -40,9 +40,8 @@ func listTargets(explicitPath string) {
 			fmt.Printf("  %-15s (%s)\n", t.Name, ln)
 		}
 	}
+	return nil
 }
-
-var version string
 
 func main() {
 	opt := arg.New("creo", "A make-like build tool")
@@ -58,8 +57,8 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "k", "keep-going", "Continue despite errors")
 	opt.SetFlag(arg.GroupDefault, "n", "dry-run", "Print commands without running them")
 	opt.SetOption(arg.GroupDefault, "j", "jobs", "Parallel jobs (default: number of CPUs)", 0, false, arg.VarInt, nil)
-	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
 	opt.SetFlag(arg.GroupDefault, "", "refresh-cacerts", "Re-download cached CA certificates")
+	opt.SetFlag(arg.GroupDefault, "", "version", "Print version and exit")
 	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
@@ -87,7 +86,10 @@ func main() {
 
 	if opt.GetBool("i") {
 		langs := opt.GetPosStringSlice("targets")
-		initProject(langs, opt.GetBool("F"), opt.GetBool("v"))
+		if err := initProject(langs, opt.GetBool("F"), opt.GetBool("v")); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -103,7 +105,10 @@ func main() {
 	}
 
 	if opt.GetBool("l") {
-		listTargets(opt.GetString("file"))
+		if err := listTargets(opt.GetString("file")); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -117,7 +122,7 @@ func main() {
 		return
 	}
 
-	fiatPath, ok := findFiat(opt.GetString("file"))
+	fiatPath, ok := fiat.FindFiat(opt.GetString("file"))
 	if !ok {
 		os.Exit(1)
 	}

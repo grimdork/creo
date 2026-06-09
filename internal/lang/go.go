@@ -93,8 +93,7 @@ func applyGo(f *fiat.File, t *fiat.Target) {
 			ev[v.Name] = v
 		}
 		ev["bin"] = &fiat.Var{Name: "bin", Value: defBin}
-		if len(t.Arch) > 1 || len(t.OS) > 1 {
-		} else {
+		if !(len(t.Arch) > 1 || len(t.OS) > 1) {
 			if len(t.OS) > 0 {
 				ev["os"] = &fiat.Var{Name: "os", Value: t.OS[0]}
 			} else {

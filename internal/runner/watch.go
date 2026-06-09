@@ -36,6 +36,7 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 	defer ticker.Stop()
 
 	prevMods := make(map[string]time.Time)
+	collectSources(t, f, dir, prevMods)
 
 	for range ticker.C {
 		curFiat, err := fiat.Parse(f.Path())

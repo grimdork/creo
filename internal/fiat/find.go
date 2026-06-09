@@ -1,4 +1,4 @@
-package main
+package fiat
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/grimdork/creo/internal/picker"
 )
 
-func findFiat(explicitPath string) (string, bool) {
+func FindFiat(explicitPath string) (string, bool) {
 	if explicitPath != "" {
 		if _, err := os.Stat(explicitPath); err == nil {
 			return explicitPath, true

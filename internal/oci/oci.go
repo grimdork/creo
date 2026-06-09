@@ -17,6 +17,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
 const caCertPath = "etc/ssl/certs/ca-certificates.crt"
 
 var caCertURL = "https://curl.se/ca/cacert.pem"
@@ -97,7 +99,7 @@ func certsLayer(caCert string) (v1.Layer, error) {
 }
 
 func FetchCACert() ([]byte, error) {
-	resp, err := http.Get(caCertURL)
+	resp, err := httpClient.Get(caCertURL)
 	if err != nil {
 		return nil, fmt.Errorf("downloading %s: %w", caCertURL, err)
 	}

@@ -9,7 +9,7 @@ import (
 type segKind int
 
 const (
-	segBlank  segKind = iota
+	segBlank segKind = iota
 	segComment
 	segVar
 	segTarget
@@ -143,13 +143,16 @@ func Parse(path string) (*File, error) {
 		}
 
 		if isVar && curTarget == nil {
-			if curSeg == nil || curSeg.kind != segVar {
-				flushSeg()
-				curSeg = &segment{kind: segVar}
-			}
+			flushSeg()
+			curSeg = &segment{kind: segVar}
 			curSeg.raw = append(curSeg.raw, raw)
 			parseVarLine(line, f, nil)
-			curSeg.varName = strings.TrimSpace(strings.SplitN(line[1:], "=", 2)[0])
+			rest := line[1:]
+			sep := "="
+			if idx := strings.Index(rest, ":="); idx >= 0 {
+				sep = ":="
+			}
+			curSeg.varName = strings.TrimSpace(strings.SplitN(rest, sep, 2)[0])
 			continue
 		}
 
@@ -192,9 +195,15 @@ func Parse(path string) (*File, error) {
 				case "cmd":
 					curTarget.Cmds = append(curTarget.Cmds, line)
 				case "bin":
-					curTarget.Bin += " " + line
+					if curTarget.Bin != "" {
+						curTarget.Bin += " "
+					}
+					curTarget.Bin += line
 				case "sources":
-					curTarget.Sources += " " + line
+					if curTarget.Sources != "" {
+						curTarget.Sources += " "
+					}
+					curTarget.Sources += line
 				case "tmp":
 					curTarget.Tmp = append(curTarget.Tmp, strings.Fields(line)...)
 				case "require":
@@ -204,7 +213,10 @@ func Parse(path string) (*File, error) {
 				case "os":
 					curTarget.OS = append(curTarget.OS, strings.Fields(line)...)
 				case "desc":
-					curTarget.Desc += " " + line
+					if curTarget.Desc != "" {
+						curTarget.Desc += " "
+					}
+					curTarget.Desc += line
 				case "install":
 					curTarget.Install = append(curTarget.Install, line)
 				default:

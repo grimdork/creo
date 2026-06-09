@@ -67,14 +67,15 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				allErrs = append(allErrs, err)
 			}
 		}
+		allVisited := map[string]bool{}
 		if bt := fiat.FindTarget(f, "build"); bt != nil {
-			if err := runTargetWithDeps(f, "build", opts, map[string]bool{}, done, outputs); err != nil {
+			if err := runTargetWithDeps(f, "build", opts, allVisited, done, outputs); err != nil {
 				report(err)
 			}
 		}
 		for _, t := range f.Targets {
 			if t.Name != "build" {
-				if err := runTargetWithDeps(f, t.Name, opts, map[string]bool{}, done, outputs); err != nil {
+				if err := runTargetWithDeps(f, t.Name, opts, allVisited, done, outputs); err != nil {
 					report(err)
 				}
 			}
@@ -260,6 +261,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			binMod := binStat.ModTime()
 			needsRun = false
 			srcPatterns := strings.Fields(fiat.ExpandWithTarget(t.Sources, f.Vars, t))
+			if len(srcPatterns) == 0 {
+				needsRun = true
+			}
 			for _, pat := range srcPatterns {
 				files := globFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
 				for _, sf := range files {

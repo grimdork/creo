@@ -47,7 +47,9 @@ func initGoMod(dir, name string, force, verbose bool) error {
 			fmt.Println("  Initialised Go module")
 		}
 	} else if force {
-		os.Remove(modPath)
+		if err := os.Remove(modPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("removing go.mod: %w", err)
+		}
 		mod := exec.Command("go", "mod", "init", name)
 		mod.Dir = dir
 		if out, err := mod.CombinedOutput(); err != nil {
@@ -168,10 +170,12 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 						break
 					}
 				}
-				os.WriteFile(modPath, []byte(strings.Join(lines, "\n")), 0644)
-				if verbose {
-					fmt.Printf("  Added toolchain go%s\n", ver)
-				}
+			if err := os.WriteFile(modPath, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+				return nil, fmt.Errorf("writing toolchain to go.mod: %w", err)
+			}
+			if verbose {
+				fmt.Printf("  Added toolchain go%s\n", ver)
+			}
 			}
 		}
 	}
@@ -300,4 +304,88 @@ func InitOci(dir string, force, verbose bool) ([]string, error) {
 	}
 
 	return []string{"/" + filepath.Base(dir), "/build", "/.creo"}, nil
+}
+
+func InitProject(langs []string, force, verbose bool) error {
+	if len(langs) == 0 {
+		return fiat.WriteDefaultFile("fiat", force, verbose)
+	}
+
+	var allIgnores []string
+
+	for _, spec := range langs {
+		langName, ver := spec, ""
+		if idx := strings.IndexByte(spec, ':'); idx >= 0 {
+			langName, ver = spec[:idx], spec[idx+1:]
+		}
+
+		var ignores []string
+		var err error
+
+		switch langName {
+		case "go":
+			ignores, err = Init(".", ver, force, verbose)
+		case "c":
+			ignores, err = InitC(".", force, verbose)
+		case "cxx", "cpp":
+			ignores, err = InitCxx(".", force, verbose)
+		case "oci":
+			ignores, err = InitOci(".", force, verbose)
+		default:
+			return fmt.Errorf("unknown language: %s", langName)
+		}
+		if err != nil {
+			return err
+		}
+		allIgnores = append(allIgnores, ignores...)
+	}
+
+	WriteIgnores(allIgnores, verbose)
+	return nil
+}
+
+func WriteIgnores(lines []string, verbose bool) {
+	lines = unique(lines)
+	if _, err := os.Stat(".gitignore"); err == nil {
+		data, _ := os.ReadFile(".gitignore")
+		content := string(data)
+		added := false
+		for _, line := range lines {
+			if !strings.Contains(content, line+"\n") && !strings.Contains(content, line+" ") {
+				f, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_WRONLY, 0644)
+				if err != nil {
+					return
+				}
+				if _, err := f.WriteString(line + "\n"); err != nil {
+					f.Close()
+					return
+				}
+				f.Close()
+				added = true
+			}
+		}
+		if added && verbose {
+			fmt.Println("  Updated .gitignore")
+		} else if verbose {
+			fmt.Println("  Skipped .gitignore")
+		}
+	} else {
+		content := strings.Join(lines, "\n") + "\n"
+		os.WriteFile(".gitignore", []byte(content), 0644)
+		if verbose {
+			fmt.Println("  Created .gitignore")
+		}
+	}
+}
+
+func unique(s []string) []string {
+	seen := map[string]bool{}
+	r := make([]string, 0, len(s))
+	for _, v := range s {
+		if !seen[v] {
+			seen[v] = true
+			r = append(r, v)
+		}
+	}
+	return r
 }

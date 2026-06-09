@@ -168,8 +168,8 @@ point it to a local file (e.g. `cacert=/etc/ssl/certs/ca-certificates.crt`).
 ### Output variables
 
 When a dependency target produces a binary (`bin=` property), its path
-is available to the requiring target as `$OUTPUT_<name>`.  This replaces
-the old `ko` `$SRCDIR` approach and works for any language:
+is available to the requiring target as `$OUTPUT_<name>`.  This works
+for any language:
 
 ```
 build: go
@@ -184,21 +184,6 @@ image: oci
 Here `build` sets `$bin`, which becomes `$OUTPUT_build` for the `image`
 target.  The `oci` language target reads it as the binary source for the
 container layer.
-
-### Legacy `ko` migration
-
-The `language: ko` keyword is no longer recognised.  If you have an
-existing `ko` target, replace it with:
-
-```
-image: oci
-    repo=<your-registry>
-    tarball=<path>.tar
-    require=<build-target>
-```
-
-Where `<build-target>` is the name of your Go build target.  The binary
-path is automatically injected via `$OUTPUT_<target>`.
 
 ### Multi-arch and multi-OS
 
@@ -451,7 +436,7 @@ Error: fiat:12: install of ./creo: no such file or directory
 No `$(eval ...)`, no `.PHONY`, no `.SUFFIXES`, no `ifeq`/`else`/`endif`.
 Just variables with `$`, targets with properties, and shell commands.
 Language support makes the common case — a Go project — a single line.
-OCI image building is built in — no external `ko` binary needed.
+OCI image building is built in.
 
 ## License
 
