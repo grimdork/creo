@@ -112,6 +112,6 @@ func applyRust(f *fiat.File, t *fiat.Target) {
 			release = ""
 			cargoDir = "target/debug"
 		}
-		t.Cmds = append(t.Cmds, "$CARGO build"+release+" $args 2>&1 && cp "+cargoDir+"/$PROJECT $bin")
+		t.Cmds = append(t.Cmds, "$CARGO build"+release+" $args 2>&1 && mkdir -p $(dirname $bin) && cp "+cargoDir+"/$PROJECT $bin")
 	}
 }
