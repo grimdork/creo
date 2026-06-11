@@ -9,7 +9,7 @@ import (
 	"github.com/grimdork/creo/internal/semver"
 )
 
-func buildDir(f *fiat.File) string {
+func BuildDir(f *fiat.File) string {
 	if v, ok := f.Vars["BUILDDIR"]; ok && v.Value != "" {
 		return v.Value
 	}

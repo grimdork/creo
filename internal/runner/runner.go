@@ -164,82 +164,14 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 	if opts.Clean {
 		if !t.IsVirtual {
-			archs := t.Arch
-			if len(archs) == 0 {
-				archs = []string{""}
-			}
-			oses := t.OS
-			if len(oses) == 0 {
-				oses = []string{""}
-			}
-
-			cleanCombos := func(cb func(arch, osval string, cv map[string]*fiat.Var)) {
-				for _, arch := range archs {
-					for _, osval := range oses {
-						activeArch := arch
-						activeOS := osval
-						if activeArch == "" {
-							activeArch = runtime.GOARCH
-						}
-						if activeOS == "" {
-							activeOS = runtime.GOOS
-						}
-
-						cv := make(map[string]*fiat.Var)
-						for k, v := range f.Vars {
-							cv[k] = v
-						}
-						for _, v := range t.Vars {
-							cv[v.Name] = v
-						}
-						cv["arch"] = &fiat.Var{Name: "arch", Value: activeArch}
-						cv["os"] = &fiat.Var{Name: "os", Value: activeOS}
-						cv["THIS"] = &fiat.Var{Name: "THIS", Value: t.Name}
-
-						cb(activeArch, activeOS, cv)
-					}
+			bd := lang.BuildDir(f)
+			if err := os.RemoveAll(bd); err != nil {
+				if opts.Verbose {
+					fmt.Fprintf(os.Stderr, "  Failed to remove build directory %s: %v\n", bd, err)
 				}
+			} else if opts.Verbose {
+				fmt.Printf("  Removed build directory %s\n", bd)
 			}
-
-			cleanCombos(func(arch, osval string, cv map[string]*fiat.Var) {
-				if t.Bin != "" {
-					bp := fiat.Expand(t.Bin, cv, 0)
-					cv["bin"] = &fiat.Var{Name: "bin", Value: bp}
-					if len(t.Cmds) > 0 {
-						if _, err := os.Stat(bp); err == nil {
-							if err := os.Remove(bp); err != nil {
-								if opts.Verbose {
-									fmt.Fprintf(os.Stderr, "  Failed to remove %s: %v\n", bp, err)
-								}
-							} else if opts.Verbose {
-								fmt.Printf("  Removed %s\n", bp)
-							}
-						}
-					}
-				}
-				for _, inst := range t.Install {
-					expanded := fiat.Expand(inst, cv, 0)
-					expanded = os.ExpandEnv(expanded)
-					src := ""
-					dest := expanded
-					if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
-						src = expanded[:idx]
-						dest = expanded[idx+1:]
-					}
-					if si, err := os.Stat(dest); err == nil && si.IsDir() && src != "" {
-						dest = filepath.Join(dest, filepath.Base(src))
-					}
-					if _, err := os.Stat(dest); err == nil {
-						if err := os.Remove(dest); err != nil {
-							if opts.Verbose {
-								fmt.Fprintf(os.Stderr, "  Failed to remove installed %s: %v\n", dest, err)
-							}
-						} else if opts.Verbose {
-							fmt.Printf("  Removed installed %s\n", dest)
-						}
-					}
-				}
-			})
 		}
 		for _, pattern := range t.Tmp {
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)

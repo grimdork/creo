@@ -68,7 +68,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
 	}
 
-	bd := buildDir(f)
+	bd := BuildDir(f)
 	defBin := bd + "/" + proj
 	if isDebug(t) {
 		defBin += "-debug"
@@ -122,7 +122,7 @@ func applyCxx(f *fiat.File, t *fiat.Target) {
 		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
 	}
 
-	bd := buildDir(f)
+	bd := BuildDir(f)
 	defBin := bd + "/" + proj
 	if isDebug(t) {
 		defBin += "-debug"

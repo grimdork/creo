@@ -49,7 +49,7 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 	}
 
 	if cfg.Tarball == "" && cfg.Repo == "" {
-		bd := buildDir(f)
+		bd := BuildDir(f)
 		cfg.Tarball = bd + "/" + t.Name + ".tar"
 	}
 
