@@ -321,8 +321,8 @@ func TestApplyC(t *testing.T) {
 		t.Fatalf("expected 1 target, got %d", len(f.Targets))
 	}
 	trg := f.Targets[0]
-	if trg.Sources != "*.c *.h" {
-		t.Fatalf("expected sources '*.c *.h', got %q", trg.Sources)
+	if trg.Sources != "*.c" {
+		t.Fatalf("expected sources '*.c', got %q", trg.Sources)
 	}
 	if !strings.HasPrefix(trg.Bin, "build/") {
 		t.Fatalf("expected Bin to start with 'build/', got %q", trg.Bin)
@@ -353,8 +353,8 @@ func TestApplyCxx(t *testing.T) {
 		t.Fatalf("expected 1 target, got %d", len(f.Targets))
 	}
 	trg := f.Targets[0]
-	if trg.Sources != "*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp" {
-		t.Fatalf("expected sources '*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp', got %q", trg.Sources)
+	if trg.Sources != "*.cpp" {
+		t.Fatalf("expected sources '*.cpp', got %q", trg.Sources)
 	}
 }
 
@@ -376,8 +376,8 @@ func TestApplyCpp(t *testing.T) {
 		t.Fatalf("expected 1 target, got %d", len(f.Targets))
 	}
 	trg := f.Targets[0]
-	if trg.Sources != "*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp" {
-		t.Fatalf("expected sources '*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp', got %q", trg.Sources)
+	if trg.Sources != "*.cpp" {
+		t.Fatalf("expected sources '*.cpp', got %q", trg.Sources)
 	}
 }
 

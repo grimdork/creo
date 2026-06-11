@@ -76,7 +76,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 	t.Bin = expandBin(f, t, defBin)
 
 	if t.Sources == "" {
-		t.Sources = "*.c *.h"
+		t.Sources = "*.c"
 	}
 	if len(t.Cmds) == 0 {
 		flags := "$CFLAGS"
@@ -130,7 +130,7 @@ func applyCxx(f *fiat.File, t *fiat.Target) {
 	t.Bin = expandBin(f, t, defBin)
 
 	if t.Sources == "" {
-		t.Sources = "*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp"
+		t.Sources = "*.cpp"
 	}
 	if len(t.Cmds) == 0 {
 		flags := "$CXXFLAGS"

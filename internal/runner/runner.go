@@ -308,6 +308,17 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 		}
 		if allExist {
+			if t.Bin != "" {
+				for _, arch := range archs {
+					for _, osval := range oses {
+						a := ensureArch(arch)
+						o := ensureOS(osval)
+						cv := baseComboVars(f, t, a, o, outputs)
+						bp := fiat.Expand(t.Bin, cv, 0)
+						outputs.Store(name, a, o, bp)
+					}
+				}
+			}
 			if t.Sources != "" {
 				fmt.Printf("Target %q: up to date (cached)\n", name)
 			} else {
@@ -596,6 +607,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 		}
 	} else if t.Sources != "" {
+		if t.Bin != "" {
+			outputs.Store(name, runtime.GOARCH, runtime.GOOS, existsBinPath)
+		}
 		fmt.Printf("Target %q: up to date (cached)\n", name)
 	} else {
 		fmt.Printf("Target %q: binary %q already exists. Skipping.\n", name, existsBinPath)
