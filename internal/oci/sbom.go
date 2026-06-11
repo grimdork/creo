@@ -17,14 +17,14 @@ import (
 )
 
 type spdxDocument struct {
-	SPDXVersion   string         `json:"spdxVersion"`
-	DataLicense   string         `json:"dataLicense"`
-	SPDXID        string         `json:"SPDXID"`
-	Name          string         `json:"name"`
-	CreationInfo  spdxCreation   `json:"creationInfo"`
-	Packages      []spdxPackage  `json:"packages"`
-	Files         []spdxFile     `json:"files"`
-	Relationships []spdxRel      `json:"relationships"`
+	SPDXVersion   string        `json:"spdxVersion"`
+	DataLicense   string        `json:"dataLicense"`
+	SPDXID        string        `json:"SPDXID"`
+	Name          string        `json:"name"`
+	CreationInfo  spdxCreation  `json:"creationInfo"`
+	Packages      []spdxPackage `json:"packages"`
+	Files         []spdxFile    `json:"files"`
+	Relationships []spdxRel     `json:"relationships"`
 }
 
 type spdxCreation struct {

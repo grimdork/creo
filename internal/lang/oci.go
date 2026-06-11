@@ -136,7 +136,12 @@ func resolveOwner(f *fiat.File, t *fiat.Target) string {
 			return owner
 		}
 	}
-	return filepath.Base(filepath.Dir(f.Path()))
+	dir := filepath.Dir(f.Path())
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return filepath.Base(dir)
+	}
+	return filepath.Base(absDir)
 }
 
 func ownerFromGit() string {

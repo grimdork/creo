@@ -5,10 +5,10 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/grimdork/creo/internal/util"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/grimdork/creo/internal/util"
 )
 
 func Inspect(imageRef string) error {
@@ -65,5 +65,3 @@ func Inspect(imageRef string) error {
 
 	return w.Flush()
 }
-
-

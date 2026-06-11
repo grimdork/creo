@@ -30,7 +30,7 @@ func TestGenerateCompletion(t *testing.T) {
 	if !strings.Contains(result, "complete -F _creo") {
 		t.Fatal("expected complete -F _creo line")
 	}
-	if !strings.Contains(result, "go c cxx cpp oci") {
+	if !strings.Contains(result, "go c cxx cpp rust oci") {
 		t.Fatal("expected language list in completion")
 	}
 }
@@ -142,7 +142,7 @@ func TestInitProjectUnknown(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	err = lang.InitProject([]string{"rust"}, false, false)
+	err = lang.InitProject([]string{"zig"}, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown language")
 	}

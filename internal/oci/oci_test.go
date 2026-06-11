@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/grimdork/creo/internal/util"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/grimdork/creo/internal/util"
 )
 
 func TestBinaryLayer(t *testing.T) {

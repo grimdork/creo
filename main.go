@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -72,6 +73,52 @@ func runInspect(ref string) {
 func runInit(langs []string, force, verbose bool) {
 	if err := lang.InitProject(langs, force, verbose); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runGitInit(verbose bool) {
+	git := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	if err := git("init"); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: git init: %v\n", err)
+		os.Exit(1)
+	}
+	if verbose {
+		fmt.Println("  Initialised git repository")
+	}
+
+	if err := git("add", "-A"); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: git add: %v\n", err)
+		os.Exit(1)
+	}
+
+	out, err := exec.Command("git", "diff", "--cached", "--name-only").Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: listing staged files: %v\n", err)
+		os.Exit(1)
+	}
+
+	files := strings.TrimSpace(string(out))
+	if files == "" {
+		if verbose {
+			fmt.Println("  Nothing to commit")
+		}
+		return
+	}
+
+	body := ""
+	for _, f := range strings.Split(files, "\n") {
+		body += "\n- " + f
+	}
+	msg := "Initial scaffolding" + body
+	if err := git("commit", "-m", msg); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: git commit: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -197,6 +244,7 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "", "completion", "Print shell completion script")
 	opt.SetOption(arg.GroupDefault, "", "graph", "Show dependency graph (tree|dot|svg)", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "status", "Check cache state when showing graph")
+	opt.SetFlag(arg.GroupDefault, "g", "git", "Initialise a git repository and commit")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
 	if err := opt.Parse(os.Args[1:]); err != nil {
@@ -224,6 +272,11 @@ func main() {
 		runInspect(ref)
 	case opt.GetBool("i"):
 		runInit(opt.GetPosStringSlice("targets"), opt.GetBool("F"), opt.GetBool("v"))
+		if opt.GetBool("g") {
+			runGitInit(opt.GetBool("v"))
+		}
+	case opt.GetBool("g"):
+		runGitInit(opt.GetBool("v"))
 	case opt.GetBool("l"):
 		runList(opt.GetString("file"))
 	case opt.GetString("graph") != "":

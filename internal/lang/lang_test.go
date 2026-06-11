@@ -700,7 +700,7 @@ func TestInitProjectUnknown(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProject([]string{"rust"}, false, false)
+	err := InitProject([]string{"zig"}, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown language")
 	}
@@ -1002,5 +1002,314 @@ func TestApplyWithArgs(t *testing.T) {
 	}
 	if !strings.Contains(trg.Cmds[0], "$args") {
 		t.Fatalf("expected cmd to contain '$args', got %q", trg.Cmds[0])
+	}
+}
+
+func TestApplyRust(t *testing.T) {
+	content := []byte("build: rust\n")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(`[package]
+name = "myapp"
+version = "0.1.0"
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.Bin != "./target/release/myapp" {
+		t.Fatalf("expected bin './target/release/myapp', got %q", trg.Bin)
+	}
+	if trg.Sources != "*.rs Cargo.toml Cargo.lock" {
+		t.Fatalf("expected sources '*.rs Cargo.toml Cargo.lock', got %q", trg.Sources)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected at least one cmd")
+	}
+	if !strings.Contains(trg.Cmds[0], "--release") {
+		t.Fatalf("expected --release in cmd, got %q", trg.Cmds[0])
+	}
+}
+
+func TestApplyRustDebug(t *testing.T) {
+	content := []byte("debug: rust\n")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(`[package]
+name = "myapp"
+version = "0.1.0"
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 {
+		t.Fatalf("expected 1 target, got %d", len(f.Targets))
+	}
+	trg := f.Targets[0]
+	if trg.Bin != "./target/debug/myapp" {
+		t.Fatalf("expected bin './target/debug/myapp', got %q", trg.Bin)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected at least one cmd")
+	}
+	if strings.Contains(trg.Cmds[0], "--release") {
+		t.Fatalf("expected no --release in debug cmd, got %q", trg.Cmds[0])
+	}
+}
+
+func TestCrateName(t *testing.T) {
+	dir1 := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir1, "Cargo.toml"), []byte(`[package]
+name = "my-crate"
+version = "0.1.0"
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := CrateName(dir1); got != "my-crate" {
+		t.Fatalf("CrateName: expected 'my-crate', got %q", got)
+	}
+
+	dir2 := t.TempDir()
+	if got := CrateName(dir2); got != filepath.Base(dir2) {
+		t.Fatalf("CrateName without Cargo.toml: expected %q, got %q", filepath.Base(dir2), got)
+	}
+}
+
+func TestRustTriple(t *testing.T) {
+	tests := []struct {
+		arch, os, want string
+	}{
+		{"amd64", "linux", "x86_64-unknown-linux-gnu"},
+		{"x86_64", "linux", "x86_64-unknown-linux-gnu"},
+		{"arm64", "linux", "aarch64-unknown-linux-gnu"},
+		{"aarch64", "linux", "aarch64-unknown-linux-gnu"},
+		{"amd64", "darwin", "x86_64-apple-darwin"},
+		{"amd64", "macos", "x86_64-apple-darwin"},
+		{"arm64", "darwin", "aarch64-apple-darwin"},
+		{"amd64", "freebsd", "x86_64-unknown-freebsd"},
+		{"amd64", "windows", "x86_64-pc-windows-msvc"},
+		{"arm", "linux", "armv7-unknown-linux-gnueabihf"},
+		{"riscv64", "linux", ""},
+	}
+	for _, tt := range tests {
+		got := rustTriple(tt.arch, tt.os)
+		if got != tt.want {
+			t.Errorf("rustTriple(%q, %q): expected %q, got %q", tt.arch, tt.os, tt.want, got)
+		}
+	}
+}
+
+func TestApplyRustCustomBin(t *testing.T) {
+	content := []byte("build: rust\n\tbin=./target/release/$PROJECT\n")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(`[package]
+name = "myapp"
+version = "0.1.0"
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.Bin != "./target/release/myapp" {
+		t.Fatalf("expected bin './target/release/myapp', got %q", trg.Bin)
+	}
+}
+
+func TestRustNoCargoToml(t *testing.T) {
+	content := []byte("build: rust\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	base := filepath.Base(dir)
+	if trg.Bin != "./target/release/"+base {
+		t.Fatalf("expected bin './target/release/%s', got %q", base, trg.Bin)
+	}
+}
+
+func TestCrossEnvRust(t *testing.T) {
+	got := CrossEnv("rust", "amd64", "linux")
+	if len(got) != 1 || got[0] != "CARGO_BUILD_TARGET=x86_64-unknown-linux-gnu" {
+		t.Fatalf("CrossEnv(rust, amd64, linux): got %v", got)
+	}
+	got2 := CrossEnv("rust", "arm64", "darwin")
+	if len(got2) != 1 || got2[0] != "CARGO_BUILD_TARGET=aarch64-apple-darwin" {
+		t.Fatalf("CrossEnv(rust, arm64, darwin): got %v", got2)
+	}
+	got3 := CrossEnv("rust", "riscv64", "linux")
+	if got3 != nil {
+		t.Fatalf("CrossEnv(rust, riscv64, linux): expected nil, got %v", got3)
+	}
+}
+
+func TestApplyRustWithCARGO(t *testing.T) {
+	content := []byte("$CARGO=cargo +nightly\nbuild: rust\n")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(`[package]
+name = "x"
+version = "0.1.0"
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected a cmd")
+	}
+	if !strings.Contains(trg.Cmds[0], "$CARGO") {
+		t.Fatalf("expected cmd to contain '$CARGO', got %q", trg.Cmds[0])
+	}
+}
+
+func TestProjectVarGo(t *testing.T) {
+	content := []byte("build: go\n\tbin=./$PROJECT\n")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/foo/myapp\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if f.Vars["PROJECT"].Value != "myapp" {
+		t.Fatalf("expected PROJECT 'myapp', got %q", f.Vars["PROJECT"].Value)
+	}
+	trg := f.Targets[0]
+	if trg.Bin != "./myapp" {
+		t.Fatalf("expected bin './myapp', got %q", trg.Bin)
+	}
+}
+
+func TestProjectVarC(t *testing.T) {
+	dir := t.TempDir()
+	content := []byte("build: c\n\tbin=./$PROJECT\n")
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Base(dir)
+	if f.Vars["PROJECT"].Value != base {
+		t.Fatalf("expected PROJECT %q, got %q", base, f.Vars["PROJECT"].Value)
+	}
+	trg := f.Targets[0]
+	if trg.Bin != "./"+base {
+		t.Fatalf("expected bin './%s', got %q", base, trg.Bin)
+	}
+}
+
+func TestProjectVarCxx(t *testing.T) {
+	dir := t.TempDir()
+	content := []byte("build: cxx\n\tbin=./$PROJECT\n")
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Base(dir)
+	if f.Vars["PROJECT"].Value != base {
+		t.Fatalf("expected PROJECT %q, got %q", base, f.Vars["PROJECT"].Value)
+	}
+	trg := f.Targets[0]
+	if trg.Bin != "./"+base {
+		t.Fatalf("expected bin './%s', got %q", base, trg.Bin)
+	}
+}
+
+func TestProjectVarRust(t *testing.T) {
+	content := []byte("build: rust\n\tbin=./target/release/$PROJECT\n")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(`[package]
+name = "mycrate"
+version = "0.1.0"
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	if f.Vars["PROJECT"].Value != "mycrate" {
+		t.Fatalf("expected PROJECT 'mycrate', got %q", f.Vars["PROJECT"].Value)
+	}
+	trg := f.Targets[0]
+	if trg.Bin != "./target/release/mycrate" {
+		t.Fatalf("expected bin './target/release/mycrate', got %q", trg.Bin)
 	}
 }

@@ -171,12 +171,12 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 						break
 					}
 				}
-			if err := os.WriteFile(modPath, []byte(strings.Join(lines, "\n")), 0644); err != nil {
-				return nil, fmt.Errorf("writing toolchain to go.mod: %w", err)
-			}
-			if verbose {
-				fmt.Printf("  Added toolchain go%s\n", ver)
-			}
+				if err := os.WriteFile(modPath, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+					return nil, fmt.Errorf("writing toolchain to go.mod: %w", err)
+				}
+				if verbose {
+					fmt.Printf("  Added toolchain go%s\n", ver)
+				}
 			}
 		}
 	}
@@ -307,6 +307,54 @@ func InitOci(dir string, force, verbose bool) ([]string, error) {
 	return []string{"/" + filepath.Base(dir), "/build", "/.creo"}, nil
 }
 
+func InitRust(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	if fiat.FindTarget(file, "build") == nil {
+		bt := &fiat.Target{
+			Name:     "build",
+			Language: "rust",
+			Desc:     "Build the Rust binary",
+		}
+		file.AddTarget(bt)
+	}
+
+	cargoPath := filepath.Join(dir, "Cargo.toml")
+	if _, err := os.Stat(cargoPath); os.IsNotExist(err) {
+		cmd := exec.Command("cargo", "init", "--name", filepath.Base(dir))
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("cargo init: %s", strings.TrimSpace(string(out)))
+		}
+		if verbose {
+			fmt.Println("  Initialised Cargo project")
+		}
+	} else if force {
+		if err := os.Remove(cargoPath); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("removing Cargo.toml: %w", err)
+		}
+		cmd := exec.Command("cargo", "init", "--name", filepath.Base(dir))
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("cargo init: %s", strings.TrimSpace(string(out)))
+		}
+		if verbose {
+			fmt.Println("  Reinitialised Cargo project")
+		}
+	} else if verbose {
+		fmt.Println("  Skipped Cargo.toml (already exists)")
+	}
+
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+
+	return []string{"/.creo"}, nil
+}
+
 func InitProject(langs []string, force, verbose bool) error {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
@@ -343,6 +391,8 @@ func InitProject(langs []string, force, verbose bool) error {
 			ignores, err = InitCxx(".", force, verbose)
 		case "oci":
 			ignores, err = InitOci(".", force, verbose)
+		case "rust":
+			ignores, err = InitRust(".", force, verbose)
 		default:
 			return fmt.Errorf("unknown language: %s", langName)
 		}
@@ -361,9 +411,17 @@ func WriteIgnores(lines []string, verbose bool) {
 	if _, err := os.Stat(".gitignore"); err == nil {
 		data, _ := os.ReadFile(".gitignore")
 		content := string(data)
+		existing := strings.Split(content, "\n")
 		added := false
 		for _, line := range lines {
-			if !strings.Contains(content, line+"\n") && !strings.Contains(content, line+" ") {
+			found := false
+			for _, el := range existing {
+				if strings.TrimSpace(el) == line {
+					found = true
+					break
+				}
+			}
+			if !found {
 				f, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_WRONLY, 0644)
 				if err != nil {
 					return
@@ -391,5 +449,3 @@ func WriteIgnores(lines []string, verbose bool) {
 		}
 	}
 }
-
-

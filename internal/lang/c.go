@@ -2,16 +2,11 @@ package lang
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/grimdork/creo/internal/fiat"
 )
 
-func isDebug(t *fiat.Target) bool {
-	return t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
-}
-
-func setVarDefaults(f *fiat.File) {
+func setCVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CC"]; !ok {
 		f.Vars["CC"] = &fiat.Var{Name: "CC", Value: "cc"}
 	}
@@ -21,41 +16,6 @@ func setVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CDEBUGFLAGS"]; !ok {
 		f.Vars["CDEBUGFLAGS"] = &fiat.Var{Name: "CDEBUGFLAGS", Value: "-O0 -g -Wall"}
 	}
-	if _, ok := f.Vars["LDFLAGS"]; !ok {
-		f.Vars["LDFLAGS"] = &fiat.Var{Name: "LDFLAGS", Value: ""}
-	}
-	if _, ok := f.Vars["LIBS"]; !ok {
-		f.Vars["LIBS"] = &fiat.Var{Name: "LIBS", Value: ""}
-	}
-}
-
-func applyC(f *fiat.File, t *fiat.Target) {
-	setVarDefaults(f)
-
-	dir := filepath.Dir(f.Path())
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
-	if t.Bin == "" {
-		t.Bin = "./" + filepath.Base(absDir)
-	}
-	if isDebug(t) {
-		t.Bin += "-debug"
-	}
-	if t.Sources == "" {
-		t.Sources = "*.c *.h"
-	}
-	if len(t.Cmds) == 0 && len(t.Install) == 0 {
-		flags := "$CFLAGS"
-		if isDebug(t) {
-			flags = "$CDEBUGFLAGS"
-		}
-		t.Cmds = append(t.Cmds, "$CC $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
-	}
-}
-
-func setCxxVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CXX"]; !ok {
 		if _, ok2 := f.Vars["CPP"]; ok2 {
 			f.Vars["CXX"] = f.Vars["CPP"]
@@ -66,7 +26,6 @@ func setCxxVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CPP"]; !ok {
 		f.Vars["CPP"] = f.Vars["CXX"]
 	}
-
 	if _, ok := f.Vars["CXXFLAGS"]; !ok {
 		if _, ok2 := f.Vars["CPPFLAGS"]; ok2 {
 			f.Vars["CXXFLAGS"] = f.Vars["CPPFLAGS"]
@@ -77,7 +36,6 @@ func setCxxVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CPPFLAGS"]; !ok {
 		f.Vars["CPPFLAGS"] = f.Vars["CXXFLAGS"]
 	}
-
 	if _, ok := f.Vars["CXXDEBUGFLAGS"]; !ok {
 		if _, ok2 := f.Vars["CPPDEBUGFLAGS"]; ok2 {
 			f.Vars["CXXDEBUGFLAGS"] = f.Vars["CPPDEBUGFLAGS"]
@@ -88,12 +46,43 @@ func setCxxVarDefaults(f *fiat.File) {
 	if _, ok := f.Vars["CPPDEBUGFLAGS"]; !ok {
 		f.Vars["CPPDEBUGFLAGS"] = f.Vars["CXXDEBUGFLAGS"]
 	}
-
 	if _, ok := f.Vars["LDFLAGS"]; !ok {
 		f.Vars["LDFLAGS"] = &fiat.Var{Name: "LDFLAGS", Value: ""}
 	}
 	if _, ok := f.Vars["LIBS"]; !ok {
 		f.Vars["LIBS"] = &fiat.Var{Name: "LIBS", Value: ""}
+	}
+}
+
+func applyC(f *fiat.File, t *fiat.Target) {
+	setCVarDefaults(f)
+
+	dir := filepath.Dir(f.Path())
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		absDir = dir
+	}
+
+	proj := filepath.Base(absDir)
+	if _, ok := f.Vars["PROJECT"]; !ok {
+		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
+	}
+
+	defBin := "./" + proj
+	if isDebug(t) {
+		defBin += "-debug"
+	}
+	t.Bin = expandBin(f, t, defBin)
+
+	if t.Sources == "" {
+		t.Sources = "*.c *.h"
+	}
+	if len(t.Cmds) == 0 {
+		flags := "$CFLAGS"
+		if isDebug(t) {
+			flags = "$CDEBUGFLAGS"
+		}
+		t.Cmds = append(t.Cmds, "$CC $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
 	}
 }
 
@@ -108,29 +97,40 @@ func CrossEnv(lang, arch, osval string) []string {
 			env = append(env, "GOOS="+osval)
 		}
 		return env
+	case "rust":
+		if triple := rustTriple(arch, osval); triple != "" {
+			return []string{"CARGO_BUILD_TARGET=" + triple}
+		}
+		return nil
 	default:
 		return nil
 	}
 }
 
 func applyCxx(f *fiat.File, t *fiat.Target) {
-	setCxxVarDefaults(f)
+	setCVarDefaults(f)
 
 	dir := filepath.Dir(f.Path())
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		absDir = dir
 	}
-	if t.Bin == "" {
-		t.Bin = "./" + filepath.Base(absDir)
+
+	proj := filepath.Base(absDir)
+	if _, ok := f.Vars["PROJECT"]; !ok {
+		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
 	}
+
+	defBin := "./" + proj
 	if isDebug(t) {
-		t.Bin += "-debug"
+		defBin += "-debug"
 	}
+	t.Bin = expandBin(f, t, defBin)
+
 	if t.Sources == "" {
 		t.Sources = "*.cpp *.hpp *.hxx *.hh *.cppm *.ixx *.mpp"
 	}
-	if len(t.Cmds) == 0 && len(t.Install) == 0 {
+	if len(t.Cmds) == 0 {
 		flags := "$CXXFLAGS"
 		if isDebug(t) {
 			flags = "$CXXDEBUGFLAGS"

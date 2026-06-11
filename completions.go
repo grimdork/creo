@@ -20,7 +20,7 @@ const targetsHelper = `__creo_targets() {
 }`
 
 const langsHelper = `__creo_langs() {
-	COMPREPLY+=( $(compgen -W "go c cxx cpp oci" -- "$cur") )
+	COMPREPLY+=( $(compgen -W "go c cxx cpp rust oci" -- "$cur") )
 }`
 
 const completionFunc = `_creo() {
