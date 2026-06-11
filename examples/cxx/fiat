@@ -1,0 +1,9 @@
+build: cxx
+
+image: oci
+    require=build
+    tag=latest
+    from=alpine:latest
+    # repo=ghcr.io/myorg/myapp
+    # ociuser=myuser
+    # ocipass=$TOKEN

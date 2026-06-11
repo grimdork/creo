@@ -1,0 +1,8 @@
+build: rust
+
+image: oci
+    require=build
+    tag=latest
+    # repo=ghcr.io/myorg/myapp
+    # ociuser=myuser
+    # ocipass=$TOKEN
