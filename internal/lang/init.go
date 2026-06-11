@@ -191,7 +191,7 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	return []string{"/" + name, "/.creo"}, nil
+	return []string{"/build", "/.creo"}, nil
 }
 
 func InitC(dir string, force, verbose bool) ([]string, error) {

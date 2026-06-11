@@ -55,6 +55,7 @@ type RunOpts struct {
 	KeepGoing      bool
 	DryRun         bool
 	RefreshCACerts bool
+	BuildDir       string
 }
 
 func RunTarget(f *fiat.File, name string, opts RunOpts) error {
@@ -648,6 +649,9 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 			return nil
+		}
+		if opts.BuildDir != "" {
+			file.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: opts.BuildDir}
 		}
 		if err := lang.Apply(file); err != nil {
 			fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
