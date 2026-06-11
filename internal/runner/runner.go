@@ -465,7 +465,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							CACert:     caCert,
 							BaseImage:  t.OCI.BaseImage,
 							Arch:       activeArch,
-							OS:         activeOS,
+							OS:         "linux",
 							SBOM:       t.OCI.SBOM,
 							Entrypoint: entrypoint,
 						})
