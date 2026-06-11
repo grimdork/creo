@@ -5,27 +5,31 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grimdork/climate/cfmt"
+	"github.com/grimdork/climate/fx"
 )
 
+// TargetResult holds the outcome of a single target build.
 type TargetResult struct {
-	Name     string
-	Status   string
-	Duration time.Duration
-	Err      error
+	Name     string        // Target name from the fiat file
+	Status   string        // "OK", "SKIPPED", or "FAILED"
+	Duration time.Duration // Wall-clock time spent building
+	Err      error         // Non-nil when Status is "FAILED"
 }
 
+// TargetResults collects per-target outcomes across a run.
 type TargetResults struct {
 	mu  sync.Mutex
 	res []TargetResult
 }
 
+// Add appends a result in a thread-safe manner.
 func (tr *TargetResults) Add(name, status string, dur time.Duration, err error) {
 	tr.mu.Lock()
 	tr.res = append(tr.res, TargetResult{Name: name, Status: status, Duration: dur, Err: err})
 	tr.mu.Unlock()
 }
 
+// Print writes the summary table to stdout.
 func (tr *TargetResults) Print() {
 	if len(tr.res) == 0 {
 		return
@@ -45,17 +49,13 @@ func (tr *TargetResults) Print() {
 		statusStr := r.Status
 		switch r.Status {
 		case "OK":
-			statusStr = cfmt.Sprintf("%green %s%reset", r.Status)
+			statusStr = fx.Render("{success}{}{@}", r.Status)
 		case "SKIPPED":
-			statusStr = cfmt.Sprintf("%yellow %s%reset", r.Status)
+			statusStr = fx.Render("{warning}{}{@}", r.Status)
 		case "FAILED":
-			statusStr = cfmt.Sprintf("%red %s%reset", r.Status)
+			statusStr = fx.Render("{danger}{}{@}", r.Status)
 		}
 		fmt.Printf("%-*s  %-9s  %s\n", maxName, r.Name, dur, statusStr)
 	}
 	fmt.Println()
-}
-
-func cprintf(format string, args ...any) {
-	fmt.Print(cfmt.Sprintf(format, args...))
 }

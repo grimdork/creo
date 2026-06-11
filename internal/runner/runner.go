@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
 	"github.com/grimdork/creo/internal/oci"
@@ -114,7 +115,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	dir := filepath.Dir(f.Path())
 
 	if opts.Verbose {
-		cprintf("%cyan Target %q%reset\n", name)
+		fx.Println(`{cyan}Target "{}"{@}`, name)
 	}
 
 	if !opts.Clean {
@@ -127,7 +128,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						fmt.Fprintf(os.Stderr, "  Failed to remove stale %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
-					cprintf("  %cyan Removed stale %s%reset\n", m)
+					fx.Println(`  {cyan}Removed stale {}{@}`, m)
 				}
 			}
 		}
@@ -175,7 +176,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					fmt.Fprintf(os.Stderr, "  Failed to remove build directory %s: %v\n", bd, err)
 				}
 			} else if opts.Verbose {
-				cprintf("  %green Removed build directory %s%reset\n", bd)
+				fx.Println(`  {success}Removed build directory {}{@}`, bd)
 			}
 		}
 		for _, pattern := range t.Tmp {
@@ -187,7 +188,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
-					cprintf("  %cyan Cleaned %s%reset\n", m)
+					fx.Println(`  {cyan}Cleaned {}{@}`, m)
 				}
 			}
 		}
@@ -277,9 +278,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				}
 			}
 			if t.Sources != "" {
-				cprintf("%yellow Target %q: up to date (cached)%reset\n", name)
+				fx.Println(`{warning}Target "{}": up to date (cached){@}`, name)
 			} else {
-				cprintf("%yellow Target %q: already exists. Skipping.%reset\n", name)
+				fx.Println(`{warning}Target "{}": already exists. Skipping.{@}`, name)
 			}
 			if opts.Results != nil {
 				opts.Results.Add(t.Name, "SKIPPED", 0, nil)
@@ -320,7 +321,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						}
 						if cached {
 							if opts.Verbose {
-								cprintf("  %yellow %s up to date (cached)%reset\n", c.bin)
+								fx.Println(`  {warning}{} up to date (cached){@}`, c.bin)
 							}
 							outputs.Store(name, activeArch, activeOS, c.bin)
 							return
@@ -342,13 +343,13 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 				if len(t.Cmds) > 0 && (opts.DryRun || opts.Verbose) {
 					if t.Bin != "" {
-						cprintf("  %cyan Building %s ...%reset\n", c.bin)
+						fx.Println(`  {cyan}Building {} ...{@}`, c.bin)
 					}
 				}
 				for _, cmd := range t.Cmds {
 					expanded := fiat.Expand(cmd, comboVars, 0)
 					if opts.DryRun || opts.Verbose {
-						cprintf("  %cyan %s%reset\n", expanded)
+						fx.Println(`  {cyan}{}{@}`, expanded)
 					}
 					if opts.DryRun {
 						continue
@@ -385,7 +386,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					if si, err := os.Stat(dest); err == nil && si.IsDir() {
 						dest = filepath.Join(dest, filepath.Base(src))
 					}
-					cprintf("  %cyan Installed %s -> %s%reset\n", src, dest)
+					fx.Println(`  {cyan}Installed {} -> {}{@}`, src, dest)
 					if opts.DryRun {
 						continue
 					}
@@ -434,7 +435,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							if opts.RefreshCACerts {
 								os.Remove(cachePath)
 								if opts.Verbose {
-									cprintf("  %cyan Refreshed cached CA certs%reset\n")
+									fx.Println(`  {cyan}Refreshed cached CA certs{@}`)
 								}
 							}
 
@@ -459,7 +460,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 									return
 								}
 								if opts.Verbose {
-									cprintf("  %cyan Downloaded CA certs to .creo/cacert.pem%reset\n")
+									fx.Println(`  {cyan}Downloaded CA certs to .creo/cacert.pem{@}`)
 								}
 							}
 							caCert = cachePath
@@ -493,7 +494,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 								errCh <- fmt.Errorf("%s: OCI tarball: %w", f.Path(), err)
 								return
 							}
-							cprintf("  %green Wrote %s%reset\n", tarballPath)
+							fx.Println(`  {success}Wrote {}{@}`, tarballPath)
 						}
 
 						repo := fiat.Expand(t.OCI.Repo, comboVars, 0)
@@ -526,7 +527,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							if tag != "" {
 								ref += ":" + tag
 							}
-							cprintf("  %green Pushed %s%reset\n", ref)
+							fx.Println(`  {success}Pushed {}{@}`, ref)
 						}
 					}
 				}
@@ -557,7 +558,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		}
 
 		if opts.Verbose {
-			cprintf("  %green Done in %v%reset\n", time.Since(buildStart))
+			fx.Println(`  {success}Done in {}{@}`, time.Since(buildStart))
 		}
 		if opts.Results != nil {
 			opts.Results.Add(t.Name, "OK", time.Since(buildStart), nil)
@@ -572,7 +573,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
-					cprintf("  %cyan Cleaned %s%reset\n", m)
+					fx.Println(`  {cyan}Cleaned {}{@}`, m)
 				}
 			}
 		}
@@ -580,12 +581,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		if t.Bin != "" {
 			outputs.Store(name, runtime.GOARCH, runtime.GOOS, existsBinPath)
 		}
-		cprintf("%yellow Target %q: up to date (cached)%reset\n", name)
+		fx.Println(`{warning}Target "{}": up to date (cached){@}`, name)
 		if opts.Results != nil {
 			opts.Results.Add(t.Name, "SKIPPED", 0, nil)
 		}
 	} else {
-		cprintf("%yellow Target %q: binary %q already exists. Skipping.%reset\n", name, existsBinPath)
+		fx.Println(`{warning}Target "{}": binary "{}" already exists. Skipping.{@}`, name, existsBinPath)
 		if opts.Results != nil {
 			opts.Results.Add(t.Name, "SKIPPED", 0, nil)
 		}
@@ -612,7 +613,7 @@ func findFiatInDir(dir string, verbose bool) (string, bool) {
 
 	if len(matches) > 1 {
 		if verbose {
-			cprintf("  %grey Skipped %s (multiple .fiat files)%reset\n", dir)
+			fx.Println(`  {muted}Skipped {} (multiple .fiat files){@}`, dir)
 		}
 	}
 	return "", false
@@ -652,7 +653,7 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 		}
 
 		if opts.Verbose {
-			cprintf("%cyan Entering %s%reset\n", path)
+			fx.Println(`{cyan}Entering {}{@}`, path)
 		}
 		if err := RunTarget(file, targetName, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in %s: %v\n", path, err)
