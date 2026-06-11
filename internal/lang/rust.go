@@ -101,6 +101,10 @@ func applyRust(f *fiat.File, t *fiat.Target) {
 		t.Sources = "*.rs Cargo.toml Cargo.lock"
 	}
 
+	if len(t.Tmp) == 0 {
+		t.Tmp = []string{"target"}
+	}
+
 	if len(t.Cmds) == 0 {
 		release := " --release"
 		cargoDir := "target/release"

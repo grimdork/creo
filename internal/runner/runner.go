@@ -241,6 +241,19 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				}
 			})
 		}
+		for _, pattern := range t.Tmp {
+			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
+			matches := util.GlobFiles(expanded, dir)
+			for _, m := range matches {
+				if err := os.RemoveAll(m); err != nil {
+					if opts.Verbose {
+						fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
+					}
+				} else if opts.Verbose {
+					fmt.Printf("  Cleaned %s\n", m)
+				}
+			}
+		}
 		done[name] = true
 		return nil
 	}
