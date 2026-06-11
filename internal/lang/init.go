@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/util"
 )
@@ -18,11 +19,11 @@ func tryWrite(path, content string, force, verbose bool, label string) error {
 				return err
 			}
 			if verbose {
-				fmt.Printf("  Replaced %s\n", label)
+				fx.Println("  {success}Replaced {}{@}", label)
 			}
 		} else {
 			if verbose {
-				fmt.Printf("  Skipped %s (already exists)\n", label)
+				fx.Println("  {warning}Skipped {} (already exists){@}", label)
 			}
 		}
 	} else {
@@ -30,7 +31,7 @@ func tryWrite(path, content string, force, verbose bool, label string) error {
 			return err
 		}
 		if verbose {
-			fmt.Printf("  Created %s\n", label)
+			fx.Println("  {success}Created {}{@}", label)
 		}
 	}
 	return nil
@@ -45,7 +46,7 @@ func initGoMod(dir, name string, force, verbose bool) error {
 			return fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
 		}
 		if verbose {
-			fmt.Println("  Initialised Go module")
+			fx.Println("  {success}Initialised Go module{@}")
 		}
 	} else if force {
 		if err := os.Remove(modPath); err != nil && !os.IsNotExist(err) {
@@ -57,10 +58,10 @@ func initGoMod(dir, name string, force, verbose bool) error {
 			return fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
 		}
 		if verbose {
-			fmt.Println("  Reinitialised Go module")
+			fx.Println("  {success}Reinitialised Go module{@}")
 		}
 	} else if verbose {
-		fmt.Println("  Skipped go.mod (already exists)")
+		fx.Println("  {warning}Skipped go.mod (already exists){@}")
 	}
 	return nil
 }
@@ -127,7 +128,7 @@ import (
 )
 
 func main() {
-	fmt.Printf("%s %s %s/%s\n", Name, version, runtime.GOOS, runtime.GOARCH)
+	fx.Println("{bold}{} {} {}/{}{@}", Name, version, runtime.GOOS, runtime.GOARCH)
 }
 `
 	if err := tryWrite(filepath.Join(dir, "main.go"), mainContent, force, verbose, "main.go"); err != nil {
@@ -175,7 +176,7 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 					return nil, fmt.Errorf("writing toolchain to go.mod: %w", err)
 				}
 				if verbose {
-					fmt.Printf("  Added toolchain go%s\n", ver)
+					fx.Println("  {success}Added toolchain go{}{@}", ver)
 				}
 			}
 		}
@@ -285,10 +286,10 @@ func InitOci(dir string, force, verbose bool) ([]string, error) {
 		}
 		file.AddTarget(img)
 		if verbose {
-			fmt.Println("  Added oci target")
+			fx.Println("  {success}Added oci target{@}")
 		}
 	} else if verbose {
-		fmt.Println("  Skipped oci target (already exists)")
+		fx.Println("  {warning}Skipped oci target (already exists){@}")
 	}
 
 	if fiat.FindTarget(file, "build") != nil {
@@ -330,7 +331,7 @@ func InitRust(dir string, force, verbose bool) ([]string, error) {
 			return nil, fmt.Errorf("cargo init: %s", strings.TrimSpace(string(out)))
 		}
 		if verbose {
-			fmt.Println("  Initialised Cargo project")
+			fx.Println("  {success}Initialised Cargo project{@}")
 		}
 	} else if force {
 		if err := os.Remove(cargoPath); err != nil && !os.IsNotExist(err) {
@@ -342,10 +343,10 @@ func InitRust(dir string, force, verbose bool) ([]string, error) {
 			return nil, fmt.Errorf("cargo init: %s", strings.TrimSpace(string(out)))
 		}
 		if verbose {
-			fmt.Println("  Reinitialised Cargo project")
+			fx.Println("  {success}Reinitialised Cargo project{@}")
 		}
 	} else if verbose {
-		fmt.Println("  Skipped Cargo.toml (already exists)")
+		fx.Println("  {warning}Skipped Cargo.toml (already exists){@}")
 	}
 
 	if err := file.Write(); err != nil {
@@ -569,7 +570,7 @@ func InitProject(langs []string, force, verbose bool) error {
 				return fmt.Errorf("removing .creo: %w", err)
 			}
 			if verbose {
-				fmt.Println("  Removed .creo/")
+				fx.Println("  {muted}Removed .creo/{@}")
 			}
 		}
 	}
@@ -648,9 +649,9 @@ func WriteIgnores(lines []string, verbose bool) {
 			}
 		}
 		if added && verbose {
-			fmt.Println("  Updated .gitignore")
+			fx.Println("  {success}Updated .gitignore{@}")
 		} else if verbose {
-			fmt.Println("  Skipped .gitignore")
+			fx.Println("  {warning}Skipped .gitignore{@}")
 		}
 	} else {
 		content := strings.Join(lines, "\n") + "\n"
@@ -658,7 +659,7 @@ func WriteIgnores(lines []string, verbose bool) {
 			return
 		}
 		if verbose {
-			fmt.Println("  Created .gitignore")
+			fx.Println("  {success}Created .gitignore{@}")
 		}
 	}
 }

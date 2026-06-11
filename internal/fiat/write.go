@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/grimdork/climate/fx"
 )
 
 func (f *File) Write() error {
@@ -202,17 +204,17 @@ func WriteDefaultFile(path string, force, verbose bool) error {
 				return fmt.Errorf("writing %s: %w", path, err)
 			}
 			if verbose {
-				fmt.Println("  Replaced fiat")
+				fx.Println("{success}  Replaced fiat{@}")
 			}
 		} else if verbose {
-			fmt.Println("  Skipped fiat (already exists)")
+			fx.Println("{warning}  Skipped fiat (already exists){@}")
 		}
 	} else {
 		if err := os.WriteFile(path, []byte("build: go\n"), 0644); err != nil {
 			return fmt.Errorf("writing %s: %w", path, err)
 		}
 		if verbose {
-			fmt.Println("  Created fiat")
+			fx.Println("{success}  Created fiat{@}")
 		}
 	}
 	return nil

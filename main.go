@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/grimdork/climate/arg"
+	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
 	"github.com/grimdork/creo/internal/oci"
@@ -53,9 +54,9 @@ func listTargets(explicitPath string) (string, error) {
 
 func printVersion() {
 	if version == "" {
-		fmt.Println("creo (dev)")
+		fx.Println("{bold}creo (dev){@}")
 	} else {
-		fmt.Println("creo " + version)
+		fx.Println("{bold}creo {}{@}", version)
 	}
 }
 
@@ -64,7 +65,7 @@ func runLogin() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("Credentials stored")
+	fx.Println("{success}Credentials stored{@}")
 }
 
 func runInspect(ref string) {
@@ -94,7 +95,7 @@ func runGitInit(verbose bool) {
 		os.Exit(1)
 	}
 	if verbose {
-		fmt.Println("  Initialised git repository")
+		fx.Println("  {success}Initialised git repository{@}")
 	}
 
 	if err := git("add", "-A"); err != nil {
@@ -111,7 +112,7 @@ func runGitInit(verbose bool) {
 	files := strings.TrimSpace(string(out))
 	if files == "" {
 		if verbose {
-			fmt.Println("  Nothing to commit")
+			fx.Println("  {warning}Nothing to commit{@}")
 		}
 		return
 	}
@@ -285,7 +286,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("Cache cleaned")
+		fx.Println("{success}Cache cleaned{@}")
 	case opt.GetBool("completion"):
 		fmt.Print(generateCompletion(opt))
 	case opt.GetBool("login"):

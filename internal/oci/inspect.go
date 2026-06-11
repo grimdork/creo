@@ -3,11 +3,13 @@ package oci
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/util"
 )
 
@@ -42,7 +44,8 @@ func Inspect(imageRef string) error {
 		return fmt.Errorf("reading config: %w", err)
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	var buf strings.Builder
+	w := tabwriter.NewWriter(&buf, 0, 0, 3, ' ', 0)
 	fmt.Fprintf(w, "Repository:\t%s\n", imageRef)
 	fmt.Fprintf(w, "Digest:\t%s\n", desc.Digest.String())
 	fmt.Fprintf(w, "Media type:\t%s\n", desc.MediaType)
@@ -63,5 +66,7 @@ func Inspect(imageRef string) error {
 	fmt.Fprintf(w, "  Env:\t%v\n", cfg.Config.Env)
 	fmt.Fprintf(w, "  Labels:\t%v\n", cfg.Config.Labels)
 
-	return w.Flush()
+	w.Flush()
+	fx.Fprint(os.Stdout, buf.String())
+	return nil
 }

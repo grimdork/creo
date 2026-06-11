@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
 	"github.com/grimdork/creo/internal/lang"
 )
@@ -31,7 +32,7 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 		return
 	}
 
-	fmt.Printf("Watching target %q for changes...\n", name)
+	fx.Println(`{cyan}Watching target "{}" for changes...{@}`, name)
 
 	prevHash := fileHash(t, f, dir)
 
@@ -64,7 +65,7 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 		curHash := fileHash(curT, curFiat, dir)
 
 		if curHash != prevHash {
-			fmt.Println("\n  Change detected, rebuilding...")
+			fx.Println("{warning}  Change detected, rebuilding...{@}")
 			if err := RunTarget(curFiat, name, opts); err != nil {
 				fmt.Fprintf(os.Stderr, "  Error: %v\n", err)
 			}
