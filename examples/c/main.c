@@ -31,7 +31,7 @@ int main() {
 	char resp[] =
 		"HTTP/1.0 200 OK\r\n"
 		"Content-Type: text/plain\r\n"
-		"Content-Length: 18\r\n"
+		"Content-Length: 13\r\n"
 		"Connection: close\r\n"
 		"\r\n"
 		"hello from C\n";

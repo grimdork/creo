@@ -1,9 +1,10 @@
 # creo examples
 
-Each `.fiat` file is self-documenting with `#` comments explaining every
-property.
+Each `.fiat` file and subdirectory demonstrates a specific feature or
+language.  Example directories contain a `fiat` file, source code, and
+any needed project files — ready to run with `creo`.
 
-| File | Language | Key features demonstrated |
+| Directory / File | Language | Key features demonstrated |
 |---|---|---|
 | `basic.fiat` | Go | Minimal one-line build |
 | `subpackage.fiat` | Go | `SRCDIR`, `cmd/<name>` layout |
@@ -15,6 +16,10 @@ property.
 | `oci.fiat` | oci | Container image via built-in OCI builder |
 | `virtual.fiat` | — | `.test`, `.lint`, `.release` virtual targets |
 | `full.fiat` | All | Combined: build + nix + image + install + test + lint |
+| `go/` | Go | Runnable project: `main.go` + `go.mod` + fiat with OCI |
+| `c/` | C | Runnable project: `main.c` + fiat with OCI + Alpine base |
+| `cxx/` | C++ | Runnable project: `main.cpp` + fiat with OCI + Alpine base |
+| `rust/` | Rust | Runnable project: `Cargo.toml` + `main.rs` + fiat with OCI |
 
 ## Quick reference
 

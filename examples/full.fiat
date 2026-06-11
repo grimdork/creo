@@ -22,7 +22,7 @@ nix: go
     desc=Cross-compile for linux on amd64/arm64
     os=linux
     arch=amd64 arm64
-    bin=build/$bin-$os-$arch
+	bin=$bin-$os-$arch
 
 # -- Container image --
 

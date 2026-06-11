@@ -1,3 +1,9 @@
+# C++ HTTP server example.
+#
+# "creo" builds a binary using $CXX and $CXXFLAGS.
+# "creo image" packages it into an OCI image tarball at build/image.tar
+# with Alpine as the base image (needed for libstdc++).
+
 build: cxx
 
 image: oci

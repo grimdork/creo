@@ -1,8 +1,8 @@
 # Minimal Go project.
 #
 # Running "creo" here builds a binary named after the parent directory.
-# The Go language mode fills in bin=./<dirname>, cmd=go build ..., and
-# sources=*.go automatically.
+# The Go language mode fills in bin=$BUILDDIR/<dirname>, cmd=go build ...,
+# and sources=*.go automatically.
 #
 # Usage:  creo
 #         creo -v build

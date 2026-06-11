@@ -2,7 +2,7 @@ use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 
 fn handle(mut stream: TcpStream) {
-    let resp = b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 21\r\nConnection: close\r\n\r\nhello from Rust\n";
+    let resp = b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 16\r\nConnection: close\r\n\r\nhello from Rust\n";
     let _ = stream.write_all(resp);
 }
 

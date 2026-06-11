@@ -31,7 +31,7 @@ int main() {
 	const char resp[] =
 		"HTTP/1.0 200 OK\r\n"
 		"Content-Type: text/plain\r\n"
-		"Content-Length: 19\r\n"
+		"Content-Length: 15\r\n"
 		"Connection: close\r\n"
 		"\r\n"
 		"hello from C++\n";

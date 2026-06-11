@@ -3,7 +3,7 @@
 # The "nix" target builds for every combination of the listed OS and
 # architecture values.  Each combo runs in parallel (use -j 1 for serial).
 # The $bin-$os-$arch pattern produces distinct filenames like
-# "myapp-linux-amd64".
+# "build/myapp-linux-amd64".
 #
 # The runner sets GOARCH and GOOS environment variables per combo,
 # which the Go toolchain uses to produce the right binary.

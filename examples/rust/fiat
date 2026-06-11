@@ -1,3 +1,11 @@
+# Rust HTTP server example.
+#
+# "creo" builds a binary named after the Cargo crate.
+# "creo image" packages it into an OCI image tarball at build/image.tar.
+#
+# Rust binaries are statically linked by default — no base image needed
+# unless you need /bin/sh or system libraries.
+
 build: rust
 
 image: oci

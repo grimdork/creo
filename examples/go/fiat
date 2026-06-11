@@ -1,3 +1,11 @@
+# Go HTTP server example.
+#
+# "creo" builds a binary named after the directory.
+# "creo image" packages it into an OCI image tarball at build/example.tar.
+#
+# Uncomment the repo/ociuser/ocipass lines and fill in your values to push
+# to a container registry instead.
+
 build: go
 
 image: oci
