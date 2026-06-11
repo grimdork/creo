@@ -15,6 +15,19 @@ import (
 	"github.com/grimdork/creo/internal/runner"
 )
 
+func injectBuildDir(f *fiat.File, bd string) {
+	f.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: bd}
+}
+
+func hasOutputFlag() bool {
+	for _, a := range os.Args {
+		if a == "-o" || a == "--output" {
+			return true
+		}
+	}
+	return false
+}
+
 var version string
 
 func listTargets(explicitPath string) (string, error) {
@@ -151,6 +164,9 @@ func runGraph(opt *arg.Options) {
 		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 		os.Exit(1)
 	}
+	if hasOutputFlag() {
+		injectBuildDir(file, opt.GetString("output"))
+	}
 	if err := lang.Apply(file); err != nil {
 		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
 		os.Exit(1)
@@ -196,6 +212,9 @@ func runBuild(opt *arg.Options) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
 		os.Exit(1)
+	}
+	if hasOutputFlag() {
+		injectBuildDir(file, opt.GetString("output"))
 	}
 	if err := lang.Apply(file); err != nil {
 		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
@@ -245,6 +264,7 @@ func main() {
 	opt.SetOption(arg.GroupDefault, "", "graph", "Show dependency graph (tree|dot|svg)", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "status", "Check cache state when showing graph")
 	opt.SetFlag(arg.GroupDefault, "g", "git", "Initialise a git repository and commit")
+	opt.SetOption(arg.GroupDefault, "o", "output", "Build output directory", "build", false, arg.VarString, nil)
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
 	if err := opt.Parse(os.Args[1:]); err != nil {

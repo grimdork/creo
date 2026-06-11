@@ -39,6 +39,8 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 			cfg.BaseImage = v.Value
 		case "sbom":
 			cfg.SBOM = v.Value == "true" || v.Value == "1"
+		case "entrypoint":
+			cfg.Entrypoint = v.Value
 		}
 	}
 
@@ -47,7 +49,8 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 	}
 
 	if cfg.Tarball == "" && cfg.Repo == "" {
-		cfg.Tarball = "build/" + t.Name + ".tar"
+		bd := buildDir(f)
+		cfg.Tarball = bd + "/" + t.Name + ".tar"
 	}
 
 	t.OCI = cfg

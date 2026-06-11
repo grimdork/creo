@@ -30,7 +30,7 @@ func TestGenerateCompletion(t *testing.T) {
 	if !strings.Contains(result, "complete -F _creo") {
 		t.Fatal("expected complete -F _creo line")
 	}
-	if !strings.Contains(result, "go c cxx cpp rust oci") {
+	if !strings.Contains(result, "go c cxx cpp rust python node typescript java kotlin gradle oci") {
 		t.Fatal("expected language list in completion")
 	}
 }

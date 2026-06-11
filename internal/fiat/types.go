@@ -18,6 +18,7 @@ type OCIConfig struct {
 	CACert     string
 	BaseImage  string
 	SBOM       bool
+	Entrypoint string
 }
 
 type Target struct {

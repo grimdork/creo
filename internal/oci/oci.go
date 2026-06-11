@@ -1,6 +1,8 @@
 package oci
 
 import (
+	"archive/tar"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -28,14 +30,15 @@ const caCertPath = "etc/ssl/certs/ca-certificates.crt"
 var caCertURL = "https://curl.se/ca/cacert.pem"
 
 type Config struct {
-	Binary    string
-	AppDir    string
-	Name      string
-	CACert    string
-	BaseImage string
-	Arch      string
-	OS        string
-	SBOM      bool
+	Binary     string
+	AppDir     string
+	Name       string
+	CACert     string
+	BaseImage  string
+	Arch       string
+	OS         string
+	SBOM       bool
+	Entrypoint []string
 }
 
 func digestPath(path string) string {
@@ -57,14 +60,44 @@ func Build(cfg Config) (v1.Image, error) {
 		img = empty.Image
 	}
 
-	layer, err := binaryLayer(cfg.Binary, cfg.AppDir, cfg.Name)
+	fi, err := os.Stat(cfg.Binary)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("binary %q: %w", cfg.Binary, err)
 	}
 
-	img, err = mutate.AppendLayers(img, layer)
-	if err != nil {
-		return nil, err
+	if fi.IsDir() {
+		layer, err := directoryLayer(cfg.Binary, cfg.AppDir)
+		if err != nil {
+			return nil, err
+		}
+		img, err = mutate.AppendLayers(img, layer)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		layer, err := binaryLayer(cfg.Binary, cfg.AppDir, cfg.Name)
+		if err != nil {
+			return nil, err
+		}
+		img, err = mutate.AppendLayers(img, layer)
+		if err != nil {
+			return nil, err
+		}
+
+		if cfg.SBOM {
+			sbomData, err := generateSBOM(cfg.Binary, cfg.Name)
+			if err != nil {
+				return nil, fmt.Errorf("SBOM: %w", err)
+			}
+			sl, err := sbomLayer(sbomData)
+			if err != nil {
+				return nil, fmt.Errorf("SBOM layer: %w", err)
+			}
+			img, err = mutate.AppendLayers(img, sl)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	if cfg.CACert != "" {
@@ -78,23 +111,13 @@ func Build(cfg Config) (v1.Image, error) {
 		}
 	}
 
-	if cfg.SBOM {
-		sbomData, err := generateSBOM(cfg.Binary, cfg.Name)
-		if err != nil {
-			return nil, fmt.Errorf("SBOM: %w", err)
-		}
-		sl, err := sbomLayer(sbomData)
-		if err != nil {
-			return nil, fmt.Errorf("SBOM layer: %w", err)
-		}
-		img, err = mutate.AppendLayers(img, sl)
-		if err != nil {
-			return nil, err
-		}
+	entrypoint := cfg.Entrypoint
+	if len(entrypoint) == 0 {
+		entrypoint = []string{filepath.Join(cfg.AppDir, cfg.Name)}
 	}
 
 	img, err = mutate.Config(img, v1.Config{
-		Entrypoint: []string{filepath.Join(cfg.AppDir, cfg.Name)},
+		Entrypoint: entrypoint,
 	})
 	if err != nil {
 		return nil, err
@@ -295,4 +318,68 @@ func binaryLayer(binary, appDir, name string) (v1.Layer, error) {
 		return nil, err
 	}
 	return layerFromBytes(filepath.Join(appDir, name), data, 0755)
+}
+
+func directoryLayer(srcDir, appDir string) (v1.Layer, error) {
+	if appDir == "" {
+		appDir = "/app"
+	}
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	err := filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		target := filepath.Join(appDir, rel)
+
+		fi, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		header, err := tar.FileInfoHeader(fi, "")
+		if err != nil {
+			return err
+		}
+		header.Name = target
+		header.ModTime = time.Time{}
+
+		if fi.IsDir() {
+			header.Name += "/"
+		}
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		if !fi.IsDir() {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if _, err := tw.Write(data); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("taring %q: %w", srcDir, err)
+	}
+
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+
+	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	})
 }

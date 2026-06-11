@@ -9,11 +9,25 @@ import (
 	"github.com/grimdork/creo/internal/semver"
 )
 
+func buildDir(f *fiat.File) string {
+	if v, ok := f.Vars["BUILDDIR"]; ok && v.Value != "" {
+		return v.Value
+	}
+	return "build"
+}
+
+func initBuildDir(f *fiat.File) {
+	if _, ok := f.Vars["BUILDDIR"]; !ok {
+		f.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: "build"}
+	}
+}
+
 func isDebug(t *fiat.Target) bool {
 	return t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
 }
 
 func Apply(f *fiat.File) error {
+	initBuildDir(f)
 	if _, ok := f.Vars["VERSION"]; !ok {
 		f.Vars["VERSION"] = &fiat.Var{Name: "VERSION", Value: semver.String()}
 	}
@@ -39,6 +53,12 @@ func Apply(f *fiat.File) error {
 			applyCxx(f, t)
 		case "rust":
 			applyRust(f, t)
+		case "python":
+			applyPython(f, t)
+		case "node", "typescript":
+			applyNode(f, t)
+		case "java", "kotlin", "gradle":
+			applyJava(f, t)
 		case "oci":
 			applyOci(f, t)
 		default:

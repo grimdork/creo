@@ -47,7 +47,8 @@ func applyGo(f *fiat.File, t *fiat.Target) {
 
 	_, hasGoFlags := f.Vars["GOFLAGS"]
 
-	defBin := "./" + proj
+	bd := buildDir(f)
+	defBin := bd + "/" + proj
 	if isDebug(t) {
 		defBin += "-debug"
 	}

@@ -489,15 +489,18 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							caCert = cachePath
 						}
 
+						entrypoint := strings.Fields(t.OCI.Entrypoint)
+
 						img, err := oci.Build(oci.Config{
-							Binary:    binSrc,
-							AppDir:    appDir,
-							Name:      binaryName,
-							CACert:    caCert,
-							BaseImage: t.OCI.BaseImage,
-							Arch:      activeArch,
-							OS:        activeOS,
-							SBOM:      t.OCI.SBOM,
+							Binary:     binSrc,
+							AppDir:     appDir,
+							Name:       binaryName,
+							CACert:     caCert,
+							BaseImage:  t.OCI.BaseImage,
+							Arch:       activeArch,
+							OS:         activeOS,
+							SBOM:       t.OCI.SBOM,
+							Entrypoint: entrypoint,
 						})
 						if err != nil {
 							errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)

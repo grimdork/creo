@@ -355,6 +355,213 @@ func InitRust(dir string, force, verbose bool) ([]string, error) {
 	return []string{"/.creo"}, nil
 }
 
+func InitPython(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	if fiat.FindTarget(file, "build") == nil {
+		bt := &fiat.Target{
+			Name:     "build",
+			Language: "python",
+			Desc:     "Sync Python dependencies and prepare source",
+		}
+		file.AddTarget(bt)
+	}
+
+	_, proj := absDirName(dir)
+
+	pyproject := `[project]
+name = "` + proj + `"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+`
+	if err := tryWrite(filepath.Join(dir, "pyproject.toml"), pyproject,
+		force, verbose, "pyproject.toml"); err != nil {
+		return nil, err
+	}
+
+	srcDir := filepath.Join(dir, "src", proj)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating src/%s: %w", proj, err)
+	}
+
+	initContent := `def main() -> None:
+    print("hello from ` + proj + `")
+
+
+if __name__ == "__main__":
+    main()
+`
+	initPath := filepath.Join(srcDir, "main.py")
+	if err := tryWrite(initPath, initContent, force, verbose, "src/"+proj+"/main.py"); err != nil {
+		return nil, err
+	}
+
+	emptyInit := ""
+	emptyInitPath := filepath.Join(srcDir, "__init__.py")
+	if err := tryWrite(emptyInitPath, emptyInit, force, verbose, "src/"+proj+"/__init__.py"); err != nil {
+		return nil, err
+	}
+
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+
+	return []string{"__pycache__/", "*.pyc", "dist/", "*.egg-info/", ".venv/", "/.creo"}, nil
+}
+
+func InitNode(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	if fiat.FindTarget(file, "build") == nil {
+		bt := &fiat.Target{
+			Name:     "build",
+			Language: "node",
+			Desc:     "Build the Node/TypeScript project",
+		}
+		file.AddTarget(bt)
+	}
+
+	_, proj := absDirName(dir)
+
+	pkgJSON := `{
+  "name": "` + proj + `",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+`
+	if err := tryWrite(filepath.Join(dir, "package.json"), pkgJSON,
+		force, verbose, "package.json"); err != nil {
+		return nil, err
+	}
+
+	tsconfig := `{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"]
+}
+`
+	if err := tryWrite(filepath.Join(dir, "tsconfig.json"), tsconfig,
+		force, verbose, "tsconfig.json"); err != nil {
+		return nil, err
+	}
+
+	srcDir := filepath.Join(dir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating src/: %w", err)
+	}
+
+	indexContent := `const greeting: string = "hello from ` + proj + `";
+console.log(greeting);
+`
+	if err := tryWrite(filepath.Join(srcDir, "index.ts"), indexContent,
+		force, verbose, "src/index.ts"); err != nil {
+		return nil, err
+	}
+
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+
+	return []string{"node_modules/", "dist/", "/.creo"}, nil
+}
+
+func InitJava(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	if fiat.FindTarget(file, "build") == nil {
+		bt := &fiat.Target{
+			Name:     "build",
+			Language: "java",
+			Desc:     "Build the Java/Kotlin project",
+		}
+		file.AddTarget(bt)
+	}
+
+	_, proj := absDirName(dir)
+	pkg := "com." + strings.ToLower(proj)
+	pkgPath := strings.ReplaceAll(pkg, ".", "/")
+
+	settings := `rootProject.name = "` + proj + `"
+`
+	if err := tryWrite(filepath.Join(dir, "settings.gradle.kts"), settings,
+		force, verbose, "settings.gradle.kts"); err != nil {
+		return nil, err
+	}
+
+	buildGradle := `plugins {
+    kotlin("jvm") version "2.0.0"
+    application
+}
+
+application {
+    mainClass = "` + pkg + `.AppKt"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(kotlin("stdlib"))
+}
+`
+	if err := tryWrite(filepath.Join(dir, "build.gradle.kts"), buildGradle,
+		force, verbose, "build.gradle.kts"); err != nil {
+		return nil, err
+	}
+
+	klassDir := filepath.Join(dir, "src", "main", "kotlin", pkgPath)
+	if err := os.MkdirAll(klassDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating src/main/kotlin/%s: %w", pkgPath, err)
+	}
+
+	appContent := `package ` + pkg + `
+
+fun main() {
+    println("hello from ` + proj + `")
+}
+`
+	if err := tryWrite(filepath.Join(klassDir, "App.kt"), appContent,
+		force, verbose, "src/main/kotlin/"+pkgPath+"/App.kt"); err != nil {
+		return nil, err
+	}
+
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+
+	return []string{"build/", ".gradle/", "*.jar", "/.creo"}, nil
+}
+
 func InitProject(langs []string, force, verbose bool) error {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
@@ -393,6 +600,12 @@ func InitProject(langs []string, force, verbose bool) error {
 			ignores, err = InitOci(".", force, verbose)
 		case "rust":
 			ignores, err = InitRust(".", force, verbose)
+		case "python":
+			ignores, err = InitPython(".", force, verbose)
+		case "node", "typescript":
+			ignores, err = InitNode(".", force, verbose)
+		case "java", "kotlin", "gradle":
+			ignores, err = InitJava(".", force, verbose)
 		default:
 			return fmt.Errorf("unknown language: %s", langName)
 		}

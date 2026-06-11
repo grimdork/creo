@@ -90,9 +90,10 @@ func applyRust(f *fiat.File, t *fiat.Target) {
 		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: crateName}
 	}
 
-	defBin := "./target/release/" + crateName
+	bd := buildDir(f)
+	defBin := bd + "/release/" + crateName
 	if isDebug(t) {
-		defBin = "./target/debug/" + crateName
+		defBin = bd + "/debug/" + crateName
 	}
 	t.Bin = expandBin(f, t, defBin)
 

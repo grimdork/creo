@@ -1,0 +1,106 @@
+package lang
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/grimdork/creo/internal/fiat"
+)
+
+func JavaProjectName(dir string) string {
+	data, err := os.ReadFile(filepath.Join(dir, "settings.gradle.kts"))
+	if err != nil {
+		data, err = os.ReadFile(filepath.Join(dir, "settings.gradle"))
+		if err != nil {
+			data, err = os.ReadFile(filepath.Join(dir, "pom.xml"))
+			if err != nil {
+				return filepath.Base(dir)
+			}
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if strings.Contains(line, "<artifactId>") {
+					start := strings.Index(line, ">")
+					end := strings.LastIndex(line, "<")
+					if start >= 0 && end > start {
+						return line[start+1 : end]
+					}
+				}
+			}
+			return filepath.Base(dir)
+		}
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "rootProject.name") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				name := strings.TrimSpace(parts[1])
+				name = strings.Trim(name, `"`)
+				return name
+			}
+		}
+	}
+	return filepath.Base(dir)
+}
+
+func detectBuildTool(dir string) string {
+	if _, err := os.Stat(filepath.Join(dir, "gradlew")); err == nil {
+		return "./gradlew"
+	}
+	if _, err := os.Stat(filepath.Join(dir, "mvnw")); err == nil {
+		return "./mvnw"
+	}
+	if _, err := os.Stat(filepath.Join(dir, "build.gradle.kts")); err == nil {
+		return "gradle"
+	}
+	if _, err := os.Stat(filepath.Join(dir, "build.gradle")); err == nil {
+		return "gradle"
+	}
+	if _, err := os.Stat(filepath.Join(dir, "pom.xml")); err == nil {
+		return "mvn"
+	}
+	return "gradle"
+}
+
+func applyJava(f *fiat.File, t *fiat.Target) {
+	dir := filepath.Dir(f.Path())
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		absDir = dir
+	}
+
+	proj := JavaProjectName(absDir)
+	if _, ok := f.Vars["PROJECT"]; !ok {
+		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
+	}
+	if _, ok := f.Vars["JAVA"]; !ok {
+		f.Vars["JAVA"] = &fiat.Var{Name: "JAVA", Value: "java"}
+	}
+
+	bt := detectBuildTool(absDir)
+	if strings.Contains(bt, "gradle") || bt == "./gradlew" {
+		btVar := "GRADLE"
+		if _, ok := f.Vars[btVar]; !ok {
+			f.Vars[btVar] = &fiat.Var{Name: btVar, Value: bt}
+		}
+		if t.Sources == "" {
+			t.Sources = "*.java *.kt build.gradle.kts build.gradle settings.gradle.kts settings.gradle"
+		}
+		t.Bin = expandBin(f, t, "build/libs")
+		if len(t.Cmds) == 0 {
+			t.Cmds = append(t.Cmds, "$GRADLE build")
+		}
+	} else {
+		if _, ok := f.Vars["MVN"]; !ok {
+			f.Vars["MVN"] = &fiat.Var{Name: "MVN", Value: bt}
+		}
+		if t.Sources == "" {
+			t.Sources = "*.java *.kt pom.xml"
+		}
+		t.Bin = expandBin(f, t, "target")
+		if len(t.Cmds) == 0 {
+			t.Cmds = append(t.Cmds, "$MVN package")
+		}
+	}
+}

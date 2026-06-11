@@ -284,7 +284,7 @@ func chdir(t *testing.T, dir string) func() {
 }
 
 func TestApplyUnknownLanguage(t *testing.T) {
-	content := []byte("build: python\n")
+	content := []byte("build: zig\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -324,8 +324,8 @@ func TestApplyC(t *testing.T) {
 	if trg.Sources != "*.c *.h" {
 		t.Fatalf("expected sources '*.c *.h', got %q", trg.Sources)
 	}
-	if !strings.HasPrefix(trg.Bin, "./") {
-		t.Fatalf("expected Bin to start with './', got %q", trg.Bin)
+	if !strings.HasPrefix(trg.Bin, "build/") {
+		t.Fatalf("expected Bin to start with 'build/', got %q", trg.Bin)
 	}
 	if len(trg.Cmds) == 0 {
 		t.Fatal("expected at least one cmd")
@@ -1029,8 +1029,8 @@ version = "0.1.0"
 		t.Fatalf("expected 1 target, got %d", len(f.Targets))
 	}
 	trg := f.Targets[0]
-	if trg.Bin != "./target/release/myapp" {
-		t.Fatalf("expected bin './target/release/myapp', got %q", trg.Bin)
+	if trg.Bin != "build/release/myapp" {
+		t.Fatalf("expected bin 'build/release/myapp', got %q", trg.Bin)
 	}
 	if trg.Sources != "*.rs Cargo.toml Cargo.lock" {
 		t.Fatalf("expected sources '*.rs Cargo.toml Cargo.lock', got %q", trg.Sources)
@@ -1067,8 +1067,8 @@ version = "0.1.0"
 		t.Fatalf("expected 1 target, got %d", len(f.Targets))
 	}
 	trg := f.Targets[0]
-	if trg.Bin != "./target/debug/myapp" {
-		t.Fatalf("expected bin './target/debug/myapp', got %q", trg.Bin)
+	if trg.Bin != "build/debug/myapp" {
+		t.Fatalf("expected bin 'build/debug/myapp', got %q", trg.Bin)
 	}
 	if len(trg.Cmds) == 0 {
 		t.Fatal("expected at least one cmd")
@@ -1162,8 +1162,8 @@ func TestRustNoCargoToml(t *testing.T) {
 	}
 	trg := f.Targets[0]
 	base := filepath.Base(dir)
-	if trg.Bin != "./target/release/"+base {
-		t.Fatalf("expected bin './target/release/%s', got %q", base, trg.Bin)
+	if trg.Bin != "build/release/"+base {
+		t.Fatalf("expected bin 'build/release/%s', got %q", base, trg.Bin)
 	}
 }
 

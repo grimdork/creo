@@ -65,7 +65,7 @@ func TestSimpleGoBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat("./test"); os.IsNotExist(err) {
+	if _, err := os.Stat("build/test"); os.IsNotExist(err) {
 		t.Fatal("expected binary to be created")
 	}
 }
@@ -110,7 +110,7 @@ func TestDryRunDoesNotCreateFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	matches, err := filepath.Glob(filepath.Join(dir, "test"))
+	matches, err := filepath.Glob(filepath.Join(dir, "build", "test"))
 	if err == nil && len(matches) > 0 {
 		t.Fatal("dry run should not create binary")
 	}
@@ -146,7 +146,7 @@ func TestCleanOnlyRemovesTargetsOwnFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat("./test"); os.IsNotExist(err) {
+	if _, err := os.Stat("build/test"); os.IsNotExist(err) {
 		t.Fatal("build should create binary")
 	}
 
@@ -154,7 +154,7 @@ func TestCleanOnlyRemovesTargetsOwnFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat("./test"); err == nil {
+	if _, err := os.Stat("build/test"); err == nil {
 		t.Fatal("clean should remove binary")
 	}
 }
@@ -172,7 +172,7 @@ func TestSRCDIRBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat("./test"); os.IsNotExist(err) {
+	if _, err := os.Stat("build/test"); os.IsNotExist(err) {
 		t.Fatal("expected binary to be created from sub-package")
 	}
 }
@@ -299,7 +299,7 @@ func TestAllTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat("./test"); os.IsNotExist(err) {
+	if _, err := os.Stat("build/test"); os.IsNotExist(err) {
 		t.Fatal("expected binary from build target")
 	}
 
@@ -590,10 +590,10 @@ func TestMultiArchBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat("./test-linux-amd64"); os.IsNotExist(err) {
+	if _, err := os.Stat("build/test-linux-amd64"); os.IsNotExist(err) {
 		t.Fatal("expected test-linux-amd64 binary")
 	}
-	if _, err := os.Stat("./test-linux-arm64"); os.IsNotExist(err) {
+	if _, err := os.Stat("build/test-linux-arm64"); os.IsNotExist(err) {
 		t.Fatal("expected test-linux-arm64 binary")
 	}
 }
