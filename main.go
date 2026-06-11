@@ -172,6 +172,11 @@ func runGraph(opt *arg.Options) {
 }
 
 func runBuild(opt *arg.Options) {
+	if opt.GetBool("no-color") || opt.GetBool("no-colour") {
+		os.Setenv("NO_COLOR", "1")
+	}
+
+	results := &runner.TargetResults{}
 	opts := runner.RunOpts{
 		Rebuild:        opt.GetBool("F"),
 		Recursive:      opt.GetBool("r"),
@@ -182,6 +187,8 @@ func runBuild(opt *arg.Options) {
 		DryRun:         opt.GetBool("n"),
 		RefreshCACerts: opt.GetBool("refresh-cacerts"),
 		BuildDir:       opt.GetString("output"),
+		NoColor:        opt.GetBool("no-color") || opt.GetBool("no-colour"),
+		Results:        results,
 	}
 
 	targets := opt.GetPosStringSlice("targets")
@@ -191,6 +198,7 @@ func runBuild(opt *arg.Options) {
 
 	if opts.Recursive {
 		runner.RunRecursive(".", targets[0], opts)
+		results.Print()
 		return
 	}
 
@@ -228,6 +236,7 @@ func runBuild(opt *arg.Options) {
 			}
 		}
 	}
+	results.Print()
 	if errCount > 0 {
 		os.Exit(1)
 	}
@@ -257,6 +266,8 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "", "status", "Check cache state when showing graph")
 	opt.SetFlag(arg.GroupDefault, "g", "git", "Initialise a git repository and commit")
 	opt.SetOption(arg.GroupDefault, "o", "output", "Build output directory", "", false, arg.VarString, nil)
+	opt.SetFlag(arg.GroupDefault, "", "no-color", "Disable coloured terminal output")
+	opt.SetFlag(arg.GroupDefault, "", "no-colour", "Disable coloured terminal output")
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
 	if err := opt.Parse(os.Args[1:]); err != nil {

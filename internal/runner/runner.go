@@ -56,9 +56,14 @@ type RunOpts struct {
 	DryRun         bool
 	RefreshCACerts bool
 	BuildDir       string
+	NoColor        bool
+	Results        *TargetResults
 }
 
 func RunTarget(f *fiat.File, name string, opts RunOpts) error {
+	if opts.Results == nil {
+		opts.Results = &TargetResults{}
+	}
 	return runTargetWithDeps(f, name, opts, map[string]bool{}, map[string]bool{}, &Outputs{m: make(map[string]string)})
 }
 
@@ -109,7 +114,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	dir := filepath.Dir(f.Path())
 
 	if opts.Verbose {
-		fmt.Printf("Target %q\n", name)
+		cprintf("%cyan Target %q%reset\n", name)
 	}
 
 	if !opts.Clean {
@@ -122,7 +127,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						fmt.Fprintf(os.Stderr, "  Failed to remove stale %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
-					fmt.Printf("  Removed stale %s\n", m)
+					cprintf("  %cyan Removed stale %s%reset\n", m)
 				}
 			}
 		}
@@ -170,7 +175,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					fmt.Fprintf(os.Stderr, "  Failed to remove build directory %s: %v\n", bd, err)
 				}
 			} else if opts.Verbose {
-				fmt.Printf("  Removed build directory %s\n", bd)
+				cprintf("  %green Removed build directory %s%reset\n", bd)
 			}
 		}
 		for _, pattern := range t.Tmp {
@@ -182,7 +187,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
-					fmt.Printf("  Cleaned %s\n", m)
+					cprintf("  %cyan Cleaned %s%reset\n", m)
 				}
 			}
 		}
@@ -193,6 +198,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	needsRun := true
 	var existsBinPath string
 	var sources []string
+	var buildStart time.Time
 	if !t.IsVirtual && t.Bin != "" && t.Sources != "" {
 		sources = collectFilePaths(t, f, dir)
 	}
@@ -217,7 +223,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	}
 
 	if needsRun || multi {
-		start := time.Now()
+		buildStart = time.Now()
 
 		type combo struct {
 			arch, osval, bin string
@@ -271,9 +277,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				}
 			}
 			if t.Sources != "" {
-				fmt.Printf("Target %q: up to date (cached)\n", name)
+				cprintf("%yellow Target %q: up to date (cached)%reset\n", name)
 			} else {
-				fmt.Printf("Target %q: already exists. Skipping.\n", name)
+				cprintf("%yellow Target %q: already exists. Skipping.%reset\n", name)
+			}
+			if opts.Results != nil {
+				opts.Results.Add(t.Name, "SKIPPED", 0, nil)
 			}
 			done[name] = true
 			return nil
@@ -311,7 +320,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						}
 						if cached {
 							if opts.Verbose {
-								fmt.Printf("  %s up to date (cached)\n", c.bin)
+								cprintf("  %yellow %s up to date (cached)%reset\n", c.bin)
 							}
 							outputs.Store(name, activeArch, activeOS, c.bin)
 							return
@@ -333,13 +342,13 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 				if len(t.Cmds) > 0 && (opts.DryRun || opts.Verbose) {
 					if t.Bin != "" {
-						fmt.Printf("  Building %s ...\n", c.bin)
+						cprintf("  %cyan Building %s ...%reset\n", c.bin)
 					}
 				}
 				for _, cmd := range t.Cmds {
 					expanded := fiat.Expand(cmd, comboVars, 0)
 					if opts.DryRun || opts.Verbose {
-						fmt.Println("  " + expanded)
+						cprintf("  %cyan %s%reset\n", expanded)
 					}
 					if opts.DryRun {
 						continue
@@ -376,7 +385,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					if si, err := os.Stat(dest); err == nil && si.IsDir() {
 						dest = filepath.Join(dest, filepath.Base(src))
 					}
-					fmt.Printf("  Installed %s -> %s\n", src, dest)
+					cprintf("  %cyan Installed %s -> %s%reset\n", src, dest)
 					if opts.DryRun {
 						continue
 					}
@@ -425,7 +434,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							if opts.RefreshCACerts {
 								os.Remove(cachePath)
 								if opts.Verbose {
-									fmt.Printf("  Refreshed cached CA certs\n")
+									cprintf("  %cyan Refreshed cached CA certs%reset\n")
 								}
 							}
 
@@ -450,7 +459,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 									return
 								}
 								if opts.Verbose {
-									fmt.Printf("  Downloaded CA certs to .creo/cacert.pem\n")
+									cprintf("  %cyan Downloaded CA certs to .creo/cacert.pem%reset\n")
 								}
 							}
 							caCert = cachePath
@@ -484,7 +493,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 								errCh <- fmt.Errorf("%s: OCI tarball: %w", f.Path(), err)
 								return
 							}
-							fmt.Printf("  Wrote %s\n", tarballPath)
+							cprintf("  %green Wrote %s%reset\n", tarballPath)
 						}
 
 						repo := fiat.Expand(t.OCI.Repo, comboVars, 0)
@@ -517,7 +526,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							if tag != "" {
 								ref += ":" + tag
 							}
-							fmt.Printf("  Pushed %s\n", ref)
+							cprintf("  %green Pushed %s%reset\n", ref)
 						}
 					}
 				}
@@ -532,6 +541,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			errs = append(errs, err)
 		}
 		if len(errs) > 0 {
+			if opts.Results != nil {
+				opts.Results.Add(t.Name, "FAILED", time.Since(buildStart), errs[0])
+			}
 			if !opts.KeepGoing {
 				return errs[0]
 			}
@@ -545,7 +557,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		}
 
 		if opts.Verbose {
-			fmt.Printf("  Done in %v\n", time.Since(start))
+			cprintf("  %green Done in %v%reset\n", time.Since(buildStart))
+		}
+		if opts.Results != nil {
+			opts.Results.Add(t.Name, "OK", time.Since(buildStart), nil)
 		}
 
 		for _, pattern := range t.Tmp {
@@ -557,7 +572,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
 					}
 				} else if opts.Verbose {
-					fmt.Printf("  Cleaned %s\n", m)
+					cprintf("  %cyan Cleaned %s%reset\n", m)
 				}
 			}
 		}
@@ -565,9 +580,15 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		if t.Bin != "" {
 			outputs.Store(name, runtime.GOARCH, runtime.GOOS, existsBinPath)
 		}
-		fmt.Printf("Target %q: up to date (cached)\n", name)
+		cprintf("%yellow Target %q: up to date (cached)%reset\n", name)
+		if opts.Results != nil {
+			opts.Results.Add(t.Name, "SKIPPED", 0, nil)
+		}
 	} else {
-		fmt.Printf("Target %q: binary %q already exists. Skipping.\n", name, existsBinPath)
+		cprintf("%yellow Target %q: binary %q already exists. Skipping.%reset\n", name, existsBinPath)
+		if opts.Results != nil {
+			opts.Results.Add(t.Name, "SKIPPED", 0, nil)
+		}
 	}
 
 	done[name] = true
@@ -591,13 +612,16 @@ func findFiatInDir(dir string, verbose bool) (string, bool) {
 
 	if len(matches) > 1 {
 		if verbose {
-			fmt.Printf("  Skipped %s (multiple .fiat files)\n", dir)
+			cprintf("  %grey Skipped %s (multiple .fiat files)%reset\n", dir)
 		}
 	}
 	return "", false
 }
 
 func RunRecursive(dir string, targetName string, opts RunOpts) {
+	if opts.Results == nil {
+		opts.Results = &TargetResults{}
+	}
 	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -628,7 +652,7 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 		}
 
 		if opts.Verbose {
-			fmt.Printf("Entering %s\n", path)
+			cprintf("%cyan Entering %s%reset\n", path)
 		}
 		if err := RunTarget(file, targetName, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error in %s: %v\n", path, err)
