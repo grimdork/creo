@@ -83,7 +83,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 		if isDebug(t) {
 			flags = "$CDEBUGFLAGS"
 		}
-		t.Cmds = append(t.Cmds, "$CC $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
+		t.Cmds = append(t.Cmds, "mkdir -p $BUILDDIR && $CC $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
 	}
 }
 
@@ -137,6 +137,6 @@ func applyCxx(f *fiat.File, t *fiat.Target) {
 		if isDebug(t) {
 			flags = "$CXXDEBUGFLAGS"
 		}
-		t.Cmds = append(t.Cmds, "$CXX $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
+		t.Cmds = append(t.Cmds, "mkdir -p $BUILDDIR && $CXX $args "+flags+" $LDFLAGS -o $bin $sources $LIBS")
 	}
 }
