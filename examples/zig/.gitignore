@@ -1,0 +1,5 @@
+/zig-example
+/zig-out
+/.zig-cache
+/build
+/.creo

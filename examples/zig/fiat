@@ -1,0 +1,22 @@
+# Zig CLI example (no built-in language handler).
+#
+# The build target has no language type — cmd=, sources=, and bin=
+# are provided explicitly since Zig isn't in creo's language list.
+# "creo image" packages it into an OCI image tarball at build/image.tar.
+# The image target uses require=build, so it will trigger a build of the
+# binary if it isn't already up to date.
+
+$ZIG=zig
+
+build:
+    sources=main.zig build.zig
+    tmp=zig-out
+    cmd=$ZIG build 2>&1 && mkdir -p $BUILDDIR && cp zig-out/bin/zig-example $bin
+    bin=build/zig-example
+
+image: oci
+    require=build
+    tag=latest
+    # repo=ghcr.io/myorg/myapp
+    # ociuser=myuser
+    # ocipass=$TOKEN

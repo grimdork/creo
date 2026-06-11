@@ -20,6 +20,7 @@ any needed project files — ready to run with `creo`.
 | `c/` | C | Runnable project: `main.c` + fiat with OCI + Alpine base |
 | `cxx/` | C++ | Runnable project: `main.cpp` + fiat with OCI + Alpine base |
 | `rust/` | Rust | Runnable project: `Cargo.toml` + `main.rs` + fiat with OCI |
+| `zig/` | Zig | Generic (no language handler): `build.zig` + `main.zig` + fiat with OCI |
 
 ## Quick reference
 
