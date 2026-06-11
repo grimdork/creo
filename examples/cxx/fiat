@@ -3,6 +3,8 @@
 # "creo" builds a binary using $CXX and $CXXFLAGS.
 # "creo image" packages it into an OCI image tarball at build/image.tar
 # with Alpine as the base image (needed for libstdc++).
+# The image target uses require=build, so it will trigger a build of the
+# binary if it isn't already up to date.
 
 build: cxx
 

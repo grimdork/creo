@@ -1,8 +1,9 @@
 # Build a container image using creo's built-in OCI builder.
 #
 # The "oci" language mode doesn't compile — it packages an existing binary
-# into an OCI image.  Use require= to depend on a Go build target; the
-# binary path is injected as $OUTPUT_<target>.
+# into an OCI image.  Use require= to depend on a build target; the
+# image target will trigger a build of its dependency if needed.
+# The binary path is injected as $OUTPUT_<target>.
 #
 # Properties: repo= (registry), tag=, tarball= (write .tar), appdir=
 # (default /app), ociuser= / ocipass= (basic auth).

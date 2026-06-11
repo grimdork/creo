@@ -2,6 +2,8 @@
 #
 # "creo" builds a binary named after the Cargo crate.
 # "creo image" packages it into an OCI image tarball at build/image.tar.
+# The image target uses require=build, so it will trigger a build of the
+# binary if it isn't already up to date.
 #
 # Rust binaries are statically linked by default — no base image needed
 # unless you need /bin/sh or system libraries.

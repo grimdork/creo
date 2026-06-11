@@ -3,6 +3,8 @@
 # "creo" builds a static binary using $CC and $CFLAGS.
 # "creo image" packages it into an OCI image tarball at build/image.tar
 # with Alpine as the base image (needed for libc).
+# The image target uses require=build, so it will trigger a build of the
+# binary if it isn't already up to date.
 
 build: c
 

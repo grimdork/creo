@@ -2,6 +2,8 @@
 #
 # "creo" builds a binary named after the directory.
 # "creo image" packages it into an OCI image tarball at build/example.tar.
+# The image target uses require=build, so it will trigger a build of the
+# binary if it isn't already up to date.
 #
 # Uncomment the repo/ociuser/ocipass lines and fill in your values to push
 # to a container registry instead.

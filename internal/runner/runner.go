@@ -200,13 +200,13 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	oses := osOrEmpty(t.OS)
 	multi := len(archs) > 1 || len(oses) > 1
 
-	if !t.IsVirtual && !multi && !opts.Rebuild && t.Bin != "" && t.Sources != "" {
+	if !t.IsVirtual && !multi && !opts.Rebuild && t.Bin != "" && (t.Sources != "" || t.OCI != nil) {
 		existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
 		if _, err := os.Stat(existsBinPath); err == nil {
 			needsRun = false
-			if len(sources) == 0 {
+			if len(sources) == 0 && t.Sources != "" {
 				needsRun = true
-			} else if !checkCache(dir, name, sources, t.Cmds) {
+			} else if t.Sources != "" && !checkCache(dir, name, sources, t.Cmds) {
 				needsRun = true
 			}
 		}
@@ -242,7 +242,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 		}
 
-		allExist := !t.IsVirtual && !opts.Rebuild && t.Bin != "" && len(t.Install) == 0 && t.OCI == nil
+		allExist := !t.IsVirtual && !opts.Rebuild && t.Bin != "" && len(t.Install) == 0
 		if allExist && t.Sources != "" {
 			allExist = false
 			existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
@@ -250,6 +250,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				if len(sources) > 0 && checkCache(dir, name, sources, t.Cmds) {
 					allExist = true
 				}
+			}
+		} else if allExist && t.OCI != nil {
+			allExist = false
+			existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
+			if _, err := os.Stat(existsBinPath); err == nil {
+				allExist = true
 			}
 		}
 		if allExist {
@@ -296,10 +302,14 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 				comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
 
-				if !opts.Rebuild && !t.IsVirtual && c.bin != "" && t.Sources != "" {
+				if !opts.Rebuild && !t.IsVirtual && c.bin != "" && (t.Sources != "" || t.OCI != nil) {
 					if _, err := os.Stat(c.bin); err == nil {
-						comboKey := name + "_" + activeArch + "_" + activeOS
-						if checkCache(dir, comboKey, sources, t.Cmds) {
+						cached := t.Sources == ""
+						if t.Sources != "" {
+							comboKey := name + "_" + activeArch + "_" + activeOS
+							cached = checkCache(dir, comboKey, sources, t.Cmds)
+						}
+						if cached {
 							if opts.Verbose {
 								fmt.Printf("  %s up to date (cached)\n", c.bin)
 							}
