@@ -117,7 +117,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 			matches := util.GlobFiles(expanded, dir)
 			for _, m := range matches {
-				if err := os.Remove(m); err != nil {
+				if err := os.RemoveAll(m); err != nil {
 					if opts.Verbose {
 						fmt.Fprintf(os.Stderr, "  Failed to remove stale %s: %v\n", m, err)
 					}
@@ -610,7 +610,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 			matches := util.GlobFiles(expanded, dir)
 			for _, m := range matches {
-				if err := os.Remove(m); err != nil {
+				if err := os.RemoveAll(m); err != nil {
 					if opts.Verbose {
 						fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
 					}
