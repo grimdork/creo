@@ -106,7 +106,7 @@ func ensureFiat(dir string) (*fiat.File, error) {
 	return file, nil
 }
 
-func writeGoSources(dir, name, ver string, force, verbose bool, file *fiat.File) error {
+func writeGoSources(dir, name string, force, verbose bool, file *fiat.File) error {
 	if fiat.FindTarget(file, "build") == nil {
 		bt := &fiat.Target{
 			Name:     "build",
@@ -154,8 +154,13 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	if err := writeGoSources(dir, name, ver, force, verbose, file); err != nil {
+	if err := writeGoSources(dir, name, force, verbose, file); err != nil {
 		return nil, err
+	}
+
+	if bt := fiat.FindTarget(file, "build"); bt != nil {
+		bt.Language = "tinygo"
+		bt.Desc = "Build with TinyGo"
 	}
 
 	if ver != "" {
@@ -180,6 +185,35 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 				}
 			}
 		}
+	}
+
+	if err := runGofmt(dir); err != nil {
+		return nil, err
+	}
+	if err := runGoModTidy(dir); err != nil {
+		return nil, err
+	}
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+
+	return []string{"/build", "/.creo"}, nil
+}
+
+func InitTinyGo(dir string, force, verbose bool) ([]string, error) {
+	_, name := absDirName(dir)
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := writeGoSources(dir, name, force, verbose, file); err != nil {
+		return nil, err
+	}
+
+	if bt := fiat.FindTarget(file, "build"); bt != nil {
+		bt.Language = "tinygo"
+		bt.Desc = "Build with TinyGo"
 	}
 
 	if err := runGofmt(dir); err != nil {
@@ -272,7 +306,7 @@ func InitOci(dir string, force, verbose bool) ([]string, error) {
 	// Ensure a Go build target exists
 	if fiat.FindTarget(file, "build") == nil {
 		_, name := absDirName(dir)
-		if err := writeGoSources(dir, name, "", force, verbose, file); err != nil {
+		if err := writeGoSources(dir, name, force, verbose, file); err != nil {
 			return nil, err
 		}
 	}
@@ -563,6 +597,134 @@ fun main() {
 	return []string{"build/", ".gradle/", "*.jar", "/.creo"}, nil
 }
 
+func gitConfigUser() string {
+	out, err := exec.Command("git", "config", "--global", "user.name").Output()
+	if err != nil {
+		return ""
+	}
+	name := strings.TrimSpace(string(out))
+	out, err = exec.Command("git", "config", "--global", "user.email").Output()
+	if err != nil {
+		return name
+	}
+	email := strings.TrimSpace(string(out))
+	if email != "" {
+		return name + " <" + email + ">"
+	}
+	return name
+}
+
+func InitArchive(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+	if fiat.FindTarget(file, "archive") == nil {
+		at := &fiat.Target{
+			Name:     "archive",
+			Language: "archive",
+			Desc:     "Create release archive",
+			Requires: []string{"build"},
+		}
+		file.AddTarget(at)
+		if verbose {
+			fx.Println("  {success}Added archive target{@}")
+		}
+	} else if verbose {
+		fx.Println("  {warning}Skipped archive target (already exists){@}")
+	}
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func InitDeb(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+	if fiat.FindTarget(file, "deb") == nil {
+		maint := gitConfigUser()
+		if maint == "" {
+			maint = "packager <root@localhost>"
+		}
+		dt := &fiat.Target{
+			Name:     "deb",
+			Language: "deb",
+			Desc:     "Create .deb package",
+			Requires: []string{"build"},
+		}
+		dt.Vars = append(dt.Vars, &fiat.Var{Name: "maintainer", Value: maint})
+		file.AddTarget(dt)
+		if verbose {
+			fx.Println("  {success}Added deb target{@}")
+		}
+	} else if verbose {
+		fx.Println("  {warning}Skipped deb target (already exists){@}")
+	}
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func InitRpm(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+	if fiat.FindTarget(file, "rpm") == nil {
+		maint := gitConfigUser()
+		if maint == "" {
+			maint = "packager <root@localhost>"
+		}
+		rt := &fiat.Target{
+			Name:     "rpm",
+			Language: "rpm",
+			Desc:     "Create .rpm package",
+			Requires: []string{"build"},
+		}
+		rt.Vars = append(rt.Vars, &fiat.Var{Name: "maintainer", Value: maint})
+		file.AddTarget(rt)
+		if verbose {
+			fx.Println("  {success}Added rpm target{@}")
+		}
+	} else if verbose {
+		fx.Println("  {warning}Skipped rpm target (already exists){@}")
+	}
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func InitBrew(dir string, force, verbose bool) ([]string, error) {
+	file, err := ensureFiat(dir)
+	if err != nil {
+		return nil, err
+	}
+	if fiat.FindTarget(file, "brew") == nil {
+		bt := &fiat.Target{
+			Name:     "brew",
+			Language: "brew",
+			Desc:     "Create Homebrew formula",
+			Requires: []string{"archive"},
+		}
+		bt.Vars = append(bt.Vars, &fiat.Var{Name: "tap", Value: "user/homebrew-tools"})
+		file.AddTarget(bt)
+		if verbose {
+			fx.Println("  {success}Added brew target{@}")
+		}
+	} else if verbose {
+		fx.Println("  {warning}Skipped brew target (already exists){@}")
+	}
+	if err := file.Write(); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
 func InitProject(langs []string, force, verbose bool) error {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
@@ -593,6 +755,8 @@ func InitProject(langs []string, force, verbose bool) error {
 		switch langName {
 		case "go":
 			ignores, err = Init(".", ver, force, verbose)
+		case "tinygo":
+			ignores, err = InitTinyGo(".", force, verbose)
 		case "c":
 			ignores, err = InitC(".", force, verbose)
 		case "cxx", "cpp":
@@ -607,6 +771,14 @@ func InitProject(langs []string, force, verbose bool) error {
 			ignores, err = InitNode(".", force, verbose)
 		case "java", "kotlin", "gradle":
 			ignores, err = InitJava(".", force, verbose)
+		case "archive":
+			ignores, err = InitArchive(".", force, verbose)
+		case "deb":
+			ignores, err = InitDeb(".", force, verbose)
+		case "rpm":
+			ignores, err = InitRpm(".", force, verbose)
+		case "brew":
+			ignores, err = InitBrew(".", force, verbose)
 		default:
 			return fmt.Errorf("unknown language: %s", langName)
 		}
@@ -616,14 +788,19 @@ func InitProject(langs []string, force, verbose bool) error {
 		allIgnores = append(allIgnores, ignores...)
 	}
 
-	WriteIgnores(allIgnores, verbose)
+	if err := WriteIgnores(allIgnores, verbose); err != nil {
+		return err
+	}
 	return nil
 }
 
-func WriteIgnores(lines []string, verbose bool) {
+func WriteIgnores(lines []string, verbose bool) error {
 	lines = util.Unique(lines)
 	if _, err := os.Stat(".gitignore"); err == nil {
-		data, _ := os.ReadFile(".gitignore")
+		data, err := os.ReadFile(".gitignore")
+		if err != nil {
+			return fmt.Errorf("reading .gitignore: %w", err)
+		}
 		content := string(data)
 		existing := strings.Split(content, "\n")
 		added := false
@@ -638,11 +815,11 @@ func WriteIgnores(lines []string, verbose bool) {
 			if !found {
 				f, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_WRONLY, 0644)
 				if err != nil {
-					return
+					return fmt.Errorf("appending to .gitignore: %w", err)
 				}
 				if _, err := f.WriteString(line + "\n"); err != nil {
 					f.Close()
-					return
+					return fmt.Errorf("writing .gitignore: %w", err)
 				}
 				f.Close()
 				added = true
@@ -656,10 +833,11 @@ func WriteIgnores(lines []string, verbose bool) {
 	} else {
 		content := strings.Join(lines, "\n") + "\n"
 		if err := os.WriteFile(".gitignore", []byte(content), 0644); err != nil {
-			return
+			return fmt.Errorf("creating .gitignore: %w", err)
 		}
 		if verbose {
 			fx.Println("  {success}Created .gitignore{@}")
 		}
 	}
+	return nil
 }

@@ -37,6 +37,18 @@ type Target struct {
 	Install   []string
 	Vars      []*Var
 	OCI       *OCIConfig
+	Brew      *BrewConfig
+}
+
+type BrewConfig struct {
+	Tap       string
+	Homepage  string
+	License   string
+	Desc      string
+	Output    string
+	Repo      string
+	Token     string
+	ClassName string
 }
 
 type File struct {

@@ -16,31 +16,32 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 	}
 
 	for _, v := range t.Vars {
+		val := fiat.Expand(v.Value, f.Vars, 0)
 		switch v.Name {
 		case "tarball":
-			cfg.Tarball = v.Value
+			cfg.Tarball = val
 		case "repo":
-			cfg.Repo = v.Value
+			cfg.Repo = val
 		case "tag":
-			cfg.Tag = v.Value
+			cfg.Tag = val
 		case "appdir":
-			cfg.AppDir = v.Value
+			cfg.AppDir = val
 		case "ociuser":
-			cfg.User = v.Value
+			cfg.User = val
 		case "ocipass":
-			cfg.Pass = v.Value
+			cfg.Pass = val
 		case "ocicred":
-			cfg.CredHelper = v.Value
+			cfg.CredHelper = val
 		case "region":
-			cfg.Region = v.Value
+			cfg.Region = val
 		case "cacert":
-			cfg.CACert = v.Value
+			cfg.CACert = val
 		case "from":
-			cfg.BaseImage = v.Value
+			cfg.BaseImage = val
 		case "sbom":
 			cfg.SBOM = v.Value == "true" || v.Value == "1"
 		case "entrypoint":
-			cfg.Entrypoint = v.Value
+			cfg.Entrypoint = val
 		}
 	}
 

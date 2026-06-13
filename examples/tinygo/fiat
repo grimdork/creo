@@ -1,0 +1,13 @@
+# TinyGo example project
+#
+# Builds a small static binary using TinyGo instead of the standard Go
+# toolchain.  Runs "tinygo build" with the default flags set by the
+# tinygo language handler.
+#
+# Prerequisites: tinygo (https://tinygo.org)
+#
+# Usage:  creo
+#         creo -v build
+
+build: tinygo
+    desc=Build with TinyGo

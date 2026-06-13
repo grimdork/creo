@@ -89,7 +89,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 
 func CrossEnv(lang, arch, osval string) []string {
 	switch lang {
-	case "go":
+	case "go", "tinygo":
 		var env []string
 		if arch != "" {
 			env = append(env, "GOARCH="+arch)

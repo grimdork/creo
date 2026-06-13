@@ -38,6 +38,30 @@ install: go
     install=$bin:$HOME/bin/
     require=build
 
+# -- Package targets --
+#
+# These consume the build output and produce distributable artifacts.
+# Place a manifest.ini alongside the fiat file to add extra files,
+# dependencies, and scripts to packages.  Without one, each target
+# makes a best-effort package containing the binary + README + LICENSE.
+
+archive: archive
+    desc=Create release tarball
+    require=build
+
+deb: deb
+    desc=Create .deb package
+    require=build
+
+rpm: rpm
+    desc=Create .rpm package
+    require=build
+
+brew: brew
+    desc=Create Homebrew formula
+    require=archive
+    tap=user/homebrew-tools
+
 # -- Test and lint (virtual targets) --
 
 .test:
@@ -52,5 +76,5 @@ install: go
 # -- Release pipeline --
 
 .release:
-    desc=Test, lint, build
-    require=.test .lint image install
+    desc=Test, lint, build, package
+    require=.test .lint image install archive deb rpm brew

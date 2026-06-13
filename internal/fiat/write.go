@@ -96,6 +96,10 @@ func serializeTarget(b *strings.Builder, t *Target) {
 	if t.Language != "" {
 		b.WriteByte(' ')
 		b.WriteString(t.Language)
+		if t.LangAlias != "" {
+			b.WriteByte(':')
+			b.WriteString(t.LangAlias)
+		}
 	}
 	for _, v := range t.Vars {
 		b.WriteByte(' ')

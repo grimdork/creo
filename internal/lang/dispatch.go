@@ -47,6 +47,8 @@ func Apply(f *fiat.File) error {
 			continue
 		case "go":
 			applyGo(f, t)
+		case "tinygo":
+			applyTinyGo(f, t)
 		case "c":
 			applyC(f, t)
 		case "cxx", "cpp":
@@ -61,6 +63,14 @@ func Apply(f *fiat.File) error {
 			applyJava(f, t)
 		case "oci":
 			applyOci(f, t)
+		case "archive":
+			applyArchive(f, t)
+		case "deb":
+			applyDeb(f, t)
+		case "rpm":
+			applyRpm(f, t)
+		case "brew":
+			applyBrew(f, t)
 		default:
 			return fmt.Errorf("%s: unknown language %q", f.Path(), t.Language)
 		}
