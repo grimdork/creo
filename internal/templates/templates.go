@@ -106,6 +106,67 @@ func ListTemplates(lang string) ([]Template, error) {
 	return list, nil
 }
 
+func SaveTemplate(spec string, force, verbose bool) error {
+	idx := strings.IndexByte(spec, '/')
+	if idx < 0 {
+		return fmt.Errorf("expected lang/name format, got %q", spec)
+	}
+	lang, name := spec[:idx], spec[idx+1:]
+	if lang == "" || name == "" {
+		return fmt.Errorf("expected lang/name format, got %q", spec)
+	}
+
+	embedPrefix := filepath.Join("embedded", lang, name)
+	if _, err := fs.Stat(embeddedTemplates, embedPrefix); err != nil {
+		return fmt.Errorf("template %q not found", spec)
+	}
+
+	ud, err := userTemplateDir()
+	if err != nil {
+		return err
+	}
+	destDir := filepath.Join(ud, lang, name)
+
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return fmt.Errorf("creating %s: %w", destDir, err)
+	}
+
+	entries, err := fs.ReadDir(embeddedTemplates, embedPrefix)
+	if err != nil {
+		return err
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		srcPath := filepath.Join(embedPrefix, e.Name())
+		dstPath := filepath.Join(destDir, e.Name())
+
+		if _, err := os.Stat(dstPath); err == nil {
+			if !force {
+				if verbose {
+					fx.Println("  {warning}Skipped {} (already exists){@}", dstPath)
+				}
+				continue
+			}
+		}
+
+		data, err := fs.ReadFile(embeddedTemplates, srcPath)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", srcPath, err)
+		}
+
+		if err := os.WriteFile(dstPath, data, 0644); err != nil {
+			return fmt.Errorf("writing %s: %w", dstPath, err)
+		}
+		if verbose {
+			fx.Println("  {success}Created {}{@}", dstPath)
+		}
+	}
+	return nil
+}
+
 func ApplyTemplate(t *Template, destDir string, extraVars map[string]string, force, verbose bool) error {
 	vars := make(map[string]string)
 	for k, v := range t.Vars {

@@ -55,6 +55,10 @@ func RunListTemplates(lang string) error {
 	return nil
 }
 
+func RunSaveTemplate(spec string, force, verbose bool) error {
+	return templates.SaveTemplate(spec, force, verbose)
+}
+
 func RunGitInit(verbose bool) error {
 	git := func(args ...string) error {
 		cmd := exec.Command("git", args...)
