@@ -35,6 +35,8 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "", "status", "Check cache state when showing graph")
 	opt.SetFlag(arg.GroupDefault, "g", "git", "Initialise a git repository and commit")
 	opt.SetOption(arg.GroupDefault, "o", "output", "Build output directory", "", false, arg.VarString, nil)
+	opt.SetOption(arg.GroupDefault, "T", "template", "Project template name (use with -i)", "", false, arg.VarString, nil)
+	opt.SetFlag(arg.GroupDefault, "", "list-templates", "List available project templates")
 	opt.SetFlag(arg.GroupDefault, "", "no-color", "Disable coloured terminal output")
 	opt.SetFlag(arg.GroupDefault, "", "no-colour", "Disable coloured terminal output")
 	opt.SetOption(arg.GroupDefault, "", "cache-remote", "SSH remote cache URL (user@host:path)", "", false, arg.VarString, nil)
@@ -66,8 +68,16 @@ func main() {
 		if err := cli.RunInspect(ref); err != nil {
 			fail(err)
 		}
+	case opt.GetBool("list-templates"):
+		lang := ""
+		if names := opt.GetPosStringSlice("targets"); len(names) > 0 {
+			lang = names[0]
+		}
+		if err := cli.RunListTemplates(lang); err != nil {
+			fail(err)
+		}
 	case opt.GetBool("i"):
-		if err := cli.RunInit(opt.GetPosStringSlice("targets"), opt.GetBool("F"), opt.GetBool("v")); err != nil {
+		if err := cli.RunInit(opt.GetPosStringSlice("targets"), opt.GetString("template"), opt.GetBool("F"), opt.GetBool("v")); err != nil {
 			fail(err)
 		}
 		if opt.GetBool("g") {

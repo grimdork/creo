@@ -13,6 +13,7 @@ import (
 	"github.com/grimdork/creo/internal/oci"
 	"github.com/grimdork/creo/internal/runner"
 	"github.com/grimdork/creo/internal/targets"
+	"github.com/grimdork/creo/internal/templates"
 )
 
 func InjectBuildDir(f *fiat.File, bd string) {
@@ -31,8 +32,27 @@ func RunInspect(ref string) error {
 	return oci.Inspect(ref)
 }
 
-func RunInit(langs []string, force, verbose bool) error {
+func RunInit(langs []string, tmplName string, force, verbose bool) error {
+	if tmplName != "" && len(langs) == 1 {
+		return targets.InitProjectWithTemplate(langs[0], tmplName, force, verbose)
+	}
 	return targets.InitProject(langs, force, verbose)
+}
+
+func RunListTemplates(lang string) error {
+	list, err := templates.ListTemplates(lang)
+	if err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		fx.Println("{warning}No templates found{@}")
+		return nil
+	}
+	fx.Println("{bold}Available templates:{@}")
+	for _, t := range list {
+		fx.Println("  {cyan}{}{@}", t.Name+"\t"+t.Description)
+	}
+	return nil
 }
 
 func RunGitInit(verbose bool) error {

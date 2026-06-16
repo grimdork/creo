@@ -6,9 +6,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
+	"github.com/grimdork/creo/internal/semver"
+	"github.com/grimdork/creo/internal/templates"
 	"github.com/grimdork/creo/internal/util"
 )
 
@@ -803,6 +806,45 @@ func InitProject(langs []string, force, verbose bool) error {
 	return nil
 }
 
+func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
+	tmpl, err := templates.ResolveTemplate(lang, tmplName)
+	if err != nil {
+		return err
+	}
+
+	if tmpl.Language != lang {
+		return fmt.Errorf("template %q targets language %q, not %q", tmplName, tmpl.Language, lang)
+	}
+
+	switch lang {
+	case LangGo:
+		ignores, err := Init(".", "", force, verbose)
+		if err != nil {
+			return err
+		}
+		if err := WriteIgnores(ignores, verbose); err != nil {
+			return err
+		}
+	case LangPython:
+		ignores, err := InitPython(".", force, verbose)
+		if err != nil {
+			return err
+		}
+		if err := WriteIgnores(ignores, verbose); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("templates not yet supported for language %q", lang)
+	}
+
+	extraVars := map[string]string{
+		"PROJECT": dirProjectName(),
+		"VERSION": versionFromGit(),
+		"DATE":    time.Now().UTC().Format(time.RFC3339),
+	}
+	return templates.ApplyTemplate(tmpl, ".", extraVars, force, verbose)
+}
+
 // WriteIgnores writes or appends unique gitignore lines to .gitignore.
 func WriteIgnores(lines []string, verbose bool) error {
 	lines = util.Unique(lines)
@@ -850,4 +892,13 @@ func WriteIgnores(lines []string, verbose bool) error {
 		}
 	}
 	return nil
+}
+
+func dirProjectName() string {
+	_, name := absDirName(".")
+	return name
+}
+
+func versionFromGit() string {
+	return semver.String()
 }

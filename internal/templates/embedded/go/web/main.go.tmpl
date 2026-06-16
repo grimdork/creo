@@ -1,0 +1,24 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+)
+
+func main() {
+	http.HandleFunc("/", handleRoot)
+	http.HandleFunc("/health", handleHealth)
+	addr := fmt.Sprintf(":%s", "$PORT")
+	log.Printf("listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
+}
+
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "$PROJECT running")
+}
+
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "ok")
+}

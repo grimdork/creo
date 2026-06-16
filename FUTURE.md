@@ -188,54 +188,6 @@ L2: SSH+rsync     (remote, --cache-remote flag or CREO_CACHE_REMOTE env)
 L1 is always active.  L2 is optional and checked only on L1 miss.
 Both share the same input hash computation.
 
-## Init templates
-
-Extend `creo -i` with `--template` to scaffold a ready-to-build
-project including fiat file, source code, and README:
-
-```
-creo -i go --template web       # Go HTTP server with Dockerfile
-creo -i python --template cli   # Python CLI with uv + argparse
-creo -i rust --template lib     # Rust library with Cargo + fiat
-```
-
-### Template resolution
-
-```
-1. --template flag (overrides)
-2. ~/.config/creo/templates/<language>/<name>/
-3. built-in templates bundled in the binary (embedded fs)
-```
-
-Built-in templates ship with the binary (zero network).  Users extend
-by placing directories in `~/.config/creo/templates/`.
-
-### Template format
-
-A template directory contains:
-
-| File | Required | Purpose |
-|------|----------|---------|
-| `template.ini` | yes | Metadata: name, description, language, files |
-| `src/` | yes | Source files to copy (file names support `$VAR` expansion) |
-| `fiat.tmpl` | no | Fiat file template (variables expanded at scaffold time) |
-| `README.md.tmpl` | no | README template |
-| `.gitignore.tmpl` | no | Gitignore template |
-
-Example `template.ini`:
-
-```ini
-[template]
-name=web
-description=Go HTTP server with OCI
-language=go
-files=main.go, go.mod.tmpl
-
-[vars]
-PORT=8080
-OCI_REPO=ghcr.io/$PROJECT
-```
-
 ## Local dev server
 
 A first-class dev-loop built into creo, no external watchers needed:
