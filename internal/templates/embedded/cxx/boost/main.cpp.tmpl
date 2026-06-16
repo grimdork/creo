@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
     int count = 1;
     bool verbose = false;
 
-    po::options_description desc("Options");
+    po::options_description desc("$PROJECT options");
     desc.add_options()
         ("name,n", po::value<std::string>(&name)->default_value("world"), "Name to greet")
         ("count,c", po::value<int>(&count)->default_value(1), "Repeat count")

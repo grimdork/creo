@@ -157,17 +157,46 @@ func SaveTemplate(spec string, force, verbose bool) error {
 		return fmt.Errorf("creating %s: %w", destDir, err)
 	}
 
-	entries, err := fs.ReadDir(embeddedTemplates, embedPrefix)
+	t, err := loadEmbeddedTemplate(embedPrefix)
 	if err != nil {
-		return err
+		return fmt.Errorf("loading template %q: %w", spec, err)
 	}
 
-	for _, e := range entries {
-		if e.IsDir() {
+	toCopy := []string{"template.ini"}
+	toCopy = append(toCopy, t.Files...)
+
+	entries, err := fs.ReadDir(embeddedTemplates, embedPrefix)
+	if err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			entryName := e.Name()
+			if entryName == "template.ini" {
+				continue
+			}
+			isPlatform := false
+			for _, f := range t.Files {
+				base := strings.TrimSuffix(f, ".tmpl")
+				if strings.HasPrefix(entryName, base+".") && strings.HasSuffix(entryName, ".tmpl") {
+					isPlatform = true
+					break
+				}
+			}
+			if isPlatform {
+				toCopy = append(toCopy, entryName)
+			}
+		}
+	}
+
+	seen := map[string]bool{}
+	for _, file := range toCopy {
+		if seen[file] {
 			continue
 		}
-		srcPath := filepath.Join(embedPrefix, e.Name())
-		dstPath := filepath.Join(destDir, e.Name())
+		seen[file] = true
+		srcPath := filepath.Join(embedPrefix, file)
+		dstPath := filepath.Join(destDir, file)
 
 		if _, err := os.Stat(dstPath); err == nil {
 			if !force {
@@ -182,7 +211,6 @@ func SaveTemplate(spec string, force, verbose bool) error {
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", srcPath, err)
 		}
-
 		if err := os.WriteFile(dstPath, data, 0644); err != nil {
 			return fmt.Errorf("writing %s: %w", dstPath, err)
 		}
@@ -270,7 +298,16 @@ func loadTemplate(dir string) (*Template, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading template.ini: %w", err)
 	}
-	return parseTemplateINI(string(data), dir)
+	t, err := parseTemplateINI(string(data), dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range t.Files {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			return nil, fmt.Errorf("template file %q listed in template.ini not found", f)
+		}
+	}
+	return t, nil
 }
 
 func loadEmbeddedTemplate(prefix string) (*Template, error) {
@@ -279,7 +316,16 @@ func loadEmbeddedTemplate(prefix string) (*Template, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading embedded template.ini: %w", err)
 	}
-	return parseTemplateINI(string(data), prefix)
+	t, err := parseTemplateINI(string(data), prefix)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range t.Files {
+		if _, err := fs.Stat(embeddedTemplates, filepath.Join(prefix, f)); err != nil {
+			return nil, fmt.Errorf("template file %q listed in template.ini not found", f)
+		}
+	}
+	return t, nil
 }
 
 type iniSection struct {
@@ -332,6 +378,9 @@ func parseTemplateINI(data, dir string) (*Template, error) {
 
 	if t.Name == "" {
 		return nil, fmt.Errorf("template.ini missing 'name' in [template]")
+	}
+	if t.Language == "" {
+		return nil, fmt.Errorf("template.ini missing 'language' in [template]")
 	}
 	return t, nil
 }

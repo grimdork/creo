@@ -839,7 +839,16 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 	case LangC, LangCxx:
 		// Template provides source files, no project init needed
 	}
-	return WriteIgnores([]string{"/build", "/.creo", "/tmp"}, verbose)
+	gitignore := []string{"/build", "/.creo", "/tmp"}
+	switch lang {
+	case LangRust:
+		gitignore = append(gitignore, "/target")
+	case LangPython:
+		gitignore = append(gitignore, "__pycache__/", "*.pyc")
+	case LangNode, LangTS:
+		gitignore = append(gitignore, "node_modules/")
+	}
+	return WriteIgnores(gitignore, verbose)
 }
 
 // WriteIgnores writes or appends unique gitignore lines to .gitignore.
