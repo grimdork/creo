@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/grimdork/climate/arg"
+	"github.com/grimdork/creo/internal/cli"
 	"github.com/grimdork/creo/internal/targets"
 )
 
@@ -16,7 +17,7 @@ func TestGenerateCompletion(t *testing.T) {
 	opt.SetFlag(arg.GroupDefault, "i", "init", "Initialise")
 	opt.SetFlag(arg.GroupDefault, "l", "list", "List targets")
 
-	result := generateCompletion(opt)
+	result := cli.GenerateCompletion(opt)
 
 	if !strings.Contains(result, "_creo()") {
 		t.Fatal("expected _creo() function in completion output")
@@ -51,9 +52,9 @@ func TestListTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := listTargets("")
+	out, err := cli.ListTargets("")
 	if err != nil {
-		t.Fatalf("listTargets returned error: %v", err)
+		t.Fatalf("ListTargets returned error: %v", err)
 	}
 
 	if !strings.Contains(out, "build") {
@@ -75,14 +76,14 @@ func TestListTargetsNoFiat(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	_, err = listTargets("")
+	_, err = cli.ListTargets("")
 	if err == nil {
 		t.Fatal("expected error for missing fiat file")
 	}
 }
 
 func TestListTargetsNotFound(t *testing.T) {
-	_, err := listTargets("/nonexistent/path/fiat")
+	_, err := cli.ListTargets("/nonexistent/path/fiat")
 	if err == nil {
 		t.Fatal("expected error for non-existent path")
 	}

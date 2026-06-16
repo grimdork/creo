@@ -1,4 +1,10 @@
-package main
+package cli
+
+import (
+	"strings"
+
+	"github.com/grimdork/climate/arg"
+)
 
 const targetsHelper = `__creo_targets() {
 	local fiat_file
@@ -70,3 +76,32 @@ const completionFunc = `_creo() {
 	__creo_targets
 	return 0
 }`
+
+func GenerateCompletion(opt *arg.Options) string {
+	base, err := opt.Completions()
+	if err != nil {
+		return ""
+	}
+
+	funcStart := strings.Index(base, "\n_creo() {")
+	if funcStart < 0 {
+		return base
+	}
+
+	completeLine := strings.Index(base, "\ncomplete -F _creo")
+	if completeLine < 0 {
+		return base
+	}
+
+	var sb strings.Builder
+	sb.WriteString(base[:funcStart])
+	sb.WriteString("\n\n")
+	sb.WriteString(targetsHelper)
+	sb.WriteString("\n\n")
+	sb.WriteString(langsHelper)
+	sb.WriteString("\n\n")
+	sb.WriteString(completionFunc)
+	sb.WriteString("\n")
+	sb.WriteString(base[completeLine:])
+	return sb.String()
+}

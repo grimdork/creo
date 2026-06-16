@@ -1,6 +1,7 @@
 package fiat
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ func isIndented(line string) bool {
 	return len(line) > 0 && (line[0] == ' ' || line[0] == '\t')
 }
 
-func parseVarLine(line string, f *File, t *Target) {
+func parseVarLine(line string, f *File, t *Target) error {
 	rest := line[1:]
 	eager := false
 	sep := "="
@@ -37,7 +38,7 @@ func parseVarLine(line string, f *File, t *Target) {
 	}
 	parts := strings.SplitN(rest, sep, 2)
 	if len(parts) < 2 {
-		return
+		return fmt.Errorf("malformed variable assignment: %s", line)
 	}
 	name := strings.TrimSpace(parts[0])
 	value := strings.TrimSpace(parts[1])
@@ -47,6 +48,7 @@ func parseVarLine(line string, f *File, t *Target) {
 	} else {
 		f.Vars[name] = v
 	}
+	return nil
 }
 
 func parseProperty(line string, t *Target) string {
@@ -157,7 +159,9 @@ func Parse(path string) (*File, error) {
 			curTarget = nil
 			curSeg = &segment{kind: segVar}
 			curSeg.raw = append(curSeg.raw, raw)
-			parseVarLine(line, f, nil)
+			if err := parseVarLine(line, f, nil); err != nil {
+				return nil, err
+			}
 			rest := line[1:]
 			sep := "="
 			if idx := strings.Index(rest, ":="); idx >= 0 {

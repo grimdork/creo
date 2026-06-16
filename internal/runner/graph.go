@@ -9,14 +9,23 @@ import (
 	"github.com/grimdork/creo/internal/targets"
 )
 
-// RenderGraph produces a dependency graph in the requested format (tree, dot, or svg).
+const (
+	FormatGraphTree = "tree"
+	FormatGraphDot  = "dot"
+	FormatGraphSVG  = "svg"
+)
+
+func ValidGraphFormat(format string) bool {
+	return format == FormatGraphTree || format == FormatGraphDot || format == FormatGraphSVG
+}
+
 func RenderGraph(f *fiat.File, dir string, format string, checkStatus bool) (string, error) {
 	switch format {
-	case "tree":
+	case FormatGraphTree:
 		return renderTree(f, dir, checkStatus)
-	case "dot":
+	case FormatGraphDot:
 		return renderDOT(f, dir, checkStatus)
-	case "svg":
+	case FormatGraphSVG:
 		return renderSVG(f, dir, checkStatus)
 	default:
 		return "", fmt.Errorf("unknown graph format %q", format)

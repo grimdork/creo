@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"fmt"
@@ -15,35 +15,27 @@ import (
 	"github.com/grimdork/creo/internal/targets"
 )
 
-func injectBuildDir(f *fiat.File, bd string) {
+func InjectBuildDir(f *fiat.File, bd string) {
 	f.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: bd}
 }
 
-// runLogin runs the OCI registry login flow, storing credentials locally.
-func runLogin() {
+func RunLogin() error {
 	if err := oci.Login(); err != nil {
-		fail(err)
+		return err
 	}
 	fx.Println("{success}Credentials stored{@}")
+	return nil
 }
 
-// runInspect inspects an OCI image reference and prints its metadata.
-func runInspect(ref string) {
-	if err := oci.Inspect(ref); err != nil {
-		fail(err)
-	}
+func RunInspect(ref string) error {
+	return oci.Inspect(ref)
 }
 
-// runInit scaffolds a new project with the given target languages.
-func runInit(langs []string, force, verbose bool) {
-	if err := targets.InitProject(langs, force, verbose); err != nil {
-		fail(err)
-	}
+func RunInit(langs []string, force, verbose bool) error {
+	return targets.InitProject(langs, force, verbose)
 }
 
-// runGitInit initialises a git repository, stages all files, and makes
-// an initial commit with a scaffolding message.
-func runGitInit(verbose bool) {
+func RunGitInit(verbose bool) error {
 	git := func(args ...string) error {
 		cmd := exec.Command("git", args...)
 		cmd.Stdout = os.Stdout
@@ -52,19 +44,19 @@ func runGitInit(verbose bool) {
 	}
 
 	if err := git("init"); err != nil {
-		failf("git init: %v", err)
+		return fmt.Errorf("git init: %w", err)
 	}
 	if verbose {
 		fx.Println("  {success}Initialised git repository{@}")
 	}
 
 	if err := git("add", "-A"); err != nil {
-		failf("git add: %v", err)
+		return fmt.Errorf("git add: %w", err)
 	}
 
 	out, err := exec.Command("git", "diff", "--cached", "--name-only").Output()
 	if err != nil {
-		failf("listing staged files: %v", err)
+		return fmt.Errorf("listing staged files: %w", err)
 	}
 
 	files := strings.TrimSpace(string(out))
@@ -72,7 +64,7 @@ func runGitInit(verbose bool) {
 		if verbose {
 			fx.Println("  {warning}Nothing to commit{@}")
 		}
-		return
+		return nil
 	}
 
 	body := ""
@@ -81,45 +73,90 @@ func runGitInit(verbose bool) {
 	}
 	msg := "Initial scaffolding" + body
 	if err := git("commit", "-m", msg); err != nil {
-		failf("git commit: %v", err)
+		return fmt.Errorf("git commit: %w", err)
 	}
+	return nil
 }
 
-// runGraph renders the target dependency graph in the requested format
-// (tree, dot, or svg).
-func runGraph(opt *arg.Options) {
+func RunGraph(opt *arg.Options) error {
 	format := opt.GetString("graph")
-	if format != "tree" && format != "dot" && format != "svg" {
-		failf("--graph must be 'tree', 'dot', or 'svg'")
+	if !runner.ValidGraphFormat(format) {
+		return fmt.Errorf("--graph must be 'tree', 'dot', or 'svg'")
 	}
 
 	fiatPath, ok := fiat.FindFiat(opt.GetString("file"))
 	if !ok {
-		failf("no fiat file found or file inaccessible")
+		return fmt.Errorf("no fiat file found or file inaccessible")
 	}
 	dir := filepath.Dir(fiatPath)
 
 	file, err := fiat.Parse(fiatPath)
 	if err != nil {
-		failf("parsing %s: %v", fiatPath, err)
+		return fmt.Errorf("parsing %s: %w", fiatPath, err)
 	}
 	if bd := opt.GetString("output"); bd != "" {
-		injectBuildDir(file, bd)
+		InjectBuildDir(file, bd)
 	}
 	if err := targets.Apply(file); err != nil {
-		failf("applying defaults to %s: %v", fiatPath, err)
+		return fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
 	}
 
 	out, err := runner.RenderGraph(file, dir, format, opt.GetBool("status"))
 	if err != nil {
-		fail(err)
+		return err
 	}
 	fmt.Print(out)
+	return nil
 }
 
-// runBuild parses the fiat file and runs the requested targets, with
-// support for recursive builds, watching, dry runs, and parallel jobs.
-func runBuild(opt *arg.Options) {
+func RunVersion(ver string) {
+	if ver == "" {
+		fx.Println("{bold}creo (dev){@}")
+	} else {
+		fx.Println("{bold}creo {}{@}", ver)
+	}
+}
+
+func ListTargets(explicitPath string) (string, error) {
+	fiatPath, ok := fiat.FindFiat(explicitPath)
+	if !ok {
+		return "", fmt.Errorf("no fiat file found")
+	}
+	file, err := fiat.Parse(fiatPath)
+	if err != nil {
+		return "", fmt.Errorf("parsing %s: %w", fiatPath, err)
+	}
+	if err := targets.Apply(file); err != nil {
+		return "", fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
+	}
+
+	var b strings.Builder
+	b.WriteString("Available targets:\n")
+	for _, t := range file.Targets {
+		ln := t.Language
+		if ln == "" {
+			ln = "-"
+		}
+		if t.Desc != "" {
+			desc := fiat.ExpandWithTarget(t.Desc, file.Vars, t)
+			fmt.Fprintf(&b, "  %-15s (%s)   %s\n", t.Name, ln, desc)
+		} else {
+			fmt.Fprintf(&b, "  %-15s (%s)\n", t.Name, ln)
+		}
+	}
+	return b.String(), nil
+}
+
+func RunList(filePath string) error {
+	out, err := ListTargets(filePath)
+	if err != nil {
+		return err
+	}
+	fmt.Print(out)
+	return nil
+}
+
+func RunBuild(opt *arg.Options) error {
 	if opt.GetBool("no-color") || opt.GetBool("no-colour") {
 		os.Setenv("NO_COLOR", "1")
 	}
@@ -146,31 +183,31 @@ func runBuild(opt *arg.Options) {
 
 	if opts.Recursive {
 		if err := runner.RunRecursive(".", names[0], opts); err != nil {
-			failf("recursive build: %v", err)
+			return fmt.Errorf("recursive build: %w", err)
 		}
 		results.Print()
-		return
+		return nil
 	}
 
 	fiatPath, ok := fiat.FindFiat(opt.GetString("file"))
 	if !ok {
-		failf("no fiat file found or file inaccessible")
+		return fmt.Errorf("no fiat file found or file inaccessible")
 	}
 
 	file, err := fiat.Parse(fiatPath)
 	if err != nil {
-		failf("parsing %s: %v", fiatPath, err)
+		return fmt.Errorf("parsing %s: %w", fiatPath, err)
 	}
 	if bd := opt.GetString("output"); bd != "" {
-		injectBuildDir(file, bd)
+		InjectBuildDir(file, bd)
 	}
 	if err := targets.Apply(file); err != nil {
-		failf("applying defaults to %s: %v", fiatPath, err)
+		return fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
 	}
 
 	if opt.GetBool("w") {
 		runner.RunWatch(file, names[0], opts)
-		return
+		return nil
 	}
 
 	var errCount int
@@ -185,6 +222,7 @@ func runBuild(opt *arg.Options) {
 	}
 	results.Print()
 	if errCount > 0 {
-		os.Exit(1)
+		return fmt.Errorf("some targets failed")
 	}
+	return nil
 }

@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/grimdork/climate/arg"
 	"github.com/grimdork/climate/fx"
+	"github.com/grimdork/creo/internal/cli"
 	"github.com/grimdork/creo/internal/runner"
 )
 
@@ -47,61 +47,47 @@ func main() {
 
 	switch {
 	case opt.GetBool("version"):
-		printVersion()
+		cli.RunVersion(version)
 	case opt.GetBool("clean-cache"):
 		if err := runner.CleanCache("."); err != nil {
 			fail(err)
 		}
 		fx.Println("{success}Cache cleaned{@}")
 	case opt.GetBool("completion"):
-		fmt.Print(generateCompletion(opt))
+		fmt.Print(cli.GenerateCompletion(opt))
 	case opt.GetBool("login"):
-		runLogin()
+		if err := cli.RunLogin(); err != nil {
+			fail(err)
+		}
 	case opt.GetString("inspect") != "":
 		ref := opt.GetString("inspect")
-		runInspect(ref)
+		if err := cli.RunInspect(ref); err != nil {
+			fail(err)
+		}
 	case opt.GetBool("i"):
-		runInit(opt.GetPosStringSlice("targets"), opt.GetBool("F"), opt.GetBool("v"))
+		if err := cli.RunInit(opt.GetPosStringSlice("targets"), opt.GetBool("F"), opt.GetBool("v")); err != nil {
+			fail(err)
+		}
 		if opt.GetBool("g") {
-			runGitInit(opt.GetBool("v"))
+			if err := cli.RunGitInit(opt.GetBool("v")); err != nil {
+				fail(err)
+			}
 		}
 	case opt.GetBool("g"):
-		runGitInit(opt.GetBool("v"))
+		if err := cli.RunGitInit(opt.GetBool("v")); err != nil {
+			fail(err)
+		}
 	case opt.GetBool("l"):
-		runList(opt.GetString("file"))
+		if err := cli.RunList(opt.GetString("file")); err != nil {
+			fail(err)
+		}
 	case opt.GetString("graph") != "":
-		runGraph(opt)
+		if err := cli.RunGraph(opt); err != nil {
+			fail(err)
+		}
 	default:
-		runBuild(opt)
+		if err := cli.RunBuild(opt); err != nil {
+			fail(err)
+		}
 	}
-}
-
-// generateCompletion builds a bash completion script by embedding helper functions into the arg library's template.
-func generateCompletion(opt *arg.Options) string {
-	base, err := opt.Completions()
-	if err != nil {
-		return ""
-	}
-
-	funcStart := strings.Index(base, "\n_creo() {")
-	if funcStart < 0 {
-		return base
-	}
-
-	completeLine := strings.Index(base, "\ncomplete -F _creo")
-	if completeLine < 0 {
-		return base
-	}
-
-	var sb strings.Builder
-	sb.WriteString(base[:funcStart])
-	sb.WriteString("\n\n")
-	sb.WriteString(targetsHelper)
-	sb.WriteString("\n\n")
-	sb.WriteString(langsHelper)
-	sb.WriteString("\n\n")
-	sb.WriteString(completionFunc)
-	sb.WriteString("\n")
-	sb.WriteString(base[completeLine:])
-	return sb.String()
 }
