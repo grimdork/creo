@@ -10,7 +10,7 @@ import (
 
 	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
-	"github.com/grimdork/creo/internal/lang"
+	"github.com/grimdork/creo/internal/targets"
 )
 
 func RunWatch(f *fiat.File, name string, opts RunOpts) {
@@ -47,7 +47,7 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 			}
 			continue
 		}
-		if err := lang.Apply(curFiat); err != nil {
+		if err := targets.Apply(curFiat); err != nil {
 			if opts.Verbose {
 				fmt.Fprintf(os.Stderr, "  Apply error: %v\n", err)
 			}

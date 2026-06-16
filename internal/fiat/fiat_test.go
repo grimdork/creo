@@ -695,21 +695,6 @@ func TestWriteDefaultFileError(t *testing.T) {
 	}
 }
 
-func TestFormatVar(t *testing.T) {
-	v := &Var{Name: "name", Value: "value"}
-	got := FormatVar(v)
-	want := "$name=value"
-	if got != want {
-		t.Errorf("lazy = %q, want %q", got, want)
-	}
-	v = &Var{Name: "name", Value: "value", Eager: true}
-	got = FormatVar(v)
-	want = "$name:=value"
-	if got != want {
-		t.Errorf("eager = %q, want %q", got, want)
-	}
-}
-
 func TestFindFiatExplicitPath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "mybuild.fiat")

@@ -1,4 +1,4 @@
-package lang
+package targets
 
 import (
 	"fmt"
@@ -93,7 +93,7 @@ type nfpmPkg struct {
 	depends     []string
 	recommends  []string
 	suggests    []string
-	files       []ManifestFile
+	files       []fiat.ManifestFile
 	scripts     map[string]string
 }
 

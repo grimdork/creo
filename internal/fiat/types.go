@@ -6,6 +6,13 @@ type Var struct {
 	Eager bool
 }
 
+// ManifestFile pairs a source path with its install destination.
+// Src is a local path or URL; Dst is the absolute or relative install path.
+type ManifestFile struct {
+	Dst string
+	Src string
+}
+
 type OCIConfig struct {
 	Repo       string
 	Tag        string
@@ -19,6 +26,8 @@ type OCIConfig struct {
 	BaseImage  string
 	SBOM       bool
 	Entrypoint string
+	Files      []ManifestFile
+	Downloads  []ManifestFile
 }
 
 type Target struct {

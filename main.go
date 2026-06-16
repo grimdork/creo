@@ -11,9 +11,9 @@ import (
 	"github.com/grimdork/climate/arg"
 	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
-	"github.com/grimdork/creo/internal/lang"
 	"github.com/grimdork/creo/internal/oci"
 	"github.com/grimdork/creo/internal/runner"
+	"github.com/grimdork/creo/internal/targets"
 )
 
 func injectBuildDir(f *fiat.File, bd string) {
@@ -31,7 +31,7 @@ func listTargets(explicitPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing %s: %w", fiatPath, err)
 	}
-	if err := lang.Apply(file); err != nil {
+	if err := targets.Apply(file); err != nil {
 		return "", fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
 	}
 
@@ -84,7 +84,7 @@ func runInspect(ref string) {
 }
 
 func runInit(langs []string, force, verbose bool) {
-	if err := lang.InitProject(langs, force, verbose); err != nil {
+	if err := targets.InitProject(langs, force, verbose); err != nil {
 		fail(err)
 	}
 }
@@ -160,7 +160,7 @@ func runGraph(opt *arg.Options) {
 	if bd := opt.GetString("output"); bd != "" {
 		injectBuildDir(file, bd)
 	}
-	if err := lang.Apply(file); err != nil {
+	if err := targets.Apply(file); err != nil {
 		failf("applying defaults to %s: %v", fiatPath, err)
 	}
 
@@ -191,13 +191,15 @@ func runBuild(opt *arg.Options) {
 		Results:        results,
 	}
 
-	targets := opt.GetPosStringSlice("targets")
-	if len(targets) == 0 {
-		targets = []string{"build"}
+	names := opt.GetPosStringSlice("targets")
+	if len(names) == 0 {
+		names = []string{"build"}
 	}
 
 	if opts.Recursive {
-		runner.RunRecursive(".", targets[0], opts)
+		if err := runner.RunRecursive(".", names[0], opts); err != nil {
+			failf("recursive build: %v", err)
+		}
 		results.Print()
 		return
 	}
@@ -215,17 +217,17 @@ func runBuild(opt *arg.Options) {
 	if bd := opt.GetString("output"); bd != "" {
 		injectBuildDir(file, bd)
 	}
-	if err := lang.Apply(file); err != nil {
+	if err := targets.Apply(file); err != nil {
 		failf("applying defaults to %s: %v", fiatPath, err)
 	}
 
 	if opt.GetBool("w") {
-		runner.RunWatch(file, targets[0], opts)
+		runner.RunWatch(file, names[0], opts)
 		return
 	}
 
 	var errCount int
-	for _, name := range targets {
+	for _, name := range names {
 		if err := runner.RunTarget(file, name, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			errCount++

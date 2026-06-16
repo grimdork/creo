@@ -11,7 +11,7 @@ Targets are positional: `creo debug test` runs both.  Without targets,
 
 | Flag | Description |
 |---|---|
-| `-i`, `--init` | Initialise project (optionally with languages: `go`/`go:1.25`/`c`/`cxx`/`cpp`/`rust`/`python`/`node`/`typescript`/`java`/`kotlin`/`gradle`/`oci`; multiple accepted) |
+| `-i`, `--init` | Initialise project (optionally with target types: `go`/`go:1.25`/`tinygo`/`c`/`cxx`/`cpp`/`rust`/`python`/`node`/`typescript`/`java`/`kotlin`/`gradle`/`oci`/`archive`/`deb`/`rpm`/`brew`; multiple accepted) |
 | `-f`, `--file` | Alternative fiat file path |
 | `-o`, `--output` | Build output directory (default: `build`) |
 | `-F`, `--force` | Force rebuild |

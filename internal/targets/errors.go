@@ -1,4 +1,4 @@
-package lang
+package targets
 
 const (
 	errGoModInit    = "go mod init: %s"

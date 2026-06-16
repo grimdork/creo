@@ -52,7 +52,7 @@ dependencies.
 ## Properties
 
 | Property | What it does |
-|---|---|
+|---|---|---|
 | `cmd=` | Shell command to run (repeatable — runs in sequence) |
 | `bin=` | Path to the output binary |
 | `sources=` | File patterns checked for rebuild detection |
@@ -63,12 +63,44 @@ dependencies.
 | `arch=` | Architecture for cross-compile (space-separated) |
 | `os=` | OS for cross-compile (space-separated) |
 | `args=` | Extra arguments injected into the default command |
+| `manifest=` | Path to [manifest.ini](manifest.md) for packaging/OCI metadata |
+
+### Language-specific properties
+
+| Language | Extra properties |
+|---|---|
+| `oci` | `tarball=`, `repo=`, `tag=`, `appdir=`, `from=`, `entrypoint=`, `ociuser=`, `ocipass=`, `ocicred=`, `region=`, `cacert=`, `sbom=` — see [oci.md](oci.md) |
+| `archive` | `format=` (`tar.gz` / `zip`) |
+| `deb`, `rpm` | `maintainer=`, `vendor=`, `homepage=`, `license=`, `section=`, `priority=` |
+| `brew` | `tap=`, `repo=`, `homepage=`, `license=`, `output=`, `token=` |
 
 ### Source patterns
 
 - `*` — files in the current directory
 - `**.go` — `.go` files recursively
 - `src/**/*.go` — `.go` files under `src/`
+
+## Language and target types
+
+| Keyword | Behaviour | Default bin | Doc |
+|---|---|---|---|
+| `go` | Compiles with `go build` | `$BUILDDIR/$PROJECT` | [go.md](go.md) |
+| `tinygo` | Compiles with `tinygo build` | `$BUILDDIR/$PROJECT` | [tinygo.md](tinygo.md) |
+| `c` | Compiles with `cc` | `$BUILDDIR/$PROJECT` | [c.md](c.md) |
+| `cxx` / `cpp` | Compiles with `c++` | `$BUILDDIR/$PROJECT` | [c.md](c.md) |
+| `rust` | Compiles with `cargo` | `$BUILDDIR/release/$PROJECT` | [rust.md](rust.md) |
+| `python` | Syncs dependencies with `uv` | — | [python.md](python.md) |
+| `node` / `typescript` | Runs `npm run build` | — | [node.md](node.md) |
+| `java` / `kotlin` / `gradle` | Runs `gradle build` | — | [java.md](java.md) |
+| `oci` | Packages a binary into an OCI image | `$BUILDDIR/$name.tar` | [oci.md](oci.md) |
+| `archive` | Creates `.tar.gz` / `.zip` release archive | `$BUILDDIR/$PROJECT_$VERSION_$os_$arch.tar.gz` | [archive.md](archive.md) |
+| `deb` | Creates `.deb` via nfpm | `$BUILDDIR/$PROJECT_$VERSION_$arch.deb` | [deb.md](deb.md) |
+| `rpm` | Creates `.rpm` via nfpm | `$BUILDDIR/$PROJECT_$VERSION_$arch.rpm` | [rpm.md](rpm.md) |
+| `brew` | Generates Homebrew formula | `$BUILDDIR/$PROJECT.rb` | [brew.md](brew.md) |
+
+All language types fill in sensible defaults when properties are
+omitted.  You can override any default by specifying the property
+explicitly.
 
 ## Built-in variables
 

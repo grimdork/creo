@@ -8,6 +8,10 @@
 # Properties: repo= (registry), tag=, tarball= (write .tar), appdir=
 # (default /app), ociuser= / ocipass= (basic auth).
 #
+# Extra files are picked up from manifest.ini:
+#   [files] section  — local files copied into the image
+#   [download] section — URLs fetched at build time and placed in the image
+#
 # Usage:  creo image                  # build + write tarball
 #         creo image -n               # dry-run
 #         creo -c image               # clean the tarball

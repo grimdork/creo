@@ -223,12 +223,3 @@ func WriteDefaultFile(path string, force, verbose bool) error {
 	}
 	return nil
 }
-
-// FormatVar serialises a single variable for the fiat header section.
-func FormatVar(v *Var) string {
-	sep := "="
-	if v.Eager {
-		sep = ":="
-	}
-	return fmt.Sprintf("$%s%s%s", v.Name, sep, v.Value)
-}

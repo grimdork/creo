@@ -1,8 +1,6 @@
 package runner
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,8 +12,7 @@ import (
 
 	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
-	"github.com/grimdork/creo/internal/lang"
-	"github.com/grimdork/creo/internal/oci"
+	"github.com/grimdork/creo/internal/targets"
 	"github.com/grimdork/creo/internal/util"
 )
 
@@ -61,6 +58,10 @@ type RunOpts struct {
 	BuildDir       string
 	NoColor        bool
 	Results        *TargetResults
+}
+
+type combo struct {
+	arch, osval, bin string
 }
 
 func RunTarget(f *fiat.File, name string, opts RunOpts) error {
@@ -173,7 +174,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	if opts.Clean {
 		if !opts.DryRun {
 			if !t.IsVirtual {
-				bd := lang.BuildDir(f)
+				bd := targets.BuildDir(f)
 				if err := os.RemoveAll(bd); err != nil {
 					if opts.Verbose {
 						fmt.Fprintf(os.Stderr, "  Failed to remove build directory %s: %v\n", bd, err)
@@ -230,9 +231,6 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	if needsRun || multi {
 		buildStart = time.Now()
 
-		type combo struct {
-			arch, osval, bin string
-		}
 		var combos []combo
 		for _, arch := range archs {
 			for _, osval := range oses {
@@ -312,7 +310,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				comboEnv := os.Environ()
 				activeArch := ensureArch(c.arch)
 				activeOS := ensureOS(c.osval)
-				comboEnv = append(comboEnv, lang.CrossEnv(t.Language, c.arch, c.osval)...)
+				comboEnv = append(comboEnv, targets.CrossEnv(t.Language, c.arch, c.osval)...)
 
 				comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
 
@@ -402,262 +400,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 				// Homebrew formula generation
 				if t.Brew != nil && !opts.DryRun {
-					archivePath := ""
-					for _, dep := range t.Requires {
-						outVar := "OUTPUT_" + dep
-						if v, ok := comboVars[outVar]; ok && v.Value != "" {
-							archivePath = v.Value
-							break
-						}
-					}
-					if archivePath == "" {
-						archivePath = c.bin
-					}
-
-					shaHex, shaErr := computeSHA256(archivePath)
-					if shaErr != nil {
-						errCh <- fmt.Errorf("%s: SHA256 of %s: %w", f.Path(), archivePath, shaErr)
-						return
-					}
-
-					ver := strings.TrimPrefix(fiat.Expand("$VERSION", comboVars, 0), "v")
-					archiveName := filepath.Base(archivePath)
-					projName := fiat.Expand("$PROJECT", comboVars, 0)
-
-					brewRepo := fiat.Expand(t.Brew.Repo, comboVars, 0)
-					brewDesc := fiat.Expand(t.Brew.Desc, comboVars, 0)
-					brewHomepage := fiat.Expand(t.Brew.Homepage, comboVars, 0)
-					brewLicense := fiat.Expand(t.Brew.License, comboVars, 0)
-					brewClassName := fiat.Expand(t.Brew.ClassName, comboVars, 0)
-
-					url := fmt.Sprintf("https://github.com/%s/releases/download/v%s/%s",
-						brewRepo, ver, archiveName)
-					if brewRepo == "" {
-						url = archiveName
-					}
-
-					className := brewClassName
-					if className == "" {
-						className = projName
-					}
-
-					var formulaBuf strings.Builder
-					formulaBuf.WriteString(fmt.Sprintf(`class %s < Formula
-  desc %q
-  homepage %q
-  url %q
-  version %q
-  sha256 %q
-  license %q
-
-  def install
-    bin.install %q
-  end
-end
-`, className, brewDesc, brewHomepage, url, ver, shaHex, brewLicense, projName))
-
-					outputPath := t.Brew.Output
-					if outputPath == "" {
-						outputPath = filepath.Join(dir, t.Name+".rb")
-					} else {
-						outputPath = fiat.Expand(outputPath, comboVars, 0)
-					}
-					if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-						errCh <- fmt.Errorf("%s: brew output dir: %w", f.Path(), err)
-						return
-					}
-					if err := os.WriteFile(outputPath, []byte(formulaBuf.String()), 0644); err != nil {
-						errCh <- fmt.Errorf("%s: writing brew formula: %w", f.Path(), err)
-						return
-					}
-					fx.Println(`  {success}Wrote brew formula {}{@}`, outputPath)
-
-					if t.Brew.Tap != "" {
-						token := fiat.Expand(t.Brew.Token, comboVars, 0)
-						token = os.ExpandEnv(token)
-						if token == "" {
-							token = os.Getenv("GH_TOKEN")
-						}
-						if token == "" {
-							token = os.Getenv("GITHUB_TOKEN")
-						}
-
-						if token == "" {
-							errCh <- fmt.Errorf("%s: GH_TOKEN required for brew tap push", f.Path())
-							return
-						}
-
-						brewTap := fiat.Expand(t.Brew.Tap, comboVars, 0)
-						tapDir := filepath.Join(filepath.Dir(f.Path()), ".creo", t.Name+"-tap")
-						cloneURL := fmt.Sprintf("https://x-access-token:%s@github.com/%s.git", token, brewTap)
-
-						if out, err := exec.Command("git", "clone", cloneURL, tapDir).CombinedOutput(); err != nil {
-							errCh <- fmt.Errorf("%s: cloning tap %s: %s", f.Path(), brewTap, strings.TrimSpace(string(out)))
-							return
-						}
-
-						formulaDir := filepath.Join(tapDir, "Formula")
-						if err := os.MkdirAll(formulaDir, 0755); err != nil {
-							errCh <- fmt.Errorf("%s: creating Formula dir: %w", f.Path(), err)
-							return
-						}
-						formulaDest := filepath.Join(formulaDir, projName+".rb")
-						if err := os.WriteFile(formulaDest, []byte(formulaBuf.String()), 0644); err != nil {
-							errCh <- fmt.Errorf("%s: writing formula in tap: %w", f.Path(), err)
-							return
-						}
-
-						gitCmds := [][]string{
-							{"-C", tapDir, "config", "user.name", "creo"},
-							{"-C", tapDir, "config", "user.email", "creo@localhost"},
-							{"-C", tapDir, "add", "Formula/" + projName + ".rb"},
-							{"-C", tapDir, "commit", "-m", fmt.Sprintf("Update %s to %s", projName, ver)},
-							{"-C", tapDir, "push"},
-						}
-						for _, args := range gitCmds {
-							if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
-								errCh <- fmt.Errorf("%s: git %s: %s", f.Path(), args[0], strings.TrimSpace(string(out)))
-								return
-							}
-						}
-						fx.Println(`  {success}Pushed {} to {}{@}`, projName, brewTap)
-					}
+					handleBrew(f, t, c, comboVars, dir, opts, name, outputs, errCh)
 				}
 
 				// OCI packaging: use $OUTPUT_<dep> to find binary
 				if t.OCI != nil && !opts.DryRun {
-					binSrc := ""
-					for _, dep := range t.Requires {
-						outVar := "OUTPUT_" + dep
-						if v, ok := comboVars[outVar]; ok && v.Value != "" {
-							binSrc = v.Value
-							break
-						}
-					}
-					if binSrc == "" {
-						binSrc = c.bin
-					}
-
-					if binSrc != "" {
-						absBin, err := filepath.Abs(binSrc)
-						if err != nil {
-							errCh <- fmt.Errorf("%s: resolving binary path: %w", f.Path(), err)
-							return
-						}
-						if _, err := os.Stat(absBin); err != nil {
-							errCh <- fmt.Errorf("%s: OCI binary %q not found: %w", f.Path(), absBin, err)
-							return
-						}
-						binSrc = absBin
-						binaryName := filepath.Base(binSrc)
-						appDir := fiat.Expand(t.OCI.AppDir, comboVars, 0)
-						if appDir == "" {
-							appDir = "/app"
-						}
-
-						caCert := fiat.Expand(t.OCI.CACert, comboVars, 0)
-						if caCert == "auto" {
-							cacheDir := filepath.Join(filepath.Dir(f.Path()), ".creo")
-							cachePath := filepath.Join(cacheDir, "cacert.pem")
-
-							if opts.RefreshCACerts {
-								os.Remove(cachePath)
-								if opts.Verbose {
-									fx.Println(`  {cyan}Refreshed cached CA certs{@}`)
-								}
-							}
-
-							if _, err := os.Stat(cachePath); os.IsNotExist(err) {
-								if err := os.MkdirAll(cacheDir, 0755); err != nil {
-									errCh <- fmt.Errorf("%s: creating cache dir: %w", f.Path(), err)
-									return
-								}
-								data, err := oci.FetchCACert()
-								if err != nil {
-									errCh <- fmt.Errorf("%s: %w", f.Path(), err)
-									return
-								}
-								tmpPath := cachePath + ".tmp"
-								if err := os.WriteFile(tmpPath, data, 0644); err != nil {
-									errCh <- fmt.Errorf("%s: writing CA cert cache: %w", f.Path(), err)
-									return
-								}
-								if err := os.Rename(tmpPath, cachePath); err != nil {
-									os.Remove(tmpPath)
-									errCh <- fmt.Errorf("%s: renaming CA cert cache: %w", f.Path(), err)
-									return
-								}
-								if opts.Verbose {
-									fx.Println(`  {cyan}Downloaded CA certs to .creo/cacert.pem{@}`)
-								}
-							}
-							caCert = cachePath
-						}
-
-						entrypoint := strings.Fields(fiat.Expand(t.OCI.Entrypoint, comboVars, 0))
-
-						img, err := oci.Build(oci.Config{
-							Binary:     binSrc,
-							AppDir:     appDir,
-							Name:       binaryName,
-							CACert:     caCert,
-							BaseImage:  fiat.Expand(t.OCI.BaseImage, comboVars, 0),
-							Arch:       activeArch,
-							OS:         "linux",
-							SBOM:       t.OCI.SBOM,
-							Entrypoint: entrypoint,
-						})
-						if err != nil {
-							errCh <- fmt.Errorf("%s: OCI build: %w", f.Path(), err)
-							return
-						}
-
-						tarballPath := fiat.Expand(t.OCI.Tarball, comboVars, 0)
-						if tarballPath != "" {
-							tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
-							if tag == "" {
-								tag = "latest"
-							}
-							if err := oci.WriteTarball(img, tarballPath, tag); err != nil {
-								errCh <- fmt.Errorf("%s: OCI tarball: %w", f.Path(), err)
-								return
-							}
-							fx.Println(`  {success}Wrote {}{@}`, tarballPath)
-						}
-
-						repo := fiat.Expand(t.OCI.Repo, comboVars, 0)
-						if repo != "" {
-							tag := fiat.Expand(t.OCI.Tag, comboVars, 0)
-							user := os.ExpandEnv(fiat.Expand(t.OCI.User, comboVars, 0))
-							pass := os.ExpandEnv(fiat.Expand(t.OCI.Pass, comboVars, 0))
-							if pass == "" && t.OCI.CredHelper != "" {
-								helper := os.ExpandEnv(fiat.Expand(t.OCI.CredHelper, comboVars, 0))
-								hUser, hPass, helpErr := execCredHelper(helper, dir)
-								if helpErr != nil {
-									errCh <- fmt.Errorf("%s: credential helper: %w", f.Path(), helpErr)
-									return
-								}
-								if user == "" {
-									user = hUser
-								}
-								pass = hPass
-							}
-							if err := oci.Push(img, oci.PushConfig{
-								Repo: repo,
-								Tag:  tag,
-								User: user,
-								Pass: pass,
-							}); err != nil {
-								errCh <- fmt.Errorf("%s: OCI push: %w", f.Path(), err)
-								return
-							}
-							ref := repo
-							if tag != "" {
-								ref += ":" + tag
-							}
-							fx.Println(`  {success}Pushed {}{@}`, ref)
-						}
-					}
+					handleOCI(f, t, c, comboVars, comboEnv, dir, activeArch, activeOS, opts, name, outputs, errCh)
 				}
 			}(c)
 		}
@@ -749,10 +497,11 @@ func findFiatInDir(dir string, verbose bool) (string, bool) {
 	return "", false
 }
 
-func RunRecursive(dir string, targetName string, opts RunOpts) {
+func RunRecursive(dir string, targetName string, opts RunOpts) error {
 	if opts.Results == nil {
 		opts.Results = &TargetResults{}
 	}
+	var walkErr error
 	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -771,14 +520,14 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 
 		file, err := fiat.Parse(fiatPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
+			walkErr = fmt.Errorf("parsing %s: %w", fiatPath, err)
 			return nil
 		}
 		if opts.BuildDir != "" {
 			file.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: opts.BuildDir}
 		}
-		if err := lang.Apply(file); err != nil {
-			fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
+		if err := targets.Apply(file); err != nil {
+			walkErr = fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
 			return nil
 		}
 
@@ -786,10 +535,11 @@ func RunRecursive(dir string, targetName string, opts RunOpts) {
 			fx.Println(`{cyan}Entering {}{@}`, path)
 		}
 		if err := RunTarget(file, targetName, opts); err != nil {
-			fmt.Fprintf(os.Stderr, "Error in %s: %v\n", path, err)
+			walkErr = fmt.Errorf("in %s: %w", path, err)
 		}
 		return nil
 	})
+	return walkErr
 }
 
 func baseComboVars(f *fiat.File, t *fiat.Target, activeArch, activeOS string, outputs *Outputs) map[string]*fiat.Var {
@@ -867,13 +617,4 @@ func execCredHelper(helper, dir string) (user, pass string, err error) {
 		return "", line, nil
 	}
 	return line[:idx], line[idx+1:], nil
-}
-
-func computeSHA256(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	h := sha256.Sum256(data)
-	return hex.EncodeToString(h[:]), nil
 }

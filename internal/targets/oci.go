@@ -1,4 +1,4 @@
-package lang
+package targets
 
 import (
 	"os"
@@ -10,9 +10,18 @@ import (
 )
 
 func applyOci(f *fiat.File, t *fiat.Target) {
+	m := lookupManifest(f, t)
+
 	cfg := &fiat.OCIConfig{
 		AppDir: DefAppDir,
 		Tag:    "latest",
+	}
+
+	if len(m.Files) > 0 {
+		cfg.Files = m.Files
+	}
+	if len(m.Downloads) > 0 {
+		cfg.Downloads = m.Downloads
 	}
 
 	for _, v := range t.Vars {
@@ -42,6 +51,9 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 			cfg.SBOM = v.Value == "true" || v.Value == "1"
 		case "entrypoint":
 			cfg.Entrypoint = val
+		default:
+			// Unknown properties are silently ignored —
+			// they may be consumed by other target plumbing.
 		}
 	}
 

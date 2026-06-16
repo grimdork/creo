@@ -48,12 +48,18 @@ Detailed references live in the `docs/` directory:
 |-------|------|
 | Common format (variables, targets, properties) | [docs/fiat.md](docs/fiat.md) |
 | Go | [docs/go.md](docs/go.md) |
+| TinyGo | [docs/tinygo.md](docs/tinygo.md) |
 | C / C++ | [docs/c.md](docs/c.md) |
 | Rust | [docs/rust.md](docs/rust.md) |
 | Python | [docs/python.md](docs/python.md) |
 | Node / TypeScript | [docs/node.md](docs/node.md) |
 | Java / Kotlin / Gradle | [docs/java.md](docs/java.md) |
 | OCI container images | [docs/oci.md](docs/oci.md) |
+| Release archives | [docs/archive.md](docs/archive.md) |
+| Debian packages | [docs/deb.md](docs/deb.md) |
+| RPM packages | [docs/rpm.md](docs/rpm.md) |
+| Homebrew formulas | [docs/brew.md](docs/brew.md) |
+| Package manifest | [docs/manifest.md](docs/manifest.md) |
 | CLI reference | [docs/cli.md](docs/cli.md) |
 
 ## Why not Make?

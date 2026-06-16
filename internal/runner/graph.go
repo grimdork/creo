@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/grimdork/creo/internal/fiat"
-	"github.com/grimdork/creo/internal/lang"
+	"github.com/grimdork/creo/internal/targets"
 )
 
 func RenderGraph(f *fiat.File, dir string, format string, checkStatus bool) (string, error) {
@@ -129,11 +129,11 @@ func depConnector(i, total int) string {
 
 func langFill(langName string) string {
 	switch langName {
-	case lang.LangGo:
+	case targets.LangGo:
 		return "#e3f2fd"
-	case lang.LangOCI:
+	case targets.LangOCI:
 		return "#fff3e0"
-	case lang.LangC, lang.LangCxx, lang.LangCpp:
+	case targets.LangC, targets.LangCxx, targets.LangCpp:
 		return "#e8f5e9"
 	default:
 		return "#f5f5f5"

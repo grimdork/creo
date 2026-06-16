@@ -1,4 +1,4 @@
-package lang
+package targets
 
 import (
 	"os"
@@ -7,14 +7,6 @@ import (
 
 	"github.com/grimdork/creo/internal/fiat"
 )
-
-// ManifestFile pairs a source path with its install destination for package
-// contents. Src is relative to the fiat file directory; Dst is the absolute
-// or relative install path inside the package.
-type ManifestFile struct {
-	Dst string
-	Src string
-}
 
 // PackageManifest holds metadata and file lists parsed from a manifest.ini
 // file. It describes package metadata, dependencies, extra files, scripts,
@@ -32,8 +24,9 @@ type PackageManifest struct {
 	Recommends []string
 	Suggests   []string
 
-	Files   []ManifestFile
-	Scripts map[string]string
+	Files     []fiat.ManifestFile
+	Downloads []fiat.ManifestFile
+	Scripts   map[string]string
 
 	ArchOverrides map[string]*PackageManifest
 }
@@ -80,6 +73,8 @@ func parseManifest(path string) (*PackageManifest, error) {
 					m.Priority = v
 				case "description":
 					m.Description = v
+				default:
+					// Unknown package keys are ignored.
 				}
 			}
 
@@ -119,7 +114,14 @@ func parseManifest(path string) (*PackageManifest, error) {
 		case "files":
 			for _, k := range sec.order {
 				for _, v := range sec.fields[k] {
-					m.Files = append(m.Files, ManifestFile{Dst: k, Src: v})
+					m.Files = append(m.Files, fiat.ManifestFile{Dst: k, Src: v})
+				}
+			}
+
+		case "download":
+			for _, k := range sec.order {
+				for _, v := range sec.fields[k] {
+					m.Downloads = append(m.Downloads, fiat.ManifestFile{Dst: v, Src: k})
 				}
 			}
 
@@ -171,7 +173,7 @@ func parseManifest(path string) (*PackageManifest, error) {
 						if k == "preinstall" || k == "postinstall" || k == "preremove" || k == "postremove" {
 							om.Scripts[k] = v
 						} else {
-							om.Files = append(om.Files, ManifestFile{Dst: k, Src: v})
+							om.Files = append(om.Files, fiat.ManifestFile{Dst: k, Src: v})
 						}
 					}
 				}

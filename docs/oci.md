@@ -118,6 +118,27 @@ deploy: oci:ghcr OWNER=myorg
 Explicit `repo=`, `ociuser=`, `ocicred=`, or `region=` always override
 the alias defaults.
 
+## Extra files
+
+Extra files (libraries, data files, config) can be added to the image
+via a shared [manifest.ini](manifest.md):
+
+```ini
+[files]
+/usr/lib/libfoo.so = lib/libfoo.so
+
+[download]
+/usr/lib/libbar.so = https://example.com/libbar.so
+```
+
+The `[files]` section copies local files into the image at the
+specified destination path.  The `[download]` section fetches URLs
+at build time and places them in the image.  Files are added as
+individual layers in the order they appear in the manifest.
+
+Without a manifest.ini, no extra files are added — only the binary
+and CA certificate (if configured) are included.
+
 ## Base image caching
 
 Base images (`from=`) are pulled once and cached at

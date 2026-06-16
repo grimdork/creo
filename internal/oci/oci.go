@@ -39,6 +39,15 @@ type Config struct {
 	OS         string
 	SBOM       bool
 	Entrypoint []string
+	Files      []ExtraFile
+}
+
+// ExtraFile describes a file to include in the image. Src is a local path
+// or URL; Dst is the destination path inside the image.
+type ExtraFile struct {
+	Src   string
+	Dst   string
+	IsURL bool
 }
 
 func digestPath(path string) string {
@@ -106,6 +115,17 @@ func Build(cfg Config) (v1.Image, error) {
 			return nil, fmt.Errorf("CA certs: %w", err)
 		}
 		img, err = mutate.AppendLayers(img, cl)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, ef := range cfg.Files {
+		fl, err := extraFileLayer(ef.Src, ef.Dst, ef.IsURL)
+		if err != nil {
+			return nil, fmt.Errorf("extra file %q: %w", ef.Dst, err)
+		}
+		img, err = mutate.AppendLayers(img, fl)
 		if err != nil {
 			return nil, err
 		}
@@ -382,4 +402,38 @@ func directoryLayer(srcDir, appDir string) (v1.Layer, error) {
 	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 	})
+}
+
+func extraFileLayer(src, dst string, isURL bool) (v1.Layer, error) {
+	var data []byte
+	var mode int64 = 0644
+
+	if isURL {
+		resp, err := httpClient.Get(src)
+		if err != nil {
+			return nil, fmt.Errorf("downloading %s: %w", src, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("downloading %s: %s", src, resp.Status)
+		}
+		data, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", src, err)
+		}
+	} else {
+		fi, err := os.Stat(src)
+		if err != nil {
+			return nil, fmt.Errorf("stat %s: %w", src, err)
+		}
+		if fi.Mode()&0111 != 0 {
+			mode = 0755
+		}
+		data, err = os.ReadFile(src)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", src, err)
+		}
+	}
+
+	return layerFromBytes(dst, data, mode)
 }

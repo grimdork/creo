@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/grimdork/climate/arg"
-	"github.com/grimdork/creo/internal/lang"
+	"github.com/grimdork/creo/internal/targets"
 )
 
 func TestGenerateCompletion(t *testing.T) {
@@ -99,8 +99,8 @@ func TestInitProjectNoLangs(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	if err := lang.InitProject([]string{}, false, false); err != nil {
-		t.Fatalf("lang.InitProject returned error: %v", err)
+	if err := targets.InitProject([]string{}, false, false); err != nil {
+		t.Fatalf("targets.InitProject returned error: %v", err)
 	}
 
 	if _, err := os.Stat("fiat"); err != nil {
@@ -119,8 +119,8 @@ func TestInitProjectGo(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	if err := lang.InitProject([]string{"go"}, false, false); err != nil {
-		t.Fatalf("lang.InitProject returned error: %v", err)
+	if err := targets.InitProject([]string{"go"}, false, false); err != nil {
+		t.Fatalf("targets.InitProject returned error: %v", err)
 	}
 
 	if _, err := os.Stat("fiat"); err != nil {
@@ -142,7 +142,7 @@ func TestInitProjectUnknown(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	err = lang.InitProject([]string{"zig"}, false, false)
+	err = targets.InitProject([]string{"zig"}, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown language")
 	}
@@ -167,8 +167,8 @@ func TestInitProjectForceRemovesCreo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := lang.InitProject([]string{}, true, false); err != nil {
-		t.Fatalf("lang.InitProject returned error: %v", err)
+	if err := targets.InitProject([]string{}, true, false); err != nil {
+		t.Fatalf("targets.InitProject returned error: %v", err)
 	}
 
 	if _, err := os.Stat(".creo"); err == nil {

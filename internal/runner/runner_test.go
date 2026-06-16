@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/grimdork/creo/internal/fiat"
-	"github.com/grimdork/creo/internal/lang"
+	"github.com/grimdork/creo/internal/targets"
 	"github.com/grimdork/creo/internal/util"
 )
 
@@ -30,7 +30,7 @@ func parseAndApply(t *testing.T, dir string) *fiat.File {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := lang.Apply(f); err != nil {
+	if err := targets.Apply(f); err != nil {
 		t.Fatal(err)
 	}
 	return f
@@ -192,7 +192,7 @@ func TestCrossEnv(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := lang.CrossEnv(tt.lang, tt.arch, tt.osval)
+		got := targets.CrossEnv(tt.lang, tt.arch, tt.osval)
 		if len(got) != len(tt.want) {
 			t.Errorf("CrossEnv(%q, %q, %q) = %v, want %v", tt.lang, tt.arch, tt.osval, got, tt.want)
 			continue
