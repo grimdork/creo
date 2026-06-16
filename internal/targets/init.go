@@ -833,6 +833,11 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 		if err := runGoModTidy("."); err != nil && verbose {
 			fx.Println("  {warning}go mod tidy: {}{@}", err)
 		}
+	case LangRust:
+		// Cargo.toml.tmpl handles project metadata
+		// No cargo init needed — template provides all files
+	case LangC, LangCxx:
+		// Template provides source files, no project init needed
 	}
 	return WriteIgnores([]string{"/build", "/.creo", "/tmp"}, verbose)
 }

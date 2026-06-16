@@ -1,0 +1,43 @@
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    let mut name = String::from("world");
+    let mut count = 1usize;
+    let mut verbose = false;
+    let mut files: Vec<String> = Vec::new();
+    let mut i = 1;
+
+    while i < args.len() {
+        match args[i].as_str() {
+            "--verbose" | "-v" => verbose = true,
+            "--name" | "-n" => {
+                i += 1;
+                if i < args.len() {
+                    name = args[i].clone();
+                }
+            }
+            "--count" | "-c" => {
+                i += 1;
+                if i < args.len() {
+                    count = args[i].parse().unwrap_or(1);
+                }
+            }
+            arg if arg.starts_with('-') => {
+                eprintln!("Usage: $PROJECT [--verbose] [--name name] [--count n] [files...]");
+                std::process::exit(1);
+            }
+            f => files.push(f.clone()),
+        }
+        i += 1;
+    }
+
+    for _ in 0..count {
+        println!("Hello, {}!", name);
+    }
+
+    if verbose {
+        println!("Count: {}", count);
+        println!("Files: {:?}", files);
+    }
+}

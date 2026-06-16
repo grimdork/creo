@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+int main(int argc, char **argv) {
+    const char *name = "world";
+    int count = 1;
+    int verbose = 0;
+    int opt;
+
+    while ((opt = getopt(argc, argv, "vn:c:")) != -1) {
+        switch (opt) {
+        case 'v':
+            verbose = 1;
+            break;
+        case 'n':
+            name = optarg;
+            break;
+        case 'c':
+            count = atoi(optarg);
+            if (count < 1) count = 1;
+            break;
+        default:
+            fprintf(stderr, "Usage: $PROJECT [-v] [-n name] [-c count] [files...]\n");
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < count; i++)
+        printf("Hello, %s!\n", name);
+
+    if (verbose) {
+        printf("Count: %d\n", count);
+        printf("Args:");
+        for (int i = optind; i < argc; i++)
+            printf(" %s", argv[i]);
+        printf("\n");
+    }
+    return 0;
+}

@@ -52,6 +52,10 @@ func ListTemplates(lang string) ([]Template, error) {
 	var list []Template
 	seen := map[string]bool{}
 
+	seenKey := func(t *Template) string {
+		return t.Language + "/" + t.Name
+	}
+
 	addFromDir := func(root string) error {
 		entries, err := os.ReadDir(root)
 		if err != nil {
@@ -65,10 +69,10 @@ func ListTemplates(lang string) ([]Template, error) {
 			if err != nil {
 				continue
 			}
-			if seen[t.Name] {
+			if seen[seenKey(t)] {
 				continue
 			}
-			seen[t.Name] = true
+			seen[seenKey(t)] = true
 			list = append(list, *t)
 		}
 		return nil
@@ -87,10 +91,10 @@ func ListTemplates(lang string) ([]Template, error) {
 			if err != nil {
 				continue
 			}
-			if seen[t.Name] {
+			if seen[seenKey(t)] {
 				continue
 			}
-			seen[t.Name] = true
+			seen[seenKey(t)] = true
 			list = append(list, *t)
 		}
 	}

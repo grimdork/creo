@@ -1,0 +1,56 @@
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include <unistd.h>
+
+static int cmd_serve(int argc, char **argv) {
+    int port = 8080;
+    std::string host = "127.0.0.1";
+    int opt;
+    while ((opt = getopt(argc, argv, "p:h:")) != -1) {
+        switch (opt) {
+        case 'p': port = std::atoi(optarg); break;
+        case 'h': host = optarg; break;
+        default: return 1;
+        }
+    }
+    std::cout << "http://" << host << ":" << port << std::endl;
+    return 0;
+}
+
+static int cmd_config(int argc, char **argv) {
+    if (argc > 1 && argv[1] == std::string("--show")) {
+        std::cout << "port=8080\nhost=127.0.0.1" << std::endl;
+    } else if (argc > 2 && argv[1] == std::string("--set")) {
+        std::cout << "set: " << argv[2] << std::endl;
+    } else {
+        std::cerr << "Usage: $PROJECT config --show|--set key=value" << std::endl;
+        return 1;
+    }
+    return 0;
+}
+
+static void cmd_version() {
+    std::cout << "$PROJECT v$VERSION" << std::endl;
+}
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        std::cerr << "Usage: $PROJECT <command> [options]" << std::endl;
+        std::cerr << "Commands: serve, config, version" << std::endl;
+        return 1;
+    }
+
+    std::string cmd = argv[1];
+    if (cmd == "serve")
+        return cmd_serve(argc - 1, argv + 1);
+    if (cmd == "config")
+        return cmd_config(argc - 1, argv + 1);
+    if (cmd == "version") {
+        cmd_version();
+        return 0;
+    }
+
+    std::cerr << "unknown command: " << cmd << std::endl;
+    return 1;
+}
