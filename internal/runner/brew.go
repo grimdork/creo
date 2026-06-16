@@ -104,7 +104,8 @@ end
 		cloneURL := fmt.Sprintf("https://x-access-token:%s@github.com/%s.git", token, brewTap)
 
 		if out, err := exec.Command("git", "clone", cloneURL, tapDir).CombinedOutput(); err != nil {
-			errCh <- fmt.Errorf("%s: cloning tap %s: %s", f.Path(), brewTap, strings.TrimSpace(string(out)))
+			errOutput := strings.ReplaceAll(string(out), token, "***")
+			errCh <- fmt.Errorf("%s: cloning tap %s: %s", f.Path(), brewTap, strings.TrimSpace(errOutput))
 			return
 		}
 

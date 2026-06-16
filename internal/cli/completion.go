@@ -26,7 +26,7 @@ const targetsHelper = `__creo_targets() {
 }`
 
 const langsHelper = `__creo_langs() {
-	COMPREPLY+=( $(compgen -W "go c cxx cpp rust python node typescript java kotlin gradle oci" -- "$cur") )
+	COMPREPLY+=( $(compgen -W "go tinygo c cxx cpp rust python node typescript java kotlin gradle oci archive deb rpm brew" -- "$cur") )
 }`
 
 const completionFunc = `_creo() {

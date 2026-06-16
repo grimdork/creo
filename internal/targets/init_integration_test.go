@@ -51,7 +51,7 @@ func TestInitWithTemplateAll(t *testing.T) {
 			restore := chdir(t, dir)
 			defer restore()
 
-			err := InitProjectWithTemplate(tt.lang, tt.name, false, false)
+			err := InitProjectWithTemplate(tt.lang, tt.name, nil, false, false)
 			if err != nil {
 				t.Fatalf("InitProjectWithTemplate(%q, %q): %v", tt.lang, tt.name, err)
 			}
@@ -108,7 +108,7 @@ func TestInitWithTemplateNotFound(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProjectWithTemplate("go", "nonexistent", false, false)
+	err := InitProjectWithTemplate("go", "nonexistent", nil, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown template")
 	}
@@ -122,12 +122,12 @@ func TestInitWithTemplateLanguageMismatch(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProjectWithTemplate("rust", "basic", false, false)
+	err := InitProjectWithTemplate("rust", "basic", nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = InitProjectWithTemplate("go", "basic", false, false)
+	err = InitProjectWithTemplate("go", "basic", nil, false, false)
 	if err != nil {
 		t.Fatalf("expected success, got %v", err)
 	}
@@ -138,7 +138,7 @@ func TestInitWithTemplateGoVersion(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProjectWithTemplate("go", "basic", false, false)
+	err := InitProjectWithTemplate("go", "basic", nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestInitWithTemplateForceOverwrites(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProjectWithTemplate("c", "basic", false, false)
+	err := InitProjectWithTemplate("c", "basic", nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestInitWithTemplateForceOverwrites(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = InitProjectWithTemplate("c", "basic", true, false)
+	err = InitProjectWithTemplate("c", "basic", nil, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestInitWithTemplateVarExpansion(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProjectWithTemplate("go", "basic", false, false)
+	err := InitProjectWithTemplate("go", "basic", nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestInitWithTemplateKnownTemplatesCoverAllLanguages(t *testing.T) {
 			restore := chdir(t, dir)
 			defer restore()
 
-			err := InitProjectWithTemplate(lang, "basic", false, false)
+			err := InitProjectWithTemplate(lang, "basic", nil, false, false)
 			if err != nil {
 				t.Fatalf("InitProjectWithTemplate(%q, basic): %v", lang, err)
 			}

@@ -1,11 +1,13 @@
 package oci
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/term"
 )
@@ -44,11 +46,13 @@ func Login() error {
 	var password string
 	passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
-		var pass string
-		if _, err := fmt.Scanln(&pass); err != nil {
+		// term.ReadPassword fails on non-TTY (pipes, CI).
+		// Read from stdin directly — no terminal echo to suppress.
+		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		if err != nil {
 			return fmt.Errorf("reading password: %w", err)
 		}
-		password = pass
+		password = strings.TrimRight(line, "\r\n")
 	} else {
 		password = string(passwordBytes)
 	}

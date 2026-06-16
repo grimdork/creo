@@ -34,6 +34,7 @@ func main() {
 	opt.SetFlag(arg.GroupDefault, "", "status", "Check cache state when showing graph")
 	opt.SetFlag(arg.GroupDefault, "g", "git", "Initialise a git repository and commit")
 	opt.SetOption(arg.GroupDefault, "o", "output", "Build output directory", "", false, arg.VarString, nil)
+	opt.SetOption(arg.GroupDefault, "D", "define", "Override template variables (key=val, comma-separated)", "", false, arg.VarString, nil)
 	opt.SetOption(arg.GroupDefault, "T", "template", "Project template name (use with -i)", "", false, arg.VarString, nil)
 	opt.SetOption(arg.GroupDefault, "", "save-template", "Extract embedded template to user dir (lang/name)", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "list-templates", "List available project templates")
@@ -81,7 +82,7 @@ func main() {
 			fail(err)
 		}
 	case opt.GetBool("i"):
-		if err := cli.RunInit(opt.GetPosStringSlice("targets"), opt.GetString("template"), opt.GetBool("F"), opt.GetBool("v")); err != nil {
+		if err := cli.RunInit(opt.GetPosStringSlice("targets"), opt.GetString("template"), opt.GetString("define"), opt.GetBool("F"), opt.GetBool("v")); err != nil {
 			fail(err)
 		}
 		if opt.GetBool("g") {

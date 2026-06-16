@@ -130,7 +130,7 @@ import (
 )
 
 func main() {
-	fx.Println("{bold}{} {} {}/{}{@}", Name, version, runtime.GOOS, runtime.GOARCH)
+	fmt.Printf("%s %s %s/%s\n", Name, version, runtime.GOOS, runtime.GOARCH)
 }
 `
 	if err := tryWrite(filepath.Join(dir, "main.go"), mainContent, force, verbose, "main.go"); err != nil {
@@ -743,7 +743,7 @@ func useBasicTemplate(langName string) bool {
 // InitProject dispatches to the correct Init* function based on the requested language list.
 // When a "basic" template exists for a language, it delegates to InitProjectWithTemplate
 // instead of the hardcoded Init* function.
-func InitProject(langs []string, force, verbose bool) error {
+func InitProject(langs []string, extraVars map[string]string, force, verbose bool) error {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
 			if err := os.RemoveAll(".creo"); err != nil {
@@ -773,53 +773,53 @@ func InitProject(langs []string, force, verbose bool) error {
 		switch langName {
 		case LangGo:
 			if ver == "" && useBasicTemplate(langName) {
-				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+				err = InitProjectWithTemplate(langName, "basic", extraVars, force, verbose)
 			} else {
 				ignores, err = Init(".", ver, force, verbose)
 			}
 		case LangTinyGo:
 			if useBasicTemplate(langName) {
-				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+				err = InitProjectWithTemplate(langName, "basic", extraVars, force, verbose)
 			} else {
 				ignores, err = InitTinyGo(".", force, verbose)
 			}
 		case LangC:
 			if useBasicTemplate(langName) {
-				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+				err = InitProjectWithTemplate(langName, "basic", extraVars, force, verbose)
 			} else {
 				ignores, err = InitC(".", force, verbose)
 			}
-	case LangCxx, LangCpp:
-		tmplLang := langName
-		if langName == LangCpp {
-			tmplLang = LangCxx
-		}
-		if useBasicTemplate(tmplLang) {
-			err = InitProjectWithTemplate(tmplLang, "basic", force, verbose)
-		} else {
-			ignores, err = InitCxx(".", force, verbose)
-		}
+		case LangCxx, LangCpp:
+			tmplLang := langName
+			if langName == LangCpp {
+				tmplLang = LangCxx
+			}
+			if useBasicTemplate(tmplLang) {
+				err = InitProjectWithTemplate(tmplLang, "basic", extraVars, force, verbose)
+			} else {
+				ignores, err = InitCxx(".", force, verbose)
+			}
 		case LangRust:
 			if useBasicTemplate(langName) {
-				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+				err = InitProjectWithTemplate(langName, "basic", extraVars, force, verbose)
 			} else {
 				ignores, err = InitRust(".", force, verbose)
 			}
 		case LangPython:
 			if useBasicTemplate(langName) {
-				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+				err = InitProjectWithTemplate(langName, "basic", extraVars, force, verbose)
 			} else {
 				ignores, err = InitPython(".", force, verbose)
 			}
 		case LangNode, LangTS:
 			if useBasicTemplate("node") {
-				err = InitProjectWithTemplate("node", "basic", force, verbose)
+				err = InitProjectWithTemplate("node", "basic", extraVars, force, verbose)
 			} else {
 				ignores, err = InitNode(".", force, verbose)
 			}
 		case LangJava, LangKotlin, LangGradle:
 			if useBasicTemplate("java") {
-				err = InitProjectWithTemplate("java", "basic", force, verbose)
+				err = InitProjectWithTemplate("java", "basic", extraVars, force, verbose)
 			} else {
 				ignores, err = InitJava(".", force, verbose)
 			}
@@ -852,7 +852,7 @@ func InitProject(langs []string, force, verbose bool) error {
 	return nil
 }
 
-func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
+func InitProjectWithTemplate(lang, tmplName string, extraVars map[string]string, force, verbose bool) error {
 	tmpl, err := templates.ResolveTemplate(lang, tmplName)
 	if err != nil {
 		return err
@@ -862,9 +862,14 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 		return fmt.Errorf("template %q targets language %q, not %q", tmplName, tmpl.Language, lang)
 	}
 
-	extraVars := map[string]string{
-		"PROJECT": dirProjectName(),
-		"VERSION": versionFromGit(),
+	if extraVars == nil {
+		extraVars = make(map[string]string)
+	}
+	if _, ok := extraVars["PROJECT"]; !ok {
+		extraVars["PROJECT"] = dirProjectName()
+	}
+	if _, ok := extraVars["VERSION"]; !ok {
+		extraVars["VERSION"] = versionFromGit()
 	}
 	if err := templates.ApplyTemplate(tmpl, ".", extraVars, force, verbose); err != nil {
 		return err

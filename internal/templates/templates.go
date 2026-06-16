@@ -35,12 +35,21 @@ func isEmbedded(dir string) bool {
 }
 
 func ResolveTemplate(lang, name string) (*Template, error) {
+	lang = filepath.Clean(lang)
+	name = filepath.Clean(name)
+	if strings.Contains(lang, "..") || strings.Contains(name, "..") {
+		return nil, fmt.Errorf("invalid template language or name")
+	}
+
 	ud, err := userTemplateDir()
 	if err != nil {
 		return nil, err
 	}
 
 	userPath := filepath.Join(ud, lang, name)
+	if !strings.HasPrefix(userPath, ud) {
+		return nil, fmt.Errorf("invalid template path")
+	}
 	if fi, err := os.Stat(userPath); err == nil && fi.IsDir() {
 		return loadTemplate(userPath)
 	}
@@ -344,10 +353,6 @@ func loadEmbeddedTemplate(prefix string) (*Template, error) {
 		}
 	}
 	return t, nil
-}
-
-type iniSection struct {
-	lines []string
 }
 
 func parseTemplateINI(data, dir string) (*Template, error) {

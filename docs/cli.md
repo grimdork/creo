@@ -16,6 +16,7 @@ Targets are positional: `creo debug test` runs both.  Without targets,
 | `-o`, `--output` | Build output directory (default: `build`) |
 | `-F`, `--force` | Force rebuild |
 | `-T`, `--template` | Project template name, used with `-i` (e.g. `creo -i go -T arg`); see [templates.md](templates.md) |
+| `-D`, `--define` | Override template variables, comma-separated `key=val` pairs (e.g. `-D VERSION=1.0,PORT=8080`); see [templates.md](templates.md) |
 | `--save-template` | Extract an embedded template to the user template directory (`lang/name`); see [templates.md](templates.md) |
 | `--list-templates` | List available project templates; see [templates.md](templates.md) |
 | `-l`, `--list` | List available targets with descriptions |
@@ -25,7 +26,7 @@ Targets are positional: `creo debug test` runs both.  Without targets,
 | `-n`, `--dry-run` | Print commands and install actions without executing |
 | `-j`, `--jobs` | Parallel jobs for multi-arch builds (default: CPU count) |
 | `-r`, `--recursive` | Walk subdirectories for fiat files |
-| `-c`, `--clean` | Remove target binaries and installed files |
+| `-c`, `--clean` | Remove build directory and temporary files |
 | `-v`, `--verbose` | Show what's happening |
 | `-L`, `--login` | Store registry credentials in `~/.docker/config.json` |
 | `-I`, `--inspect` | Inspect a remote OCI image manifest and config |

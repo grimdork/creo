@@ -669,7 +669,7 @@ func TestInitProjectNoLangs(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProject([]string{}, false, false)
+	err := InitProject([]string{}, nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -683,7 +683,7 @@ func TestInitProjectGo(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProject([]string{"go"}, false, false)
+	err := InitProject([]string{"go"}, nil, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -700,7 +700,7 @@ func TestInitProjectUnknown(t *testing.T) {
 	restore := chdir(t, dir)
 	defer restore()
 
-	err := InitProject([]string{"zig"}, false, false)
+	err := InitProject([]string{"zig"}, nil, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown language")
 	}

@@ -31,7 +31,7 @@ func TestGenerateCompletion(t *testing.T) {
 	if !strings.Contains(result, "complete -F _creo") {
 		t.Fatal("expected complete -F _creo line")
 	}
-	if !strings.Contains(result, "go c cxx cpp rust python node typescript java kotlin gradle oci") {
+	if !strings.Contains(result, "go tinygo c cxx cpp rust python node typescript java kotlin gradle oci archive deb rpm brew") {
 		t.Fatal("expected language list in completion")
 	}
 }
@@ -100,7 +100,7 @@ func TestInitProjectNoLangs(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	if err := targets.InitProject([]string{}, false, false); err != nil {
+	if err := targets.InitProject([]string{}, nil, false, false); err != nil {
 		t.Fatalf("targets.InitProject returned error: %v", err)
 	}
 
@@ -120,7 +120,7 @@ func TestInitProjectGo(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	if err := targets.InitProject([]string{"go"}, false, false); err != nil {
+	if err := targets.InitProject([]string{"go"}, nil, false, false); err != nil {
 		t.Fatalf("targets.InitProject returned error: %v", err)
 	}
 
@@ -143,7 +143,7 @@ func TestInitProjectUnknown(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	err = targets.InitProject([]string{"zig"}, false, false)
+	err = targets.InitProject([]string{"zig"}, nil, false, false)
 	if err == nil {
 		t.Fatal("expected error for unknown language")
 	}
@@ -168,7 +168,7 @@ func TestInitProjectForceRemovesCreo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := targets.InitProject([]string{}, true, false); err != nil {
+	if err := targets.InitProject([]string{}, nil, true, false); err != nil {
 		t.Fatalf("targets.InitProject returned error: %v", err)
 	}
 

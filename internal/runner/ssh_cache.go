@@ -69,8 +69,21 @@ func parseRemoteCacheURL(raw string) (*remoteCache, error) {
 	return &remoteCache{user: user, host: host, path: path}, nil
 }
 
+func sanitisePathComponent(s string) string {
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.' {
+			return r
+		}
+		return '_'
+	}, s)
+}
+
 func (r *remoteCache) remotePath(elem ...string) string {
-	parts := append([]string{r.path}, elem...)
+	safe := make([]string, len(elem))
+	for i, e := range elem {
+		safe[i] = sanitisePathComponent(e)
+	}
+	parts := append([]string{r.path}, safe...)
 	return r.user + "@" + r.host + ":" + strings.Join(parts, "/")
 }
 
