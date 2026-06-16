@@ -2,8 +2,7 @@
 
 ## Remote build cache via SSH+rsync
 
-A shared build cache for teams, using nothing but SSH and rsync on a
-plain Linux/BSD server. No new daemons, no SDK dependencies.
+A shared build cache for teams, using nothing but SSH and rsync on a plain Linux/BSD server. No new daemons, no SDK dependencies.
 
 ### Storage layout
 
@@ -54,6 +53,12 @@ CLI flag (overrides fiat): `--cache-remote user@host:/path`
 Env var (overrides all): `CREO_CACHE_REMOTE`
 
 SSH key config lives in `~/.ssh/config` -- no code change needed.
+
+**Security:** `root@` connections are **always rejected** for SSH cache
+operations.  Root access is neither needed nor permitted for caching.
+The same `--cache-remote` flag also appears in bootstrap (which allows
+root explicitly), so this rule prevents accidentally reusing a root
+connection for cache reads/writes.
 
 ### GC (cron tool)
 
@@ -242,6 +247,263 @@ L3: SSH+rsync     (remote, for large/incremental artifacts)
 
 All three share the same input hash computation.  L2 and L3 are
 optional and independent of each other.
+
+## Init templates
+
+Extend `creo -i` with `--template` to scaffold a ready-to-build
+project including fiat file, source code, and README:
+
+```
+creo -i go --template web       # Go HTTP server with Dockerfile
+creo -i python --template cli   # Python CLI with uv + argparse
+creo -i rust --template lib     # Rust library with Cargo + fiat
+```
+
+### Template resolution
+
+```
+1. --template flag (overrides)
+2. ~/.config/creo/templates/<language>/<name>/
+3. built-in templates bundled in the binary (embedded fs)
+```
+
+Built-in templates ship with the binary (zero network).  Users extend
+by placing directories in `~/.config/creo/templates/`.
+
+### Template format
+
+A template directory contains:
+
+| File | Required | Purpose |
+|------|----------|---------|
+| `template.ini` | yes | Metadata: name, description, language, files |
+| `src/` | yes | Source files to copy (file names support `$VAR` expansion) |
+| `fiat.tmpl` | no | Fiat file template (variables expanded at scaffold time) |
+| `README.md.tmpl` | no | README template |
+| `.gitignore.tmpl` | no | Gitignore template |
+
+Example `template.ini`:
+
+```ini
+[template]
+name=web
+description=Go HTTP server with OCI
+language=go
+files=main.go, go.mod.tmpl
+
+[vars]
+PORT=8080
+OCI_REPO=ghcr.io/$PROJECT
+```
+
+## Local dev server
+
+A first-class dev-loop built into creo, no external watchers needed:
+
+```
+creo run [target]     # build then execute
+creo dev [target]     # watch, rebuild, restart on change
+```
+
+### `creo run`
+
+1. Build `target` (default: `build`)
+2. Exec the binary, passing extra `--` args through
+
+```
+creo run build -- -port 9090 -debug
+creo run build -- --help
+```
+
+For interpreted languages (Python, Node), `creo run` invokes the
+interpreter directly with the project entrypoint.
+
+### `creo dev`
+
+Like `creo -w` but also starts the process and restarts it on rebuild:
+
+1. Build target
+2. Start binary (stdout/stderr forwarded, stdin connected)
+3. Watch sources
+4. On change: send SIGTERM, wait 3s, SIGKILL, rebuild, restart
+
+Graceful shutdown lets the old process drain connections before the
+new one starts.  Flags:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--sig` | `SIGTERM` | Signal to send on restart |
+| `--timeout` | `3s` | Graceful shutdown wait |
+| `--no-restart` | false | Exit on first crash instead of restarting |
+
+### Process management
+
+The dev server tracks the child PID, forwards signals (`SIGINT` from
+Ctrl-C goes to creo, which forwards to the child before exiting).
+Windows support is a non-goal (use WSL).
+
+## Platform config in fiat
+
+Some projects need different settings per OS (e.g. different library
+paths, compiler flags, or commands).  Add a `[platform:<os>]` block
+in any target to override properties for a specific OS:
+
+```fiat
+build: c
+    cmd=cc -o $bin $sources
+
+    [platform:darwin]
+    cmd=cc -o $bin sources/*.c -framework CoreFoundation
+
+    [platform:linux]
+    cmd=cc -o $bin $sources -lrt
+```
+
+`<os>` matches `runtime.GOOS` values (`darwin`, `linux`, `freebsd`,
+etc.).  Platform blocks can appear inside any target and override any
+property.  Outside targets, platform blocks can set file-level
+variables:
+
+```fiat
+[platform:darwin]
+$CC=clang
+$EXTRA_FLAGS=-framework CoreFoundation
+
+[platform:linux]
+$CC=gcc
+$EXTRA_FLAGS=-lrt
+
+build: c
+    cmd=$CC -o $bin $sources $EXTRA_FLAGS
+```
+
+### Resolution
+
+1. Target-level `[platform:<os>]` block (highest priority)
+2. File-level `[platform:<os>]` block
+3. Default (non-platform) property value
+
+Platform blocks are transparent during cross-compilation (`arch=`/`os=`
+on the target) — the build loop picks the block matching the current
+combo's OS.
+
+## CI generation
+
+Auto-generate CI pipeline files from fiat targets:
+
+```
+creo init --ci github-actions     # emits .github/workflows/creo.yml
+creo init --ci gitlab             # emits .gitlab-ci.yml
+creo init --ci woodpecker         # emits .woodpecker.yml
+```
+
+The generator reads all targets, their `arch=`/`os=` combos, and
+dependency order, then emits a matrix build.  Example for a project
+with Go + OCI targets:
+
+```yaml
+# .github/workflows/creo.yml (auto-generated)
+name: creo CI
+on: [push, pull_request]
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]     # derived from fiat targets
+        arch: [amd64, arm64]    # derived from arch= on fiat targets
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: creo build
+      - run: creo image
+```
+
+### Extending
+
+Users write their own generators as shell scripts or Go plugins
+(resolved from `~/.config/creo/ci/`).  The generator receives a JSON
+representation of all targets on stdin.
+
+## Remote builds
+
+Bootstrap build tools on a remote machine, installing only what the
+local project's fiat files require:
+
+```
+creo bootstrap ssh://[user@]host[:port] [flags]
+```
+
+### What it does
+
+1. Parses all fiat files in the local project
+2. Collects unique language/target types (go, c, rust, python, etc.)
+3. Maps each to required packages or toolchains
+4. SSHs into the remote, detects OS and distro
+5. Installs missing tools (or prints instructions if it can't)
+6. Optionally syncs source and runs a test build
+
+### Root vs non-root
+
+| Connection | Go | C/C++ | Rust | Python | nfpm |
+|---|---|---|---|---|---|
+| `root@host` | system Go via package manager, or download from go.dev | `build-essential` / `Development Tools` | `rustup` system-wide | system python3 + pip | `go install` |
+| `user@host` | download tarball to `~/go/` | print: *"ask an admin for build-essential, or use root@host"* | `curl rustup.rs \| sh` | `uv` in user dir | `go install` in user GOBIN |
+
+### Tool-to-package mapping
+
+| Language | Debian/Ubuntu | RHEL/Fedora | Alpine |
+|---|---|---|---|
+| go | `golang-go` or tarball from go.dev | `golang` or tarball | `go` |
+| c/c++ | `build-essential` | `"Development Tools" group` | `build-base` |
+| rust | `curl rustup.rs \| sh` | `curl rustup.rs \| sh` | `curl rustup.rs \| sh` |
+| python | `python3 python3-pip` | `python3 python3-pip` | `python3 py3-pip` |
+| node | `nodejs npm` | `nodejs npm` | `nodejs npm` |
+| java | `default-jdk` | `java-latest-openjdk` | `openjdk17` |
+| tinygo | tarball from tinygo.org | tarball | tarball |
+| nfpm | `go install ...` | `go install ...` | `go install ...` |
+
+### URL format
+
+- `ssh://user@host:22/path` — explicit port and optional remote
+  working directory
+- `user@host` — shorthand (defaults port 22, no remote path)
+
+### Security
+
+- `root@` accepted for `bootstrap` only (system-wide installs
+  require it)
+- `root@` **always rejected** for SSH cache (`--cache-remote`,
+  `cache-remote=`) — separate enforced check before any rsync
+  operation
+- Connection uses `~/.ssh/config` transparently (same mechanism
+  as rsync cache)
+
+### Output
+
+```
+$ creo bootstrap ssh://buildbox.local
+🔍 Parsed languages: go, c
+📡 Connecting to buildbox.local...
+🔧 Detected OS: Debian 12
+✅ Go (go1.24.3) — already installed
+⏳ build-essential — installing via apt...
+✅ build-essential installed
+✨ Done. Run 'creo build' on the remote to verify.
+```
+
+### Optional flags
+
+| Flag | Description |
+|------|-------------|
+| `--sync` | rsync the project to the remote before bootstrapping |
+| `--test-build` | run `creo build` on the remote after install |
+| `--user-install` | force user-mode installs even when connected as root |
+
+### Non-root C/C++
+
+Print: *"C/C++ compilers require system packages (build-essential).
+Install via `creo bootstrap ssh://root@host` or ask an admin."*
 
 ## Open questions
 
