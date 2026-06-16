@@ -59,7 +59,10 @@ Files with the `.tmpl` suffix have `$VAR` references expanded using
 [fiat](fiat.md) expansion rules.  The `.tmpl` suffix is stripped from
 the destination filename.
 
-Files without `.tmpl` are copied as-is.
+Files without `.tmpl` are copied as-is.  Note that Go's `//go:embed`
+excludes files whose names begin with `_` or `.`, so `__init__.py.tmpl`
+cannot be used — use an alternative name or rely on implicit namespace
+packages instead.
 
 ### Built-in variables
 
