@@ -15,6 +15,9 @@ Targets are positional: `creo debug test` runs both.  Without targets,
 | `-f`, `--file` | Alternative fiat file path |
 | `-o`, `--output` | Build output directory (default: `build`) |
 | `-F`, `--force` | Force rebuild |
+| `-T`, `--template` | Project template name, used with `-i` (e.g. `creo -i go -T arg`); see [templates.md](templates.md) |
+| `--save-template` | Extract an embedded template to the user template directory (`lang/name`); see [templates.md](templates.md) |
+| `--list-templates` | List available project templates; see [templates.md](templates.md) |
 | `-l`, `--list` | List available targets with descriptions |
 | `-g`, `--git` | Initialise a git repository and commit (works standalone or after `--init`) |
 | `-w`, `--watch` | Watch sources and rebuild on change |
@@ -31,9 +34,6 @@ Targets are positional: `creo debug test` runs both.  Without targets,
 | `--refresh-cacerts` | Re-download cached CA certificates |
 | `--clean-cache` | Remove cached build artifacts |
 | `--completion` | Print bash shell completion script |
-| `-T`, `--template` | Project template name, used with `-i` (e.g. `creo -i go -T arg`) |
-| `--save-template` | Extract an embedded template to the user template directory (`lang/name`) |
-| `--list-templates` | List available project templates |
 | `--no-color` / `--no-colour` | Disable coloured terminal output |
 | `--cache-remote` | SSH remote cache URL (`user@host:path` or `ssh://user@host/path`) |
 | `--cache-stats` | Print L1 (local) and L2 (remote) cache hit/miss statistics |

@@ -8,6 +8,8 @@ creo -i go -T basic
 creo -i python -T cli
 ```
 
+See [cli.md](cli.md) for full flag usage.
+
 Without `-T`, `--init` uses its built-in hardcoded scaffolding.  With
 `-T`, the template system drives all file creation.
 
