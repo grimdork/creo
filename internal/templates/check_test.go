@@ -156,6 +156,55 @@ func TestLoadTemplateMissingFiles(t *testing.T) {
 	}
 }
 
+func TestSaveTemplateRoundTrip(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	if err := SaveTemplate("go/basic", false, false); err != nil {
+		t.Fatalf("SaveTemplate(go/basic): %v", err)
+	}
+
+	ud, err := userTemplateDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	destDir := filepath.Join(ud, "go", "basic")
+
+	for _, f := range []string{"template.ini", "main.go.tmpl", "version.go.tmpl", "fiat.tmpl"} {
+		if _, err := os.Stat(filepath.Join(destDir, f)); err != nil {
+			t.Errorf("missing saved file %s: %v", f, err)
+		}
+	}
+
+	tmpl, err := ResolveTemplate("go", "basic")
+	if err != nil {
+		t.Fatalf("resolving go/basic after save: %v", err)
+	}
+	if tmpl.Dir != destDir {
+		t.Fatalf("expected user template dir %q, got %q", destDir, tmpl.Dir)
+	}
+}
+
+func TestSaveTemplateNotFound(t *testing.T) {
+	err := SaveTemplate("go/nonexistent", false, false)
+	if err == nil {
+		t.Fatal("expected error for nonexistent template")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected 'not found' error, got %q", err.Error())
+	}
+}
+
+func TestSaveTemplateInvalidSpec(t *testing.T) {
+	err := SaveTemplate("invalid", false, false)
+	if err == nil {
+		t.Fatal("expected error for invalid spec")
+	}
+	if !strings.Contains(err.Error(), "expected lang/name") {
+		t.Fatalf("expected format error, got %q", err.Error())
+	}
+}
+
 func TestListAllTemplates(t *testing.T) {
 	tmpls, err := ListTemplates("")
 	if err != nil {
