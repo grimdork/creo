@@ -57,9 +57,11 @@ func CleanCache(dir string) error {
 }
 
 func computeCacheKey(sources []string, cmds []string) (string, error) {
-	sort.Strings(sources)
+	sorted := make([]string, len(sources))
+	copy(sorted, sources)
+	sort.Strings(sorted)
 	h := sha256.New()
-	for _, src := range sources {
+	for _, src := range sorted {
 		data, err := os.ReadFile(src)
 		if err != nil {
 			return "", err
