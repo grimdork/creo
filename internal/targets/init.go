@@ -816,33 +816,25 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 		return fmt.Errorf("template %q targets language %q, not %q", tmplName, tmpl.Language, lang)
 	}
 
-	switch lang {
-	case LangGo:
-		ignores, err := Init(".", "", force, verbose)
-		if err != nil {
-			return err
-		}
-		if err := WriteIgnores(ignores, verbose); err != nil {
-			return err
-		}
-	case LangPython:
-		ignores, err := InitPython(".", force, verbose)
-		if err != nil {
-			return err
-		}
-		if err := WriteIgnores(ignores, verbose); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("templates not yet supported for language %q", lang)
-	}
-
 	extraVars := map[string]string{
 		"PROJECT": dirProjectName(),
 		"VERSION": versionFromGit(),
 		"DATE":    time.Now().UTC().Format(time.RFC3339),
 	}
-	return templates.ApplyTemplate(tmpl, ".", extraVars, force, verbose)
+	if err := templates.ApplyTemplate(tmpl, ".", extraVars, force, verbose); err != nil {
+		return err
+	}
+
+	switch lang {
+	case LangGo:
+		if err := initGoMod(".", dirProjectName(), force, verbose); err != nil {
+			return err
+		}
+		if err := runGoModTidy("."); err != nil && verbose {
+			fx.Println("  {warning}go mod tidy: {}{@}", err)
+		}
+	}
+	return WriteIgnores([]string{"/build", "/.creo", "/tmp"}, verbose)
 }
 
 // WriteIgnores writes or appends unique gitignore lines to .gitignore.

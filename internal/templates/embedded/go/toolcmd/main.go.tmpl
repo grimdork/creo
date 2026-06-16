@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	opt := arg.New("tool", "A CLI with subcommands")
+	opt := arg.New("$PROJECT", "A CLI with subcommands")
 
 	opt.SetCommand("serve", "Run the server", arg.GroupDefault, func(sub *arg.Options) error {
 		sub.SetOption(arg.GroupDefault, "p", "port", "Listen port", 8080, false, arg.VarInt, nil)
@@ -45,7 +45,7 @@ func main() {
 	}, []string{"cfg", "c"})
 
 	opt.SetCommand("version", "Print version", arg.GroupDefault, func(sub *arg.Options) error {
-		fmt.Println("tool v1.0.0")
+		fmt.Println("$PROJECT v1.0.0")
 		return nil
 	}, []string{"v", "ver"})
 

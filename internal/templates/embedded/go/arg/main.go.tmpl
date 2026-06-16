@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	opt := arg.New("demo", "A CLI demonstrating climate/arg")
+	opt := arg.New("$PROJECT", "A CLI demonstrating climate/arg")
 	opt.SetFlag(arg.GroupDefault, "v", "verbose", "Enable verbose output")
 	opt.SetOption(arg.GroupDefault, "n", "name", "Your name", "world", false, arg.VarString, nil)
 	opt.SetOption(arg.GroupDefault, "c", "count", "Repeat count", 1, false, arg.VarInt, nil)
