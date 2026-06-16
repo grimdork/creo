@@ -183,6 +183,14 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				needsRun = true
 			}
 		}
+		if needsRun && opts.CacheRemote != "" && t.Sources != "" {
+			if hash, ok := tryRemoteCache(opts.CacheRemote, name, sources, t.Cmds); ok {
+				if pullAndSave(opts.CacheRemote, hash, name, existsBinPath) {
+					_ = writeCache(dir, name, sources, t.Cmds)
+					needsRun = false
+				}
+			}
+		}
 	}
 
 	if len(t.Install) > 0 {
@@ -292,8 +300,8 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					}
 					if opts.CacheRemote != "" && t.Sources != "" {
 						comboKey := name + "_" + activeArch + "_" + activeOS
-						if hash, ok := tryRemoteCache(opts.CacheRemote, comboKey, dir, sources, t.Cmds); ok {
-							if pullAndSave(opts.CacheRemote, hash, comboKey, dir, c.bin) {
+						if hash, ok := tryRemoteCache(opts.CacheRemote, comboKey, sources, t.Cmds); ok {
+							if pullAndSave(opts.CacheRemote, hash, comboKey, c.bin) {
 								_ = writeCache(dir, comboKey, sources, t.Cmds)
 								outputs.Store(name, activeArch, activeOS, c.bin)
 								if opts.Verbose {
@@ -349,7 +357,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						}
 						if opts.CacheRemote != "" {
 							key, _ := computeCacheKey(sources, t.Cmds)
-							pushRemote(opts.CacheRemote, key, comboKey, c.bin, sources, t.Cmds)
+							pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
 						}
 					}
 				}
@@ -409,7 +417,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 			if opts.CacheRemote != "" {
 				key, _ := computeCacheKey(sources, t.Cmds)
-				pushRemote(opts.CacheRemote, key, name, existsBinPath, sources, t.Cmds)
+				pushRemote(opts.CacheRemote, key, name, existsBinPath, dir, sources, t.Cmds)
 			}
 		}
 

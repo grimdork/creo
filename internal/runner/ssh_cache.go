@@ -143,7 +143,7 @@ func remoteEnsureDir(r *remoteCache, dir string) {
 	_ = mkdirCmd.Run()
 }
 
-func tryRemoteCache(remoteURL, comboKey, dir string, sources, cmds []string) (string, bool) {
+func tryRemoteCache(remoteURL, comboKey string, sources, cmds []string) (string, bool) {
 	remote, err := parseRemoteCacheURL(remoteURL)
 	if err != nil {
 		fx.Fprint(os.Stderr, "  {warning}remote cache: {}{@}\n", err)
@@ -152,7 +152,7 @@ func tryRemoteCache(remoteURL, comboKey, dir string, sources, cmds []string) (st
 	return remote.fetchManifest(comboKey, sources, cmds)
 }
 
-func pullAndSave(remoteURL, hash, comboKey, dir, localBin string) bool {
+func pullAndSave(remoteURL, hash, comboKey, localBin string) bool {
 	remote, err := parseRemoteCacheURL(remoteURL)
 	if err != nil {
 		return false
@@ -164,7 +164,7 @@ func pullAndSave(remoteURL, hash, comboKey, dir, localBin string) bool {
 	return true
 }
 
-func pushRemote(remoteURL, hash, comboKey, localBin string, sources, cmds []string) {
+func pushRemote(remoteURL, hash, comboKey, localBin, dir string, sources, cmds []string) {
 	remote, err := parseRemoteCacheURL(remoteURL)
 	if err != nil {
 		fx.Fprint(os.Stderr, "  {warning}remote cache URL: {}{@}\n", err)
@@ -180,4 +180,7 @@ func pushRemote(remoteURL, hash, comboKey, localBin string, sources, cmds []stri
 		fx.Fprint(os.Stderr, "  {warning}remote cache push: {}{@}\n", err)
 		return
 	}
+
+	localManifest := cachePath(dir, comboKey)
+	_ = remote.uploadManifest(hash, comboKey, localManifest)
 }
