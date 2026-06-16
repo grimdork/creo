@@ -77,12 +77,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 			matches, err := util.GlobFiles(expanded, dir)
 			if err != nil && opts.Verbose {
-				fx.Fprint(os.Stderr, "  {warning}%s: pattern %q: {}%v{@}\n", name, pattern, err)
+				fx.Fprint(os.Stderr, "  {warning}{}: pattern {:q}: {}{@}\n", name, pattern, err)
 			}
 			for _, m := range matches {
 				if err := os.RemoveAll(m); err != nil {
 					if opts.Verbose {
-						fx.Fprint(os.Stderr, "  {red}%s: stale file %q: {}%v{@}\n", name, m, err)
+						fx.Fprint(os.Stderr, "  {red}{}: stale file {:q}: {}{@}\n", name, m, err)
 					}
 				} else if opts.Verbose {
 					fx.Println(`  {cyan}Removed stale {}{@}`, m)
@@ -118,7 +118,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					continue
 				}
 				if !hasCombo(ociArchs, ociOSs, parts[0], parts[1]) {
-					fx.Fprint(os.Stderr, "{warning}%s: dep %q produced %q but target %q restricts to %s/%s{@}\n",
+					fx.Fprint(os.Stderr, "{warning}{}: dep {:q} produced {:q} but target {:q} restricts to {}/{}{@}\n",
 						name, dep, key, t.Name, strings.Join(t.Arch, ","), strings.Join(t.OS, ","))
 				}
 			}
@@ -131,7 +131,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				bd := targets.BuildDir(f)
 				if err := os.RemoveAll(bd); err != nil {
 					if opts.Verbose {
-						fx.Fprint(os.Stderr, "  {red}%s: build dir %q: {}%v{@}\n", name, bd, err)
+						fx.Fprint(os.Stderr, "  {red}{}: build dir {:q}: {}{@}\n", name, bd, err)
 					}
 				} else if opts.Verbose {
 					fx.Println(`  {success}Removed build directory {}{@}`, bd)
@@ -141,12 +141,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 				matches, err := util.GlobFiles(expanded, dir)
 				if err != nil && opts.Verbose {
-					fx.Fprint(os.Stderr, "  {warning}%s: pattern %q: {}%v{@}\n", name, pattern, err)
+					fx.Fprint(os.Stderr, "  {warning}{}: pattern {:q}: {}{@}\n", name, pattern, err)
 				}
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {
-							fx.Fprint(os.Stderr, "  {red}%s: clean %q: {}%v{@}\n", name, m, err)
+							fx.Fprint(os.Stderr, "  {red}{}: clean {:q}: {}{@}\n", name, m, err)
 						}
 					} else if opts.Verbose {
 						fx.Println(`  {cyan}Cleaned {}{@}`, m)
@@ -166,7 +166,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		var err error
 		sources, err = collectFilePaths(t, f, dir)
 		if err != nil {
-			fx.Fprint(os.Stderr, "{warning}%s: source paths: {}%v{@}\n", name, err)
+			fx.Fprint(os.Stderr, "{warning}{}: source paths: {}{@}\n", name, err)
 		}
 	}
 	archs := archOrEmpty(t.Arch)
@@ -296,7 +296,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					comboVars["bin"] = &fiat.Var{Name: "bin", Value: c.bin}
 					if !opts.DryRun && opts.Rebuild && len(t.Cmds) > 0 {
 						if err := os.Remove(c.bin); err != nil && !os.IsNotExist(err) && opts.Verbose {
-							fx.Fprint(os.Stderr, "  {red}%s: remove binary %q: {}%v{@}\n", name, c.bin, err)
+							fx.Fprint(os.Stderr, "  {red}{}: remove binary {:q}: {}{@}\n", name, c.bin, err)
 						}
 					}
 				}
@@ -332,7 +332,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					if t.Sources != "" && multi {
 						comboKey := name + "_" + activeArch + "_" + activeOS
 						if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
-							fx.Fprint(os.Stderr, "  {red}%s: cache write: {}%v{@}\n", name, err)
+							fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
 						}
 					}
 				}
@@ -388,7 +388,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 		if needsRun && !opts.DryRun && !t.IsVirtual && !multi && t.Bin != "" && t.Sources != "" {
 			if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose {
-				fx.Fprint(os.Stderr, "  {red}%s: cache write: {}%v{@}\n", name, err)
+				fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
 			}
 		}
 
@@ -404,12 +404,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 				matches, err := util.GlobFiles(expanded, dir)
 				if err != nil && opts.Verbose {
-					fx.Fprint(os.Stderr, "  {warning}%s: pattern %q: {}%v{@}\n", name, pattern, err)
+					fx.Fprint(os.Stderr, "  {warning}{}: pattern {:q}: {}{@}\n", name, pattern, err)
 				}
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {
-							fx.Fprint(os.Stderr, "  {red}%s: clean %q: {}%v{@}\n", name, m, err)
+							fx.Fprint(os.Stderr, "  {red}{}: clean {:q}: {}{@}\n", name, m, err)
 						}
 					} else if opts.Verbose {
 						fx.Println(`  {cyan}Cleaned {}{@}`, m)
