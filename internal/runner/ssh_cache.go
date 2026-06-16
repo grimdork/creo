@@ -71,6 +71,10 @@ func (r *remoteCache) remotePath(elem ...string) string {
 	return r.user + "@" + r.host + ":" + strings.Join(parts, "/")
 }
 
+func rsyncArgs() []string {
+	return []string{"-az", "-e", "ssh"}
+}
+
 func (r *remoteCache) fetchManifest(comboKey string, sources, cmds []string) (string, bool) {
 	key, err := computeCacheKey(sources, cmds)
 	if err != nil {
@@ -84,7 +88,8 @@ func (r *remoteCache) fetchManifest(comboKey string, sources, cmds []string) (st
 	defer os.RemoveAll(tmpDir)
 
 	localTmp := filepath.Join(tmpDir, "manifest.json")
-	cmd := exec.Command("rsync", "-a", "-e", "ssh", r.remotePath(comboKey+"_"+key+".json"), localTmp)
+	args := append(rsyncArgs(), r.remotePath(comboKey+"_"+key+".json"), localTmp)
+	cmd := exec.Command("rsync", args...)
 	if err := cmd.Run(); err != nil {
 		return "", false
 	}
@@ -107,7 +112,8 @@ func (r *remoteCache) downloadArtifacts(hash, comboKey, localDir string) error {
 	remoteDir := r.remotePath(comboKey+"_"+hash) + "/"
 	localDir = filepath.Clean(localDir) + "/"
 
-	cmd := exec.Command("rsync", "-a", "-e", "ssh", remoteDir, localDir)
+	args := append(rsyncArgs(), remoteDir, localDir)
+	cmd := exec.Command("rsync", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("rsync pull: %w\n%s", err, string(out))
@@ -120,7 +126,8 @@ func (r *remoteCache) uploadArtifacts(hash, comboKey, localBin string) error {
 
 	remoteEnsureDir(r, comboKey+"_"+hash)
 
-	cmd := exec.Command("rsync", "-a", "-e", "ssh", localBin, remoteDir)
+	args := append(rsyncArgs(), localBin, remoteDir)
+	cmd := exec.Command("rsync", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("rsync push: %w\n%s", err, string(out))
@@ -130,7 +137,8 @@ func (r *remoteCache) uploadArtifacts(hash, comboKey, localBin string) error {
 
 func (r *remoteCache) uploadManifest(hash, comboKey, localCacheJSON string) error {
 	remoteManifest := r.remotePath(comboKey + "_" + hash + ".json")
-	cmd := exec.Command("rsync", "-a", "-e", "ssh", localCacheJSON, remoteManifest)
+	args := append(rsyncArgs(), localCacheJSON, remoteManifest)
+	cmd := exec.Command("rsync", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("rsync manifest push: %w\n%s", err, string(out))

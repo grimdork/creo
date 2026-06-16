@@ -3,7 +3,45 @@ package runner
 import (
 	"strings"
 	"sync"
+
+	"github.com/grimdork/climate/fx"
 )
+
+type CacheStats struct {
+	mu       sync.Mutex
+	L1Hits   int
+	L1Misses int
+	L2Hits   int
+	L2Misses int
+}
+
+func (s *CacheStats) add(n *int) {
+	s.mu.Lock()
+	*n++
+	s.mu.Unlock()
+}
+
+func (s *CacheStats) L1Hit()  { s.add(&s.L1Hits) }
+func (s *CacheStats) L1Miss() { s.add(&s.L1Misses) }
+func (s *CacheStats) L2Hit()  { s.add(&s.L2Hits) }
+func (s *CacheStats) L2Miss() { s.add(&s.L2Misses) }
+
+func (s *CacheStats) Print() {
+	if s.L1Hits == 0 && s.L1Misses == 0 && s.L2Hits == 0 && s.L2Misses == 0 {
+		return
+	}
+	totalL1 := s.L1Hits + s.L1Misses
+	totalL2 := s.L2Hits + s.L2Misses
+	fx.Println("{bold}Cache stats:{@}")
+	if totalL1 > 0 {
+		pct := float64(s.L1Hits) / float64(totalL1) * 100
+		fx.Println("  L1: {} hits, {} misses ({:.0f}% hit rate)", s.L1Hits, s.L1Misses, pct)
+	}
+	if totalL2 > 0 {
+		pct := float64(s.L2Hits) / float64(totalL2) * 100
+		fx.Println("  L2: {} hits, {} misses ({:.0f}% hit rate)", s.L2Hits, s.L2Misses, pct)
+	}
+}
 
 // Outputs stores per-target build output paths, keyed by target/arch+os, with mutex-protected access.
 type Outputs struct {
@@ -52,6 +90,7 @@ type RunOpts struct {
 	BuildDir       string
 	NoColor        bool
 	CacheRemote    string
+	CacheStats     *CacheStats
 	Results        *TargetResults
 }
 

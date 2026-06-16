@@ -166,6 +166,7 @@ func RunBuild(opt *arg.Options) error {
 	if cacheRemote == "" {
 		cacheRemote = os.Getenv("CREO_CACHE_REMOTE")
 	}
+	cacheStats := &runner.CacheStats{}
 	opts := runner.RunOpts{
 		Rebuild:        opt.GetBool("F"),
 		Recursive:      opt.GetBool("r"),
@@ -178,6 +179,7 @@ func RunBuild(opt *arg.Options) error {
 		BuildDir:       opt.GetString("output"),
 		NoColor:        opt.GetBool("no-color") || opt.GetBool("no-colour"),
 		CacheRemote:    cacheRemote,
+		CacheStats:     cacheStats,
 		Results:        results,
 	}
 
@@ -191,6 +193,9 @@ func RunBuild(opt *arg.Options) error {
 			return fmt.Errorf("recursive build: %w", err)
 		}
 		results.Print()
+		if opt.GetBool("cache-stats") {
+			cacheStats.Print()
+		}
 		return nil
 	}
 
@@ -226,6 +231,9 @@ func RunBuild(opt *arg.Options) error {
 		}
 	}
 	results.Print()
+	if opt.GetBool("cache-stats") {
+		cacheStats.Print()
+	}
 	if errCount > 0 {
 		return fmt.Errorf("some targets failed")
 	}

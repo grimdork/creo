@@ -179,12 +179,30 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			needsRun = false
 			if len(sources) == 0 && t.Sources != "" {
 				needsRun = true
-			} else if t.Sources != "" && !checkCache(dir, name, sources, t.Cmds) {
-				needsRun = true
+			} else if t.Sources != "" {
+				l1ok := checkCache(dir, name, sources, t.Cmds)
+				if opts.CacheStats != nil {
+					if l1ok {
+						opts.CacheStats.L1Hit()
+					} else {
+						opts.CacheStats.L1Miss()
+					}
+				}
+				if !l1ok {
+					needsRun = true
+				}
 			}
 		}
 		if needsRun && opts.CacheRemote != "" && t.Sources != "" {
-			if hash, ok := tryRemoteCache(opts.CacheRemote, name, sources, t.Cmds); ok {
+			hash, ok := tryRemoteCache(opts.CacheRemote, name, sources, t.Cmds)
+			if opts.CacheStats != nil {
+				if ok {
+					opts.CacheStats.L2Hit()
+				} else {
+					opts.CacheStats.L2Miss()
+				}
+			}
+			if ok {
 				if pullAndSave(opts.CacheRemote, hash, name, existsBinPath) {
 					_ = writeCache(dir, name, sources, t.Cmds)
 					needsRun = false
@@ -289,6 +307,13 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						if t.Sources != "" {
 							comboKey := name + "_" + activeArch + "_" + activeOS
 							cached = checkCache(dir, comboKey, sources, t.Cmds)
+							if opts.CacheStats != nil {
+								if cached {
+									opts.CacheStats.L1Hit()
+								} else {
+									opts.CacheStats.L1Miss()
+								}
+							}
 						}
 						if cached {
 							if opts.Verbose {
@@ -300,7 +325,15 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					}
 					if opts.CacheRemote != "" && t.Sources != "" {
 						comboKey := name + "_" + activeArch + "_" + activeOS
-						if hash, ok := tryRemoteCache(opts.CacheRemote, comboKey, sources, t.Cmds); ok {
+						hash, ok := tryRemoteCache(opts.CacheRemote, comboKey, sources, t.Cmds)
+						if opts.CacheStats != nil {
+							if ok {
+								opts.CacheStats.L2Hit()
+							} else {
+								opts.CacheStats.L2Miss()
+							}
+						}
+						if ok {
 							if pullAndSave(opts.CacheRemote, hash, comboKey, c.bin) {
 								_ = writeCache(dir, comboKey, sources, t.Cmds)
 								outputs.Store(name, activeArch, activeOS, c.bin)
@@ -357,7 +390,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						}
 						if opts.CacheRemote != "" {
 							key, _ := computeCacheKey(sources, t.Cmds)
-							pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
+							go pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
 						}
 					}
 				}
@@ -417,7 +450,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 			if opts.CacheRemote != "" {
 				key, _ := computeCacheKey(sources, t.Cmds)
-				pushRemote(opts.CacheRemote, key, name, existsBinPath, dir, sources, t.Cmds)
+				go pushRemote(opts.CacheRemote, key, name, existsBinPath, dir, sources, t.Cmds)
 			}
 		}
 
