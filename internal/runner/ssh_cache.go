@@ -35,14 +35,17 @@ func parseRemoteCacheURL(raw string) (*remoteCache, error) {
 		}
 		user = u.User.Username()
 		host = u.Hostname()
-		path = strings.TrimPrefix(u.Path, "/")
+		path = u.Path
+		if path == "/" || path == "" {
+			path = ".creo/cache"
+		}
 	} else if strings.Contains(raw, "@") {
 		idx := strings.IndexByte(raw, ':')
 		if idx < 0 {
 			return nil, fmt.Errorf("cache URL %q: missing path after colon", raw)
 		}
 		userHost := raw[:idx]
-		path = strings.TrimPrefix(raw[idx+1:], "/")
+		path = raw[idx+1:]
 		parts := strings.SplitN(userHost, "@", 2)
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("cache URL %q: expected user@host:path", raw)

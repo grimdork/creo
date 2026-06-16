@@ -859,3 +859,77 @@ func TestPath(t *testing.T) {
 		t.Errorf("Path() = %q, want %q", f.Path(), path)
 	}
 }
+
+func TestParseMalformedVar(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fiat")
+	content := "$NOEQUALS\nbuild: go\n\tcmd=go build\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Parse(path)
+	if err == nil {
+		t.Fatal("expected error for malformed variable (no = sign)")
+	}
+}
+
+func TestParseDeepNesting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fiat")
+	content := "$a=$b\n$b=$c\n$c=$d\n$d=$e\n$e=$f\n$f=$g\n$g=$h\n$h=$i\n$i=$j\n$j=deep\nbuild: go\n\tcmd=go build\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := f.Vars["a"]
+	if a == nil {
+		t.Fatal("expected var a")
+	}
+	got := Expand(a.Value, f.Vars, 0)
+	if got != "deep" {
+		t.Errorf("nested = %q, want %q", got, "deep")
+	}
+}
+
+func TestParseUnicodeIdent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fiat")
+	content := "$café=yes\nbuild: go\n\tcmd=go build\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := f.Vars["café"]
+	if c == nil {
+		t.Fatal("expected var café")
+	}
+	if c.Value != "yes" {
+		t.Errorf("café = %q, want %q", c.Value, "yes")
+	}
+}
+
+func TestParseNumberedVar(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fiat")
+	content := "$VER=1.0\nbuild: go\n\tcmd=go build\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := f.Vars["VER"]
+	if v == nil {
+		t.Fatal("expected var VER")
+	}
+	if v.Value != "1.0" {
+		t.Errorf("VER = %q, want %q", v.Value, "1.0")
+	}
+}
