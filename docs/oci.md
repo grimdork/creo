@@ -87,7 +87,6 @@ the language field:
 ```
 deploy: oci:ghcr OWNER=myorg
     tag=latest
-    os=linux
     arch=amd64
 ```
 
@@ -158,6 +157,10 @@ Store credentials for reuse with `creo -L` (interactive login that
 writes to `~/.docker/config.json`).
 
 ## Multi-arch OCI
+
+OCI targets implicitly set `os=linux` — containers always target
+Linux regardless of the host OS.  Non-Linux combos from a dependency
+are skipped with a warning.
 
 OCI targets respect `arch=`/`os=` from their dependency but may
 declare a subset:
