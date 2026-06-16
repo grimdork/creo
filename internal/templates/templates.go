@@ -30,6 +30,10 @@ func userTemplateDir() (string, error) {
 	return filepath.Join(p.UserBase, "templates"), nil
 }
 
+func isEmbedded(dir string) bool {
+	return strings.HasPrefix(dir, "embedded/")
+}
+
 func ResolveTemplate(lang, name string) (*Template, error) {
 	ud, err := userTemplateDir()
 	if err != nil {
@@ -141,6 +145,11 @@ func SaveTemplate(spec string, force, verbose bool) error {
 	if lang == "" || name == "" {
 		return fmt.Errorf("expected lang/name format, got %q", spec)
 	}
+	lang = filepath.Clean(lang)
+	name = filepath.Clean(name)
+	if strings.Contains(lang, "..") || strings.Contains(name, "..") {
+		return fmt.Errorf("invalid template spec: %q", spec)
+	}
 
 	embedPrefix := filepath.Join("embedded", lang, name)
 	if _, err := fs.Stat(embeddedTemplates, embedPrefix); err != nil {
@@ -175,10 +184,16 @@ func SaveTemplate(spec string, force, verbose bool) error {
 			if entryName == "template.ini" {
 				continue
 			}
+			if !strings.HasSuffix(entryName, ".tmpl") {
+				continue
+			}
 			isPlatform := false
 			for _, f := range t.Files {
-				base := strings.TrimSuffix(f, ".tmpl")
-				if strings.HasPrefix(entryName, base+".") && strings.HasSuffix(entryName, ".tmpl") {
+				if !strings.HasSuffix(f, ".tmpl") {
+					continue
+				}
+				base := f[:len(f)-5]
+				if strings.HasPrefix(entryName, base+".") {
 					isPlatform = true
 					break
 				}
@@ -245,11 +260,13 @@ func ApplyTemplate(t *Template, destDir string, extraVars map[string]string, for
 			// Check for platform variant: file.darwin.tmpl, file.linux.tmpl
 			platformFile := dstName + "." + runtime.GOOS + ".tmpl"
 			platformPath := filepath.Join(t.Dir, platformFile)
-			_, err := os.Stat(platformPath)
-			if os.IsNotExist(err) {
-				_, err = fs.Stat(embeddedTemplates, platformPath)
+			var pErr error
+			if isEmbedded(t.Dir) {
+				_, pErr = fs.Stat(embeddedTemplates, platformPath)
+			} else {
+				_, pErr = os.Stat(platformPath)
 			}
-			if err == nil {
+			if pErr == nil {
 				srcName = platformFile
 			}
 		}
@@ -264,14 +281,15 @@ func ApplyTemplate(t *Template, destDir string, extraVars map[string]string, for
 			continue
 		}
 
-		data, err := os.ReadFile(srcPath)
-		if err != nil {
-			srcPath = filepath.Join(t.Dir, srcName)
-			edata, err2 := fs.ReadFile(embeddedTemplates, srcPath)
-			if err2 != nil {
-				return fmt.Errorf("reading template file %s: %w", srcName, err)
-			}
-			data = edata
+		var data []byte
+		var rErr error
+		if isEmbedded(t.Dir) {
+			data, rErr = fs.ReadFile(embeddedTemplates, srcPath)
+		} else {
+			data, rErr = os.ReadFile(srcPath)
+		}
+		if rErr != nil {
+			return fmt.Errorf("reading template file %s: %w", srcName, rErr)
 		}
 
 		if shouldExpand {
@@ -353,10 +371,13 @@ func parseTemplateINI(data, dir string) (*Template, error) {
 			continue
 		}
 		key := strings.TrimSpace(line[:idx])
+		if key == "" {
+			continue
+		}
 		value := strings.TrimSpace(line[idx+1:])
 		switch section {
 		case "template":
-			switch key {
+			switch strings.ToLower(key) {
 			case "name":
 				t.Name = value
 			case "description":

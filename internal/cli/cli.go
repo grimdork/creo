@@ -41,6 +41,9 @@ func RunInit(langs []string, tmplName string, force, verbose bool) error {
 	if tmplName != "" && len(langs) == 1 {
 		return targets.InitProjectWithTemplate(langs[0], tmplName, force, verbose)
 	}
+	if tmplName != "" && len(langs) != 1 {
+		fx.Fprint(os.Stderr, "{warning}--template ignored: requires exactly one language{@}\n")
+	}
 	return targets.InitProject(langs, force, verbose)
 }
 

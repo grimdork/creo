@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
@@ -261,7 +260,7 @@ int main(int argc, char **argv) {
 		return nil, err
 	}
 
-	return []string{"/main", "/.creo"}, nil
+	return []string{"/build", "/.creo"}, nil
 }
 
 // InitCxx scaffolds a C++ project with a basic main.cpp and fiat file.
@@ -296,7 +295,7 @@ int main(int argc, char **argv) {
 		return nil, err
 	}
 
-	return []string{"/main", "/.creo"}, nil
+	return []string{"/build", "/.creo"}, nil
 }
 
 // InitOci scaffolds an OCI image target on top of a Go project.
@@ -391,7 +390,7 @@ func InitRust(dir string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	return []string{"/.creo"}, nil
+	return []string{"/build", "/.creo", "/target"}, nil
 }
 
 // InitPython scaffolds a Python project with pyproject.toml and a basic package.
@@ -790,12 +789,16 @@ func InitProject(langs []string, force, verbose bool) error {
 			} else {
 				ignores, err = InitC(".", force, verbose)
 			}
-		case LangCxx, LangCpp:
-			if useBasicTemplate(langName) {
-				err = InitProjectWithTemplate(langName, "basic", force, verbose)
-			} else {
-				ignores, err = InitCxx(".", force, verbose)
-			}
+	case LangCxx, LangCpp:
+		tmplLang := langName
+		if langName == LangCpp {
+			tmplLang = LangCxx
+		}
+		if useBasicTemplate(tmplLang) {
+			err = InitProjectWithTemplate(tmplLang, "basic", force, verbose)
+		} else {
+			ignores, err = InitCxx(".", force, verbose)
+		}
 		case LangRust:
 			if useBasicTemplate(langName) {
 				err = InitProjectWithTemplate(langName, "basic", force, verbose)
@@ -862,7 +865,6 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 	extraVars := map[string]string{
 		"PROJECT": dirProjectName(),
 		"VERSION": versionFromGit(),
-		"DATE":    time.Now().UTC().Format(time.RFC3339),
 	}
 	if err := templates.ApplyTemplate(tmpl, ".", extraVars, force, verbose); err != nil {
 		return err
@@ -873,8 +875,8 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 		if err := initGoMod(".", dirProjectName(), force, verbose); err != nil {
 			return err
 		}
-		if err := runGoModTidy("."); err != nil && verbose {
-			fx.Println("  {warning}go mod tidy: {}{@}", err)
+		if err := runGoModTidy("."); err != nil {
+			fx.Fprint(os.Stderr, "{warning}go mod tidy: {}{@}\n", err)
 		}
 	case LangRust:
 		// Cargo.toml.tmpl handles project metadata
@@ -884,14 +886,16 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 	}
 	gitignore := []string{"/build", "/.creo", "/tmp"}
 	switch lang {
+	case LangC, LangCxx:
+		// Default gitignore (build, creo, tmp) is correct for C/C++
 	case LangRust:
 		gitignore = append(gitignore, "/target")
 	case LangPython:
-		gitignore = append(gitignore, "__pycache__/", "*.pyc")
+		gitignore = append(gitignore, "__pycache__/", "*.pyc", "dist/", "*.egg-info/", ".venv/")
 	case LangNode, LangTS:
-		gitignore = append(gitignore, "node_modules/")
+		gitignore = append(gitignore, "node_modules/", "dist/")
 	case LangJava, LangKotlin, LangGradle:
-		gitignore = append(gitignore, ".gradle/", "*.jar")
+		gitignore = append(gitignore, "build/", ".gradle/", "*.jar")
 	}
 	return WriteIgnores(gitignore, verbose)
 }
