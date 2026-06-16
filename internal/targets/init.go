@@ -736,7 +736,14 @@ func InitBrew(dir string, force, verbose bool) ([]string, error) {
 	return nil, nil
 }
 
+func useBasicTemplate(langName string) bool {
+	_, err := templates.ResolveTemplate(langName, "basic")
+	return err == nil
+}
+
 // InitProject dispatches to the correct Init* function based on the requested language list.
+// When a "basic" template exists for a language, it delegates to InitProjectWithTemplate
+// instead of the hardcoded Init* function.
 func InitProject(langs []string, force, verbose bool) error {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
@@ -766,23 +773,55 @@ func InitProject(langs []string, force, verbose bool) error {
 
 		switch langName {
 		case LangGo:
-			ignores, err = Init(".", ver, force, verbose)
+			if ver == "" && useBasicTemplate(langName) {
+				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+			} else {
+				ignores, err = Init(".", ver, force, verbose)
+			}
 		case LangTinyGo:
-			ignores, err = InitTinyGo(".", force, verbose)
+			if useBasicTemplate(langName) {
+				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+			} else {
+				ignores, err = InitTinyGo(".", force, verbose)
+			}
 		case LangC:
-			ignores, err = InitC(".", force, verbose)
+			if useBasicTemplate(langName) {
+				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+			} else {
+				ignores, err = InitC(".", force, verbose)
+			}
 		case LangCxx, LangCpp:
-			ignores, err = InitCxx(".", force, verbose)
+			if useBasicTemplate(langName) {
+				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+			} else {
+				ignores, err = InitCxx(".", force, verbose)
+			}
+		case LangRust:
+			if useBasicTemplate(langName) {
+				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+			} else {
+				ignores, err = InitRust(".", force, verbose)
+			}
+		case LangPython:
+			if useBasicTemplate(langName) {
+				err = InitProjectWithTemplate(langName, "basic", force, verbose)
+			} else {
+				ignores, err = InitPython(".", force, verbose)
+			}
+		case LangNode, LangTS:
+			if useBasicTemplate("node") {
+				err = InitProjectWithTemplate("node", "basic", force, verbose)
+			} else {
+				ignores, err = InitNode(".", force, verbose)
+			}
+		case LangJava, LangKotlin, LangGradle:
+			if useBasicTemplate("java") {
+				err = InitProjectWithTemplate("java", "basic", force, verbose)
+			} else {
+				ignores, err = InitJava(".", force, verbose)
+			}
 		case LangOCI:
 			ignores, err = InitOci(".", force, verbose)
-		case LangRust:
-			ignores, err = InitRust(".", force, verbose)
-		case LangPython:
-			ignores, err = InitPython(".", force, verbose)
-		case LangNode, LangTS:
-			ignores, err = InitNode(".", force, verbose)
-		case LangJava, LangKotlin, LangGradle:
-			ignores, err = InitJava(".", force, verbose)
 		case LangArchive:
 			ignores, err = InitArchive(".", force, verbose)
 		case LangDeb:
@@ -797,11 +836,15 @@ func InitProject(langs []string, force, verbose bool) error {
 		if err != nil {
 			return err
 		}
-		allIgnores = append(allIgnores, ignores...)
+		if ignores != nil {
+			allIgnores = append(allIgnores, ignores...)
+		}
 	}
 
-	if err := WriteIgnores(allIgnores, verbose); err != nil {
-		return err
+	if len(allIgnores) > 0 {
+		if err := WriteIgnores(allIgnores, verbose); err != nil {
+			return err
+		}
 	}
 	return nil
 }
