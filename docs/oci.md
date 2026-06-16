@@ -37,7 +37,7 @@ After `build` completes, its binary path is available as
 | `tag=` | Image tag (default: `latest` for tarball; push uses this if set) |
 | `tarball=` | Path to write a docker-compatible `.tar` file |
 | `appdir=` | Directory in the image for the binary (default: `/app`) |
-| `from=` | Base image to layer the binary on; pulls and caches to `~/.config/creo/oci/` |
+| `from=` | Base image to layer the binary on; pulls and caches to the platform user config dir (`~/.config/creo/oci/` on Linux, `~/Library/Application Support/creo/oci/` on macOS) |
 | `entrypoint=` | Override the default entrypoint (`/app/<name>`) — e.g. `entrypoint=node /app/index.js` |
 | `arch=` | Subset of architectures from the dependency |
 | `os=` | Subset of operating systems from the dependency |
@@ -140,8 +140,10 @@ and CA certificate (if configured) are included.
 
 ## Base image caching
 
-Base images (`from=`) are pulled once and cached at
-`~/.config/creo/oci/`.  The cache is valid for 24 hours; stale entries
+Base images (`from=`) are pulled once and cached at the platform
+user config directory (`~/.config/creo/oci/` on Linux,
+`~/Library/Application Support/creo/oci/` on macOS).  The cache
+is valid for 24 hours; stale entries
 are re-fetched automatically.  Use `--refresh-cacerts` to re-download
 CA certificates only.
 
