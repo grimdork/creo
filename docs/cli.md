@@ -16,7 +16,7 @@ Targets are positional: `creo debug test` runs both.  Without targets,
 | `-o`, `--output` | Build output directory (default: `build`) |
 | `-F`, `--force` | Force rebuild |
 | `-l`, `--list` | List available targets with descriptions |
-| `-g`, `--git` | Initialise a git repository and commit after `--init` |
+| `-g`, `--git` | Initialise a git repository and commit (works standalone or after `--init`) |
 | `-w`, `--watch` | Watch sources and rebuild on change |
 | `-k`, `--keep-going` | Continue past errors, report all at the end |
 | `-n`, `--dry-run` | Print commands and install actions without executing |
@@ -31,6 +31,12 @@ Targets are positional: `creo debug test` runs both.  Without targets,
 | `--refresh-cacerts` | Re-download cached CA certificates |
 | `--clean-cache` | Remove cached build artifacts |
 | `--completion` | Print bash shell completion script |
+| `-T`, `--template` | Project template name, used with `-i` (e.g. `creo -i go -T arg`) |
+| `--save-template` | Extract an embedded template to the user template directory (`lang/name`) |
+| `--list-templates` | List available project templates |
+| `--no-color` / `--no-colour` | Disable coloured terminal output |
+| `--cache-remote` | SSH remote cache URL (`user@host:path` or `ssh://user@host/path`) |
+| `--cache-stats` | Print L1 (local) and L2 (remote) cache hit/miss statistics |
 | `--version` | Print version and exit |
 | `-h`, `--help` | Show help |
 

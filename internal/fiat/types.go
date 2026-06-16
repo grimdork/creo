@@ -1,5 +1,6 @@
 package fiat
 
+// Var represents a named variable with a value and optional eager-expansion flag.
 type Var struct {
 	Name  string
 	Value string
@@ -13,6 +14,7 @@ type ManifestFile struct {
 	Src string
 }
 
+// OCIConfig holds OCI image build configuration.
 type OCIConfig struct {
 	Repo       string
 	Tag        string
@@ -30,6 +32,7 @@ type OCIConfig struct {
 	Downloads  []ManifestFile
 }
 
+// Target represents a build target parsed from a fiat file.
 type Target struct {
 	Name      string
 	Language  string
@@ -49,6 +52,7 @@ type Target struct {
 	Brew      *BrewConfig
 }
 
+// BrewConfig holds Homebrew formula configuration.
 type BrewConfig struct {
 	Tap       string
 	Homepage  string
@@ -60,6 +64,7 @@ type BrewConfig struct {
 	ClassName string
 }
 
+// File represents a parsed fiat configuration file.
 type File struct {
 	path    string
 	Vars    map[string]*Var

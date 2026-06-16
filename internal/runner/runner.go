@@ -204,7 +204,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 			if ok {
 				if pullAndSave(opts.CacheRemote, hash, name, existsBinPath) {
-					_ = writeCache(dir, name, sources, t.Cmds)
+					if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose {
+						fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
+					}
 					needsRun = false
 				}
 			}
@@ -285,7 +287,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 		var wg sync.WaitGroup
 		sem := make(chan struct{}, numJobs)
-		errCh := make(chan error, len(combos))
+		errCh := make(chan error, 2*len(combos))
 
 		for _, c := range combos {
 			sem <- struct{}{}
@@ -335,7 +337,9 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						}
 						if ok {
 							if pullAndSave(opts.CacheRemote, hash, comboKey, c.bin) {
-								_ = writeCache(dir, comboKey, sources, t.Cmds)
+								if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
+									fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", comboKey, err)
+								}
 								outputs.Store(name, activeArch, activeOS, c.bin)
 								if opts.Verbose {
 									fx.Println(`  {warning}{} up to date (remote cache){@}`, c.bin)
@@ -390,7 +394,11 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						}
 						if opts.CacheRemote != "" {
 							key, _ := computeCacheKey(sources, t.Cmds)
-							go pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
+							wg.Add(1)
+							go func() {
+								defer wg.Done()
+								pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
+							}()
 						}
 					}
 				}
@@ -450,7 +458,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 			if opts.CacheRemote != "" {
 				key, _ := computeCacheKey(sources, t.Cmds)
-				go pushRemote(opts.CacheRemote, key, name, existsBinPath, dir, sources, t.Cmds)
+				pushRemote(opts.CacheRemote, key, name, existsBinPath, dir, sources, t.Cmds)
 			}
 		}
 

@@ -151,7 +151,9 @@ func (r *remoteCache) uploadManifest(hash, comboKey, localCacheJSON string) erro
 
 func remoteEnsureDir(r *remoteCache, dir string) {
 	mkdirCmd := exec.Command("ssh", r.user+"@"+r.host, "mkdir", "-p", filepath.Join(r.path, dir))
-	_ = mkdirCmd.Run()
+	if err := mkdirCmd.Run(); err != nil {
+		fx.Fprint(os.Stderr, "  {warning}remote mkdir {:q}: {}{@}\n", filepath.Join(r.path, dir), err)
+	}
 }
 
 func tryRemoteCache(remoteURL, comboKey string, sources, cmds []string) (string, bool) {
@@ -193,5 +195,7 @@ func pushRemote(remoteURL, hash, comboKey, localBin, dir string, sources, cmds [
 	}
 
 	localManifest := cachePath(dir, comboKey)
-	_ = remote.uploadManifest(hash, comboKey, localManifest)
+	if err := remote.uploadManifest(hash, comboKey, localManifest); err != nil {
+		fx.Fprint(os.Stderr, "  {warning}remote manifest upload: {}{@}\n", err)
+	}
 }

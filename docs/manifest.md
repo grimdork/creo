@@ -50,8 +50,8 @@ Local files to include. Format: `dst = src`.
 /usr/share/doc/$PROJECT/FAQ.md = FAQ.md
 ```
 
-`$PROJECT`, `$VERSION`, and other fiat variables are expanded
-at build time. Paths are relative to the fiat file directory.
+Paths are relative to the fiat file directory. Variable expansion
+is not applied to manifest file and download paths.
 
 ### `[download]`
 

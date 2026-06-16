@@ -16,10 +16,12 @@ import (
 	"github.com/grimdork/creo/internal/templates"
 )
 
+// InjectBuildDir sets the BUILDDIR variable in the fiat file.
 func InjectBuildDir(f *fiat.File, bd string) {
 	f.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: bd}
 }
 
+// RunLogin prompts for registry credentials and stores them in Docker config.
 func RunLogin() error {
 	if err := oci.Login(); err != nil {
 		return err
@@ -28,10 +30,13 @@ func RunLogin() error {
 	return nil
 }
 
+// RunInspect displays the manifest and config of a remote OCI image.
 func RunInspect(ref string) error {
 	return oci.Inspect(ref)
 }
 
+// RunInit initialises a project with source files for the given languages, or
+// applies a named template when tmplName and a single language are provided.
 func RunInit(langs []string, tmplName string, force, verbose bool) error {
 	if tmplName != "" && len(langs) == 1 {
 		return targets.InitProjectWithTemplate(langs[0], tmplName, force, verbose)
@@ -39,6 +44,7 @@ func RunInit(langs []string, tmplName string, force, verbose bool) error {
 	return targets.InitProject(langs, force, verbose)
 }
 
+// RunListTemplates prints available project templates, optionally filtered by language.
 func RunListTemplates(lang string) error {
 	list, err := templates.ListTemplates(lang)
 	if err != nil {
@@ -55,10 +61,12 @@ func RunListTemplates(lang string) error {
 	return nil
 }
 
+// RunSaveTemplate extracts an embedded template to the user's template directory.
 func RunSaveTemplate(spec string, force, verbose bool) error {
 	return templates.SaveTemplate(spec, force, verbose)
 }
 
+// RunGitInit initialises a git repository, stages all files, and commits them.
 func RunGitInit(verbose bool) error {
 	git := func(args ...string) error {
 		cmd := exec.Command("git", args...)
@@ -102,6 +110,7 @@ func RunGitInit(verbose bool) error {
 	return nil
 }
 
+// RunGraph renders the dependency graph in the requested format (tree/dot/svg).
 func RunGraph(opt *arg.Options) error {
 	format := opt.GetString("graph")
 	if !runner.ValidGraphFormat(format) {
@@ -129,10 +138,11 @@ func RunGraph(opt *arg.Options) error {
 	if err != nil {
 		return err
 	}
-	fmt.Print(out)
+	fx.Fprint(os.Stdout, "{}", out)
 	return nil
 }
 
+// RunVersion prints the creo version string.
 func RunVersion(ver string) {
 	if ver == "" {
 		fx.Println("{bold}creo (dev){@}")
@@ -141,6 +151,7 @@ func RunVersion(ver string) {
 	}
 }
 
+// ListTargets returns a formatted listing of all targets in the fiat file.
 func ListTargets(explicitPath string) (string, error) {
 	fiatPath, ok := fiat.FindFiat(explicitPath)
 	if !ok {
@@ -171,15 +182,17 @@ func ListTargets(explicitPath string) (string, error) {
 	return b.String(), nil
 }
 
+// RunList prints all available targets from the fiat file.
 func RunList(filePath string) error {
 	out, err := ListTargets(filePath)
 	if err != nil {
 		return err
 	}
-	fmt.Print(out)
+	fx.Fprint(os.Stdout, "{}", out)
 	return nil
 }
 
+// RunBuild parses the fiat file and runs the specified build targets.
 func RunBuild(opt *arg.Options) error {
 	if opt.GetBool("no-color") || opt.GetBool("no-colour") {
 		os.Setenv("NO_COLOR", "1")

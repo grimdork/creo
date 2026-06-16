@@ -47,8 +47,9 @@ func handleOCI(f *fiat.File, t *fiat.Target, c combo, comboVars map[string]*fiat
 			cachePath := filepath.Join(cacheDir, "cacert.pem")
 
 			if opts.RefreshCACerts {
-				os.Remove(cachePath)
-				if opts.Verbose {
+				if err := os.Remove(cachePath); err != nil && opts.Verbose {
+					fx.Fprint(os.Stderr, "  {warning}removing stale CA cert: {}{@}\n", err)
+				} else if opts.Verbose {
 					fx.Println(`  {cyan}Refreshed cached CA certs{@}`)
 				}
 			}

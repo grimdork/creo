@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/grimdork/climate/arg"
@@ -59,7 +58,7 @@ func main() {
 		}
 		fx.Println("{success}Cache cleaned{@}")
 	case opt.GetBool("completion"):
-		fmt.Print(cli.GenerateCompletion(opt))
+		fx.Fprint(os.Stdout, "{}", cli.GenerateCompletion(opt))
 	case opt.GetBool("login"):
 		if err := cli.RunLogin(); err != nil {
 			fail(err)

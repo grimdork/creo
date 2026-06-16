@@ -2,6 +2,8 @@ package runner
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,8 +44,9 @@ func (tr *TargetResults) Print() {
 		}
 	}
 
-	fmt.Println("── Summary ──────────────────")
-	fmt.Printf("%-*s  Duration   Result\n", maxName, "Target")
+	var b strings.Builder
+	b.WriteString("── Summary ──────────────────\n")
+	fmt.Fprintf(&b, "%-*s  Duration   Result\n", maxName, "Target")
 	for _, r := range tr.res {
 		dur := r.Duration.Round(time.Millisecond).String()
 		statusStr := r.Status
@@ -55,7 +58,8 @@ func (tr *TargetResults) Print() {
 		case "FAILED":
 			statusStr = fx.Render("{danger}{}{@}", r.Status)
 		}
-		fmt.Printf("%-*s  %-9s  %s\n", maxName, r.Name, dur, statusStr)
+		fmt.Fprintf(&b, "%-*s  %-9s  %s\n", maxName, r.Name, dur, statusStr)
 	}
-	fmt.Println()
+	fx.Fprint(os.Stdout, b.String())
+	fx.Println("")
 }

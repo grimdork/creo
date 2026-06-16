@@ -30,6 +30,7 @@ const caCertPath = "etc/ssl/certs/ca-certificates.crt"
 
 var caCertURL = "https://curl.se/ca/cacert.pem"
 
+// Config holds parameters for building an OCI container image.
 type Config struct {
 	Binary     string
 	AppDir     string

@@ -7,6 +7,8 @@ import (
 	"github.com/grimdork/climate/fx"
 )
 
+// CacheStats collects L1 (local) and L2 (remote) cache hit/miss counters
+// for reporting. All writes are mutex-protected.
 type CacheStats struct {
 	mu       sync.Mutex
 	L1Hits   int
@@ -21,12 +23,22 @@ func (s *CacheStats) add(n *int) {
 	s.mu.Unlock()
 }
 
-func (s *CacheStats) L1Hit()  { s.add(&s.L1Hits) }
+// L1Hit increments the local cache hit counter.
+func (s *CacheStats) L1Hit() { s.add(&s.L1Hits) }
+
+// L1Miss increments the local cache miss counter.
 func (s *CacheStats) L1Miss() { s.add(&s.L1Misses) }
-func (s *CacheStats) L2Hit()  { s.add(&s.L2Hits) }
+
+// L2Hit increments the remote (SSH) cache hit counter.
+func (s *CacheStats) L2Hit() { s.add(&s.L2Hits) }
+
+// L2Miss increments the remote (SSH) cache miss counter.
 func (s *CacheStats) L2Miss() { s.add(&s.L2Misses) }
 
+// Print writes cache statistics to stdout, protected by the mutex.
 func (s *CacheStats) Print() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.L1Hits == 0 && s.L1Misses == 0 && s.L2Hits == 0 && s.L2Misses == 0 {
 		return
 	}

@@ -49,7 +49,9 @@ func CleanCache(dir string) error {
 		}
 	}
 	if p, err := oci.OCICachePath(); err == nil {
-		os.RemoveAll(p)
+		if err := os.RemoveAll(p); err != nil {
+			return fmt.Errorf("removing OCI cache: %w", err)
+		}
 	}
 	return nil
 }

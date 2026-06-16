@@ -33,5 +33,4 @@ const (
 	DefECRRegion  = "us-east-1"
 	DefScwRegion  = "fr-par"
 	DefAppDir     = "/app"
-	DefDockerHub  = "docker.io"
 )

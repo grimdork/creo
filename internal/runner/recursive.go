@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,9 +41,12 @@ func RunRecursive(dir string, targetName string, opts RunOpts) error {
 	if opts.Results == nil {
 		opts.Results = &TargetResults{}
 	}
-	var walkErr error
+	var walkErr []error
 	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
+			if opts.Verbose {
+				fx.Fprint(os.Stderr, "  {warning}{}: {}{@}\n", path, err)
+			}
 			return nil
 		}
 		if !d.IsDir() {
@@ -59,14 +63,14 @@ func RunRecursive(dir string, targetName string, opts RunOpts) error {
 
 		file, err := fiat.Parse(fiatPath)
 		if err != nil {
-			walkErr = fmt.Errorf("parsing %s: %w", fiatPath, err)
+			walkErr = append(walkErr, fmt.Errorf("parsing %s: %w", fiatPath, err))
 			return nil
 		}
 		if opts.BuildDir != "" {
 			file.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: opts.BuildDir}
 		}
 		if err := targets.Apply(file); err != nil {
-			walkErr = fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
+			walkErr = append(walkErr, fmt.Errorf("applying defaults to %s: %w", fiatPath, err))
 			return nil
 		}
 
@@ -74,9 +78,9 @@ func RunRecursive(dir string, targetName string, opts RunOpts) error {
 			fx.Println(`{cyan}Entering {}{@}`, path)
 		}
 		if err := RunTarget(file, targetName, opts); err != nil {
-			walkErr = fmt.Errorf("in %s: %w", path, err)
+			walkErr = append(walkErr, fmt.Errorf("in %s: %w", path, err))
 		}
 		return nil
 	})
-	return walkErr
+	return errors.Join(walkErr...)
 }

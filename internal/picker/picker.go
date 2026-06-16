@@ -174,7 +174,6 @@ func (p *picker) run() string {
 			p.render()
 
 		case '\x03':
-			term.Restore(p.fd, p.oldState)
 			fmt.Fprint(os.Stdout, "\x1b[?1049l")
 			return ""
 
