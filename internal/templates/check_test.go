@@ -1,6 +1,9 @@
 package templates
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -79,6 +82,77 @@ func TestPythonBasicTemplate(t *testing.T) {
 	}
 	if tmpl.Language != "python" {
 		t.Fatalf("expected language 'python', got %q", tmpl.Language)
+	}
+}
+
+func TestParseTemplateINIMissingName(t *testing.T) {
+	ini := "[template]\nlanguage=go\nfiles=main.go.tmpl\n"
+	_, err := parseTemplateINI(ini, "/tmp")
+	if err == nil {
+		t.Fatal("expected error for missing name")
+	}
+	if !strings.Contains(err.Error(), "missing 'name'") {
+		t.Fatalf("expected 'missing name' error, got %q", err.Error())
+	}
+}
+
+func TestParseTemplateINIMissingLanguage(t *testing.T) {
+	ini := "[template]\nname=basic\nfiles=main.go.tmpl\n"
+	_, err := parseTemplateINI(ini, "/tmp")
+	if err == nil {
+		t.Fatal("expected error for missing language")
+	}
+	if !strings.Contains(err.Error(), "missing 'language'") {
+		t.Fatalf("expected 'missing language' error, got %q", err.Error())
+	}
+}
+
+func TestParseTemplateINIWithVars(t *testing.T) {
+	ini := "[template]\nname=basic\ndescription=test\nlanguage=go\nfiles=main.go.tmpl, fiat.tmpl\n\n[vars]\nPORT=8080\n"
+	tmpl, err := parseTemplateINI(ini, "/tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tmpl.Name != "basic" {
+		t.Fatalf("expected name 'basic', got %q", tmpl.Name)
+	}
+	if tmpl.Language != "go" {
+		t.Fatalf("expected language 'go', got %q", tmpl.Language)
+	}
+	if tmpl.Description != "test" {
+		t.Fatalf("expected description 'test', got %q", tmpl.Description)
+	}
+	if len(tmpl.Files) != 2 || tmpl.Files[0] != "main.go.tmpl" || tmpl.Files[1] != "fiat.tmpl" {
+		t.Fatalf("unexpected files: %v", tmpl.Files)
+	}
+	if tmpl.Vars["PORT"] != "8080" {
+		t.Fatalf("expected PORT=8080, got %q", tmpl.Vars["PORT"])
+	}
+}
+
+func TestParseTemplateINIComments(t *testing.T) {
+	ini := "# comment\n[template]\n; also comment\nname=basic\nlanguage=go\nfiles=main.go.tmpl\n"
+	tmpl, err := parseTemplateINI(ini, "/tmp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tmpl.Name != "basic" {
+		t.Fatalf("expected name 'basic', got %q", tmpl.Name)
+	}
+}
+
+func TestLoadTemplateMissingFiles(t *testing.T) {
+	dir := t.TempDir()
+	ini := "[template]\nname=missing\nlanguage=go\nfiles=nonexistent.go.tmpl\n"
+	if err := os.WriteFile(filepath.Join(dir, "template.ini"), []byte(ini), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := loadTemplate(dir)
+	if err == nil {
+		t.Fatal("expected error for missing template file")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected 'not found' error, got %q", err.Error())
 	}
 }
 

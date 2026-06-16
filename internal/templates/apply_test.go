@@ -3,6 +3,7 @@ package templates
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -144,6 +145,140 @@ func TestApplyTemplatePythonBasicCreatesSubdirs(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(dir, "src", "app", "main.py")); err != nil {
 		t.Errorf("src/app/main.py should exist: %v", err)
+	}
+}
+
+func TestApplyPicksPlatformVariant(t *testing.T) {
+	tdir := t.TempDir()
+	odir := t.TempDir()
+
+	generic := "generic content\n"
+	platform := runtime.GOOS + "-specific content\n"
+
+	if err := os.WriteFile(filepath.Join(tdir, "app.txt.tmpl"), []byte(generic), 0644); err != nil {
+		t.Fatal(err)
+	}
+	platformFile := "app.txt." + runtime.GOOS + ".tmpl"
+	if err := os.WriteFile(filepath.Join(tdir, platformFile), []byte(platform), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	tmpl := &Template{
+		Name:     "test",
+		Language: "go",
+		Files:    []string{"app.txt.tmpl"},
+		Dir:      tdir,
+	}
+
+	if err := ApplyTemplate(tmpl, odir, nil, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(odir, "app.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != platform {
+		t.Errorf("expected platform-specific content %q, got %q", platform, string(data))
+	}
+}
+
+func TestApplyFallsBackToGenericWhenNoPlatformVariant(t *testing.T) {
+	tdir := t.TempDir()
+	odir := t.TempDir()
+
+	generic := "generic content\n"
+	if err := os.WriteFile(filepath.Join(tdir, "app.txt.tmpl"), []byte(generic), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	tmpl := &Template{
+		Name:     "test",
+		Language: "go",
+		Files:    []string{"app.txt.tmpl"},
+		Dir:      tdir,
+	}
+
+	if err := ApplyTemplate(tmpl, odir, nil, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(odir, "app.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != generic {
+		t.Errorf("expected generic content %q, got %q", generic, string(data))
+	}
+}
+
+func TestApplyPlatformVariantUsesExtraVars(t *testing.T) {
+	tdir := t.TempDir()
+	odir := t.TempDir()
+
+	generic := "$NAME\n"
+	platform := runtime.GOOS + "-$NAME\n"
+	platformFile := "app.txt." + runtime.GOOS + ".tmpl"
+
+	if err := os.WriteFile(filepath.Join(tdir, "app.txt.tmpl"), []byte(generic), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tdir, platformFile), []byte(platform), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	tmpl := &Template{
+		Name:     "test",
+		Language: "go",
+		Files:    []string{"app.txt.tmpl"},
+		Dir:      tdir,
+	}
+
+	extra := map[string]string{"NAME": "hello"}
+	if err := ApplyTemplate(tmpl, odir, extra, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(odir, "app.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := runtime.GOOS + "-hello\n"
+	if string(data) != expected {
+		t.Errorf("expected %q, got %q", expected, string(data))
+	}
+}
+
+func TestApplyPlatformVariantNonTmplIgnored(t *testing.T) {
+	tdir := t.TempDir()
+	odir := t.TempDir()
+
+	content := "plain file\n"
+	if err := os.WriteFile(filepath.Join(tdir, "readme.md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	platformFile := "readme.md." + runtime.GOOS
+	if err := os.WriteFile(filepath.Join(tdir, platformFile), []byte("nope\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	tmpl := &Template{
+		Name:     "test",
+		Language: "go",
+		Files:    []string{"readme.md"},
+		Dir:      tdir,
+	}
+
+	if err := ApplyTemplate(tmpl, odir, nil, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(odir, "readme.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != content {
+		t.Errorf("expected plain content %q, got %q", content, string(data))
 	}
 }
 
