@@ -826,7 +826,7 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 	}
 
 	switch lang {
-	case LangGo:
+	case LangGo, LangTinyGo:
 		if err := initGoMod(".", dirProjectName(), force, verbose); err != nil {
 			return err
 		}
@@ -847,6 +847,8 @@ func InitProjectWithTemplate(lang, tmplName string, force, verbose bool) error {
 		gitignore = append(gitignore, "__pycache__/", "*.pyc")
 	case LangNode, LangTS:
 		gitignore = append(gitignore, "node_modules/")
+	case LangJava, LangKotlin, LangGradle:
+		gitignore = append(gitignore, ".gradle/", "*.jar")
 	}
 	return WriteIgnores(gitignore, verbose)
 }
