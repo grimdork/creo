@@ -1,0 +1,3 @@
+build: go
+    desc=Build the tool CLI
+    cmd=go build -o $bin

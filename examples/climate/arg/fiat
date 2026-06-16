@@ -1,0 +1,3 @@
+build: go
+    desc=Build the demo CLI
+    cmd=go build -o $bin

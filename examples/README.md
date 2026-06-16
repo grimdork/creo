@@ -21,6 +21,8 @@ any needed project files — ready to run with `creo`.
 | `cxx/` | C++ | Runnable project: `main.cpp` + fiat with OCI + Alpine base |
 | `rust/` | Rust | Runnable project: `Cargo.toml` + `main.rs` + fiat with OCI |
 | `zig/` | Zig | Generic (no language handler): `build.zig` + `main.zig` + fiat with OCI |
+| `climate/arg/` | Go | `climate/arg` basic usage: flags, options, positional arguments |
+| `climate/tool/` | Go | `climate/arg` tool commands: subcommands with per-command flags |
 
 ## Quick reference
 
