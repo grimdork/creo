@@ -264,7 +264,10 @@ func TestGlobFiles(t *testing.T) {
 	writeFile(t, dir, "sub/c.go", "")
 	writeFile(t, dir, "sub/d.h", "")
 
-	got := util.GlobFiles("*.go", dir)
+	got, err := util.GlobFiles("*.go", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(got) != 2 {
 		t.Fatalf("expected 2 .go files, got %d: %v", len(got), got)
 	}
@@ -276,12 +279,18 @@ func TestGlobFiles(t *testing.T) {
 		t.Fatal("expected a.go and b.go")
 	}
 
-	got = util.GlobFiles("**/*.go", dir)
+	got, err = util.GlobFiles("**/*.go", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(got) != 3 {
 		t.Fatalf("expected 3 .go files with **, got %d: %v", len(got), got)
 	}
 
-	got = util.GlobFiles("nonexistent", dir)
+	got, err = util.GlobFiles("nonexistent", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(got) != 0 {
 		t.Fatalf("expected empty, got %d: %v", len(got), got)
 	}
@@ -526,7 +535,10 @@ func TestCollectFilePaths(t *testing.T) {
 	if target == nil {
 		t.Fatal("target not found")
 	}
-	paths := collectFilePaths(target, f, dir)
+	paths, err := collectFilePaths(target, f, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(paths) < 2 {
 		t.Fatalf("expected at least 2 paths (main.go, helper.go), got %d", len(paths))
 	}

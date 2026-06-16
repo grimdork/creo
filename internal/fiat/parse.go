@@ -8,6 +8,7 @@ import (
 
 type segKind int
 
+// segKind classifies a line segment for preserving structure during re-serialisation.
 const (
 	segBlank segKind = iota
 	segComment
@@ -112,7 +113,9 @@ func Parse(path string) (*File, error) {
 		}
 	}
 
+	// State-machine: classify each line and dispatch.
 	for _, raw := range rawLines {
+		// Strip inline comments: a hash preceded by whitespace or at the start.
 		stripped := raw
 		for i := 0; i < len(stripped); i++ {
 			if stripped[i] == '#' && (i == 0 || stripped[i-1] == ' ' || stripped[i-1] == '\t') {
@@ -127,6 +130,7 @@ func Parse(path string) (*File, error) {
 		isVar := strings.HasPrefix(line, "$")
 		isTarget := !isIndented(raw) && strings.Contains(line, ":") && strings.IndexByte(line, ':') > 0
 
+		// Blank lines: coalesce consecutive blanks into one segment.
 		if isBlank {
 			if curSeg == nil || curSeg.kind != segBlank {
 				flushSeg()
@@ -136,7 +140,9 @@ func Parse(path string) (*File, error) {
 			continue
 		}
 
+		// Comment lines: preserve for re-serialisation, no semantic effect.
 		if isHash {
+			// Fallback: treat unrecognised lines as comments for preservation.
 			if curSeg == nil || curSeg.kind != segComment {
 				flushSeg()
 				curSeg = &segment{kind: segComment}
@@ -145,6 +151,7 @@ func Parse(path string) (*File, error) {
 			continue
 		}
 
+		// Variable assignment ($NAME=value or $NAME:=eager-value): file-level unless inside a target.
 		if isVar {
 			flushSeg()
 			curTarget = nil
@@ -160,6 +167,8 @@ func Parse(path string) (*File, error) {
 			continue
 		}
 
+		// Target declaration: name: language optkey=optval
+		// Properties follow on indented lines below.
 		if isTarget {
 			flushSeg()
 			parts := strings.SplitN(line, ":", 2)
@@ -195,6 +204,7 @@ func Parse(path string) (*File, error) {
 			continue
 		}
 
+		// Indented lines inside a target: property key=value or continuation (tab+tab).
 		if curTarget != nil && isIndented(raw) {
 			if curSeg != nil && curSeg.kind == segTarget {
 				curSeg.raw = append(curSeg.raw, raw)
@@ -258,6 +268,7 @@ func Parse(path string) (*File, error) {
 		f.Vars["DIR"] = &Var{Name: "DIR", Value: dir}
 	}
 
+	// Eager expansion pass: resolve $(var) references for all := assignments.
 	for _, v := range f.Vars {
 		if v.Eager {
 			v.Value = Expand(v.Value, f.Vars, 0)

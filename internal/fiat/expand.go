@@ -1,6 +1,8 @@
 package fiat
 
 import (
+	"fmt"
+	"os"
 	"runtime"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 
 func Expand(s string, vars map[string]*Var, depth int) string {
 	if depth > 10 {
+		fmt.Fprintf(os.Stderr, "Warning: variable expansion recursion limit exceeded, unexpended variables may remain: %s\n", s)
 		return s
 	}
 

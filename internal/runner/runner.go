@@ -124,7 +124,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	if !opts.Clean && !opts.DryRun {
 		for _, pattern := range t.Tmp {
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
-			matches := util.GlobFiles(expanded, dir)
+			matches, err := util.GlobFiles(expanded, dir)
+			if err != nil && opts.Verbose {
+				fmt.Fprintf(os.Stderr, "  Warning: pattern %q: %v\n", pattern, err)
+			}
 			for _, m := range matches {
 				if err := os.RemoveAll(m); err != nil {
 					if opts.Verbose {
@@ -185,7 +188,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			}
 			for _, pattern := range t.Tmp {
 				expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
-				matches := util.GlobFiles(expanded, dir)
+				matches, err := util.GlobFiles(expanded, dir)
+				if err != nil && opts.Verbose {
+					fmt.Fprintf(os.Stderr, "  Warning: pattern %q: %v\n", pattern, err)
+				}
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {
@@ -206,7 +212,11 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 	var sources []string
 	var buildStart time.Time
 	if !t.IsVirtual && t.Bin != "" && t.Sources != "" {
-		sources = collectFilePaths(t, f, dir)
+		var err error
+		sources, err = collectFilePaths(t, f, dir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		}
 	}
 	archs := archOrEmpty(t.Arch)
 	oses := osOrEmpty(t.OS)
@@ -443,7 +453,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		if !opts.DryRun {
 			for _, pattern := range t.Tmp {
 				expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
-				matches := util.GlobFiles(expanded, dir)
+				matches, err := util.GlobFiles(expanded, dir)
+				if err != nil && opts.Verbose {
+					fmt.Fprintf(os.Stderr, "  Warning: pattern %q: %v\n", pattern, err)
+				}
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {

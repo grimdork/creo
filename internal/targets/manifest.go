@@ -204,8 +204,10 @@ func parseRawINI(data string) []rawSection {
 
 		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
 			name := trimmed[1 : len(trimmed)-1]
+			if cur != nil {
+				sections = append(sections, *cur)
+			}
 			cur = &rawSection{name: name, fields: make(map[string][]string)}
-			sections = append(sections, *cur)
 			continue
 		}
 
@@ -227,6 +229,10 @@ func parseRawINI(data string) []rawSection {
 
 		cur.fields[key] = append(cur.fields[key], value)
 		cur.order = append(cur.order, key)
+	}
+
+	if cur != nil {
+		sections = append(sections, *cur)
 	}
 
 	return sections

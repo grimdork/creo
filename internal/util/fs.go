@@ -7,13 +7,13 @@ import (
 	"strings"
 )
 
-func GlobFiles(pattern, dir string) []string {
+func GlobFiles(pattern, dir string) ([]string, error) {
 	if !strings.Contains(pattern, "**") {
 		matches, err := filepath.Glob(filepath.Join(dir, pattern))
 		if err != nil {
-			return nil
+			return nil, err
 		}
-		return matches
+		return matches, nil
 	}
 
 	idx := strings.Index(pattern, "**")
@@ -31,9 +31,9 @@ func GlobFiles(pattern, dir string) []string {
 	suffix = strings.TrimPrefix(suffix, "/")
 
 	var files []string
-	filepath.WalkDir(walkRoot, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(walkRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return err
 		}
 		if d.IsDir() {
 			return nil
@@ -60,7 +60,10 @@ func GlobFiles(pattern, dir string) []string {
 		}
 		return nil
 	})
-	return files
+	if err != nil {
+		return files, err
+	}
+	return files, nil
 }
 
 func matchGlob(pattern, name string) bool {

@@ -36,7 +36,10 @@ func targetStatus(f *fiat.File, t *fiat.Target, dir string) string {
 	if _, err := os.Stat(cachePath(dir, t.Name)); err != nil {
 		return ""
 	}
-	sources := collectFilePaths(t, f, dir)
+	sources, err := collectFilePaths(t, f, dir)
+	if err != nil {
+		return "stale"
+	}
 	if checkCache(dir, t.Name, sources, t.Cmds) {
 		return "cached"
 	}

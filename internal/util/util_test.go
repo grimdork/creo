@@ -88,7 +88,10 @@ func TestGlobFilesNoGlob(t *testing.T) {
 	f2 := filepath.Join(dir, "b.go")
 	os.WriteFile(f2, []byte("b"), 0644)
 
-	matches := GlobFiles("*.txt", dir)
+	matches, err := GlobFiles("*.txt", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(matches) != 1 || matches[0] != f1 {
 		t.Errorf("GlobFiles('*.txt') = %v, want [%s]", matches, f1)
 	}
@@ -103,7 +106,10 @@ func TestGlobFilesDoubleStar(t *testing.T) {
 	f2 := filepath.Join(sub, "nested.txt")
 	os.WriteFile(f2, []byte("n"), 0644)
 
-	matches := GlobFiles("**/*.txt", dir)
+	matches, err := GlobFiles("**/*.txt", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(matches) != 2 {
 		t.Errorf("GlobFiles('**/*.txt') = %v, want 2 matches", matches)
 	}
@@ -111,7 +117,10 @@ func TestGlobFilesDoubleStar(t *testing.T) {
 
 func TestGlobFilesNoMatches(t *testing.T) {
 	dir := t.TempDir()
-	matches := GlobFiles("*.xyz", dir)
+	matches, err := GlobFiles("*.xyz", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(matches) != 0 {
 		t.Errorf("GlobFiles('*.xyz') = %v, want empty", matches)
 	}

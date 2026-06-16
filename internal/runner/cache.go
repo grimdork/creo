@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -108,9 +109,10 @@ func writeCache(dir, targetName string, sources []string, cmds []string) error {
 	return os.WriteFile(p, data, 0644)
 }
 
-func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) []string {
+func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) ([]string, error) {
 	visited := map[string]bool{}
 	var paths []string
+	var errs []string
 	var walk func(t *fiat.Target)
 	walk = func(t *fiat.Target) {
 		if visited[t.Name] {
@@ -120,7 +122,11 @@ func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) []string {
 		if t.Sources != "" {
 			srcPatterns := strings.Fields(fiat.ExpandWithTarget(t.Sources, f.Vars, t))
 			for _, pat := range srcPatterns {
-				files := util.GlobFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
+				files, err := util.GlobFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
+				if err != nil {
+					errs = append(errs, fmt.Sprintf("pattern %q: %v", pat, err))
+					continue
+				}
 				paths = append(paths, files...)
 			}
 		}
@@ -133,5 +139,8 @@ func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) []string {
 	}
 	walk(t)
 	paths = append(paths, f.Path())
-	return paths
+	if len(errs) > 0 {
+		return paths, fmt.Errorf("collecting source paths: %s", strings.Join(errs, "; "))
+	}
+	return paths, nil
 }

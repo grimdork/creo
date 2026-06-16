@@ -75,7 +75,10 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 }
 
 func fileHash(t *fiat.Target, f *fiat.File, dir string) string {
-	paths := collectFilePaths(t, f, dir)
+	paths, err := collectFilePaths(t, f, dir)
+	if err != nil {
+		return ""
+	}
 	h := sha256.New()
 	for _, p := range paths {
 		data, err := os.ReadFile(p)

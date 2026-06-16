@@ -16,12 +16,14 @@ import (
 	"github.com/grimdork/creo/internal/targets"
 )
 
+// injectBuildDir sets or overrides $BUILDDIR in a parsed fiat file's variable map.
 func injectBuildDir(f *fiat.File, bd string) {
 	f.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: bd}
 }
 
 var version string
 
+// listTargets parses a fiat file and returns a human-readable list of targets with descriptions.
 func listTargets(explicitPath string) (string, error) {
 	fiatPath, ok := fiat.FindFiat(explicitPath)
 	if !ok {
@@ -52,6 +54,7 @@ func listTargets(explicitPath string) (string, error) {
 	return b.String(), nil
 }
 
+// printVersion prints the creo version to stdout, or "(dev)" if not set at build time.
 func printVersion() {
 	if version == "" {
 		fx.Println("{bold}creo (dev){@}")
@@ -60,16 +63,19 @@ func printVersion() {
 	}
 }
 
+// fail prints an error and exits with code 1.  Intended for the top-level dispatch in main.
 func fail(err error) {
 	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	os.Exit(1)
 }
 
+// failf is like fail but formats the message first.
 func failf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "Error: %v\n", fmt.Errorf(msg, args...))
 	os.Exit(1)
 }
 
+// runLogin stores OCI registry credentials in ~/.docker/config.json.
 func runLogin() {
 	if err := oci.Login(); err != nil {
 		fail(err)
@@ -77,18 +83,21 @@ func runLogin() {
 	fx.Println("{success}Credentials stored{@}")
 }
 
+// runInspect fetches and prints the manifest and config of a remote OCI image reference.
 func runInspect(ref string) {
 	if err := oci.Inspect(ref); err != nil {
 		fail(err)
 	}
 }
 
+// runInit scaffolds project files for the requested target types (go, c, oci, etc.).
 func runInit(langs []string, force, verbose bool) {
 	if err := targets.InitProject(langs, force, verbose); err != nil {
 		fail(err)
 	}
 }
 
+// runGitInit creates a git repository and makes an initial commit of all scaffolded files.
 func runGitInit(verbose bool) {
 	git := func(args ...string) error {
 		cmd := exec.Command("git", args...)
@@ -131,6 +140,7 @@ func runGitInit(verbose bool) {
 	}
 }
 
+// runList prints all available targets and their descriptions.
 func runList(filePath string) {
 	out, err := listTargets(filePath)
 	if err != nil {
@@ -139,6 +149,7 @@ func runList(filePath string) {
 	fmt.Print(out)
 }
 
+// runGraph renders the dependency graph in the requested format (tree, dot, or svg).
 func runGraph(opt *arg.Options) {
 	format := opt.GetString("graph")
 	if format != "tree" && format != "dot" && format != "svg" {
@@ -171,6 +182,7 @@ func runGraph(opt *arg.Options) {
 	fmt.Print(out)
 }
 
+// runBuild is the main entry point for building, cleaning, and watching targets.
 func runBuild(opt *arg.Options) {
 	if opt.GetBool("no-color") || opt.GetBool("no-colour") {
 		os.Setenv("NO_COLOR", "1")
