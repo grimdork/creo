@@ -6,6 +6,7 @@
 
 - `--max-age` (default 7d): delete manifests + artifacts older than this
 - `--max-size` (default 10G): delete oldest entries until under this
+- `--keep-latest` flag to always leave one built binary of each arch even if it's old
 - Operates entirely over SSH: `ssh user@host "rm -rf ..."`
 
 ## OCI build cache
