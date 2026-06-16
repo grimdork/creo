@@ -142,12 +142,12 @@ func pullImage(cfg Config) (v1.Image, error) {
 
 	ref, err := name.ParseReference(cfg.BaseImage)
 	if err != nil {
-		return nil, fmt.Errorf("invalid reference %q: %w", cfg.BaseImage, err)
+		return nil, fmt.Errorf(errInvalidRef, cfg.BaseImage, err)
 	}
 
 	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
 	if err != nil {
-		return nil, fmt.Errorf("auth: %w", err)
+		return nil, fmt.Errorf(errAuth, err)
 	}
 
 	var plat *v1.Platform

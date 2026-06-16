@@ -205,7 +205,7 @@ func WriteDefaultFile(path string, force, verbose bool) error {
 	if _, err := os.Stat(path); err == nil {
 		if force {
 			if err := os.WriteFile(path, []byte("build: go\n"), 0644); err != nil {
-				return fmt.Errorf("writing %s: %w", path, err)
+				return fmt.Errorf(errWriting, path, err)
 			}
 			if verbose {
 				fx.Println("{success}  Replaced fiat{@}")
@@ -215,7 +215,7 @@ func WriteDefaultFile(path string, force, verbose bool) error {
 		}
 	} else {
 		if err := os.WriteFile(path, []byte("build: go\n"), 0644); err != nil {
-			return fmt.Errorf("writing %s: %w", path, err)
+			return fmt.Errorf(errWriting, path, err)
 		}
 		if verbose {
 			fx.Println("{success}  Created fiat{@}")

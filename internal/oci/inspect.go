@@ -16,12 +16,12 @@ import (
 func Inspect(imageRef string) error {
 	ref, err := name.ParseReference(imageRef)
 	if err != nil {
-		return fmt.Errorf("invalid reference %q: %w", imageRef, err)
+		return fmt.Errorf(errInvalidRef, imageRef, err)
 	}
 
 	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
 	if err != nil {
-		return fmt.Errorf("auth: %w", err)
+		return fmt.Errorf(errAuth, err)
 	}
 
 	desc, err := remote.Get(ref, remote.WithAuth(auth))

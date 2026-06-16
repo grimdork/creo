@@ -60,25 +60,32 @@ func printVersion() {
 	}
 }
 
+func fail(err error) {
+	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	os.Exit(1)
+}
+
+func failf(msg string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, "Error: %v\n", fmt.Errorf(msg, args...))
+	os.Exit(1)
+}
+
 func runLogin() {
 	if err := oci.Login(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fail(err)
 	}
 	fx.Println("{success}Credentials stored{@}")
 }
 
 func runInspect(ref string) {
 	if err := oci.Inspect(ref); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fail(err)
 	}
 }
 
 func runInit(langs []string, force, verbose bool) {
 	if err := lang.InitProject(langs, force, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fail(err)
 	}
 }
 
@@ -91,22 +98,19 @@ func runGitInit(verbose bool) {
 	}
 
 	if err := git("init"); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: git init: %v\n", err)
-		os.Exit(1)
+		failf("git init: %v", err)
 	}
 	if verbose {
 		fx.Println("  {success}Initialised git repository{@}")
 	}
 
 	if err := git("add", "-A"); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: git add: %v\n", err)
-		os.Exit(1)
+		failf("git add: %v", err)
 	}
 
 	out, err := exec.Command("git", "diff", "--cached", "--name-only").Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: listing staged files: %v\n", err)
-		os.Exit(1)
+		failf("listing staged files: %v", err)
 	}
 
 	files := strings.TrimSpace(string(out))
@@ -123,16 +127,14 @@ func runGitInit(verbose bool) {
 	}
 	msg := "Initial scaffolding" + body
 	if err := git("commit", "-m", msg); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: git commit: %v\n", err)
-		os.Exit(1)
+		failf("git commit: %v", err)
 	}
 }
 
 func runList(filePath string) {
 	out, err := listTargets(filePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fail(err)
 	}
 	fmt.Print(out)
 }
@@ -153,21 +155,18 @@ func runGraph(opt *arg.Options) {
 
 	file, err := fiat.Parse(fiatPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
-		os.Exit(1)
+		failf("parsing %s: %v", fiatPath, err)
 	}
 	if bd := opt.GetString("output"); bd != "" {
 		injectBuildDir(file, bd)
 	}
 	if err := lang.Apply(file); err != nil {
-		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
-		os.Exit(1)
+		failf("applying defaults to %s: %v", fiatPath, err)
 	}
 
 	out, err := runner.RenderGraph(file, dir, format, opt.GetBool("status"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fail(err)
 	}
 	fmt.Print(out)
 }
@@ -211,15 +210,13 @@ func runBuild(opt *arg.Options) {
 
 	file, err := fiat.Parse(fiatPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", fiatPath, err)
-		os.Exit(1)
+		failf("parsing %s: %v", fiatPath, err)
 	}
 	if bd := opt.GetString("output"); bd != "" {
 		injectBuildDir(file, bd)
 	}
 	if err := lang.Apply(file); err != nil {
-		fmt.Fprintf(os.Stderr, "Error applying defaults to %s: %v\n", fiatPath, err)
-		os.Exit(1)
+		failf("applying defaults to %s: %v", fiatPath, err)
 	}
 
 	if opt.GetBool("w") {
@@ -273,8 +270,7 @@ func main() {
 
 	if err := opt.Parse(os.Args[1:]); err != nil {
 		if !errors.Is(err, arg.ErrNonFatal) {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			fail(err)
 		}
 	}
 
@@ -283,8 +279,7 @@ func main() {
 		printVersion()
 	case opt.GetBool("clean-cache"):
 		if err := runner.CleanCache("."); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			fail(err)
 		}
 		fx.Println("{success}Cache cleaned{@}")
 	case opt.GetBool("completion"):

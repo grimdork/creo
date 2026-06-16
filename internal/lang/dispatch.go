@@ -45,34 +45,34 @@ func Apply(f *fiat.File) error {
 		switch t.Language {
 		case "":
 			continue
-		case "go":
+		case LangGo:
 			applyGo(f, t)
-		case "tinygo":
+		case LangTinyGo:
 			applyTinyGo(f, t)
-		case "c":
+		case LangC:
 			applyC(f, t)
-		case "cxx", "cpp":
+		case LangCxx, LangCpp:
 			applyCxx(f, t)
-		case "rust":
+		case LangRust:
 			applyRust(f, t)
-		case "python":
+		case LangPython:
 			applyPython(f, t)
-		case "node", "typescript":
+		case LangNode, LangTS:
 			applyNode(f, t)
-		case "java", "kotlin", "gradle":
+		case LangJava, LangKotlin, LangGradle:
 			applyJava(f, t)
-		case "oci":
+		case LangOCI:
 			applyOci(f, t)
-		case "archive":
+		case LangArchive:
 			applyArchive(f, t)
-		case "deb":
+		case LangDeb:
 			applyDeb(f, t)
-		case "rpm":
+		case LangRpm:
 			applyRpm(f, t)
-		case "brew":
+		case LangBrew:
 			applyBrew(f, t)
 		default:
-			return fmt.Errorf("%s: unknown language %q", f.Path(), t.Language)
+			return fmt.Errorf(errUnknownLang, f.Path(), t.Language)
 		}
 	}
 	return nil

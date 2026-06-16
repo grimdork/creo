@@ -11,7 +11,7 @@ import (
 
 func applyOci(f *fiat.File, t *fiat.Target) {
 	cfg := &fiat.OCIConfig{
-		AppDir: "/app",
+		AppDir: DefAppDir,
 		Tag:    "latest",
 	}
 
@@ -76,7 +76,7 @@ func applyRegistryAlias(f *fiat.File, t *fiat.Target, cfg *fiat.OCIConfig) {
 				r = resolveRegion(f, t)
 			}
 			if r == "" {
-				r = "us-east-1"
+				r = DefECRRegion
 			}
 			cfg.CredHelper = "aws ecr get-login-password --region " + r
 		}
@@ -91,7 +91,7 @@ func aliasRepo(alias, owner, region, name string) string {
 		return "docker.io/" + owner + "/" + name
 	case "ecr":
 		if region == "" {
-			region = "us-east-1"
+			region = DefECRRegion
 		}
 		return owner + ".dkr.ecr." + region + ".amazonaws.com/" + name
 	case "gcr":
@@ -107,7 +107,7 @@ func aliasRepo(alias, owner, region, name string) string {
 
 func scwRegion(region string) string {
 	if region == "" {
-		return "fr-par"
+		return DefScwRegion
 	}
 	switch region {
 	case "fr", "fr-par":

@@ -43,7 +43,7 @@ func initGoMod(dir, name string, force, verbose bool) error {
 		mod := exec.Command("go", "mod", "init", name)
 		mod.Dir = dir
 		if out, err := mod.CombinedOutput(); err != nil {
-			return fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
+			return fmt.Errorf(errGoModInit, strings.TrimSpace(string(out)))
 		}
 		if verbose {
 			fx.Println("  {success}Initialised Go module{@}")
@@ -55,7 +55,7 @@ func initGoMod(dir, name string, force, verbose bool) error {
 		mod := exec.Command("go", "mod", "init", name)
 		mod.Dir = dir
 		if out, err := mod.CombinedOutput(); err != nil {
-			return fmt.Errorf("go mod init: %s", strings.TrimSpace(string(out)))
+			return fmt.Errorf(errGoModInit, strings.TrimSpace(string(out)))
 		}
 		if verbose {
 			fx.Println("  {success}Reinitialised Go module{@}")
@@ -68,10 +68,10 @@ func initGoMod(dir, name string, force, verbose bool) error {
 
 func runGofmt(dir string) error {
 	if out, err := exec.Command("gofmt", "-w", dir).CombinedOutput(); err != nil {
-		return fmt.Errorf("gofmt: %s", strings.TrimSpace(string(out)))
+		return fmt.Errorf(errGofmt, strings.TrimSpace(string(out)))
 	}
 	if out, err := exec.Command("goimports", "-w", dir).CombinedOutput(); err != nil {
-		return fmt.Errorf("goimports: %s", strings.TrimSpace(string(out)))
+		return fmt.Errorf(errGoImports, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func runGoModTidy(dir string) error {
 	tidy := exec.Command("go", "mod", "tidy")
 	tidy.Dir = dir
 	if out, err := tidy.CombinedOutput(); err != nil {
-		return fmt.Errorf("go mod tidy: %s", strings.TrimSpace(string(out)))
+		return fmt.Errorf(errGoModTidy, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -158,11 +158,6 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	if bt := fiat.FindTarget(file, "build"); bt != nil {
-		bt.Language = "tinygo"
-		bt.Desc = "Build with TinyGo"
-	}
-
 	if ver != "" {
 		modPath := filepath.Join(dir, "go.mod")
 		data, err := os.ReadFile(modPath)
@@ -197,7 +192,7 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	return []string{"/build", "/.creo"}, nil
+	return []string{GitignoreBuild, GitignoreCreo}, nil
 }
 
 func InitTinyGo(dir string, force, verbose bool) ([]string, error) {
@@ -212,7 +207,7 @@ func InitTinyGo(dir string, force, verbose bool) ([]string, error) {
 	}
 
 	if bt := fiat.FindTarget(file, "build"); bt != nil {
-		bt.Language = "tinygo"
+		bt.Language = LangTinyGo
 		bt.Desc = "Build with TinyGo"
 	}
 
@@ -226,7 +221,7 @@ func InitTinyGo(dir string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	return []string{"/build", "/.creo"}, nil
+	return []string{GitignoreBuild, GitignoreCreo}, nil
 }
 
 func InitC(dir string, force, verbose bool) ([]string, error) {
@@ -339,7 +334,7 @@ func InitOci(dir string, force, verbose bool) ([]string, error) {
 		return nil, err
 	}
 
-	return []string{"/" + filepath.Base(dir), "/build", "/.creo"}, nil
+	return []string{"/" + filepath.Base(dir), GitignoreBuild, GitignoreCreo}, nil
 }
 
 func InitRust(dir string, force, verbose bool) ([]string, error) {
@@ -362,7 +357,7 @@ func InitRust(dir string, force, verbose bool) ([]string, error) {
 		cmd := exec.Command("cargo", "init", "--name", filepath.Base(dir))
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("cargo init: %s", strings.TrimSpace(string(out)))
+			return nil, fmt.Errorf(errCargoInit, strings.TrimSpace(string(out)))
 		}
 		if verbose {
 			fx.Println("  {success}Initialised Cargo project{@}")
@@ -374,7 +369,7 @@ func InitRust(dir string, force, verbose bool) ([]string, error) {
 		cmd := exec.Command("cargo", "init", "--name", filepath.Base(dir))
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("cargo init: %s", strings.TrimSpace(string(out)))
+			return nil, fmt.Errorf(errCargoInit, strings.TrimSpace(string(out)))
 		}
 		if verbose {
 			fx.Println("  {success}Reinitialised Cargo project{@}")
@@ -424,7 +419,7 @@ build-backend = "hatchling.build"
 
 	srcDir := filepath.Join(dir, "src", proj)
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
-		return nil, fmt.Errorf("creating src/%s: %w", proj, err)
+		return nil, fmt.Errorf(errCreating, "src/"+proj, err)
 	}
 
 	initContent := `def main() -> None:
@@ -576,7 +571,7 @@ dependencies {
 
 	klassDir := filepath.Join(dir, "src", "main", "kotlin", pkgPath)
 	if err := os.MkdirAll(klassDir, 0755); err != nil {
-		return nil, fmt.Errorf("creating src/main/kotlin/%s: %w", pkgPath, err)
+		return nil, fmt.Errorf(errCreating, "src/main/kotlin/"+pkgPath, err)
 	}
 
 	appContent := `package ` + pkg + `
@@ -647,7 +642,7 @@ func InitDeb(dir string, force, verbose bool) ([]string, error) {
 	if fiat.FindTarget(file, "deb") == nil {
 		maint := gitConfigUser()
 		if maint == "" {
-			maint = "packager <root@localhost>"
+			maint = DefMaintainer
 		}
 		dt := &fiat.Target{
 			Name:     "deb",
@@ -677,7 +672,7 @@ func InitRpm(dir string, force, verbose bool) ([]string, error) {
 	if fiat.FindTarget(file, "rpm") == nil {
 		maint := gitConfigUser()
 		if maint == "" {
-			maint = "packager <root@localhost>"
+			maint = DefMaintainer
 		}
 		rt := &fiat.Target{
 			Name:     "rpm",
@@ -729,7 +724,7 @@ func InitProject(langs []string, force, verbose bool) error {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
 			if err := os.RemoveAll(".creo"); err != nil {
-				return fmt.Errorf("removing .creo: %w", err)
+				return fmt.Errorf(errRemovingCreo, err)
 			}
 			if verbose {
 				fx.Println("  {muted}Removed .creo/{@}")
@@ -753,31 +748,31 @@ func InitProject(langs []string, force, verbose bool) error {
 		var err error
 
 		switch langName {
-		case "go":
+		case LangGo:
 			ignores, err = Init(".", ver, force, verbose)
-		case "tinygo":
+		case LangTinyGo:
 			ignores, err = InitTinyGo(".", force, verbose)
-		case "c":
+		case LangC:
 			ignores, err = InitC(".", force, verbose)
-		case "cxx", "cpp":
+		case LangCxx, LangCpp:
 			ignores, err = InitCxx(".", force, verbose)
-		case "oci":
+		case LangOCI:
 			ignores, err = InitOci(".", force, verbose)
-		case "rust":
+		case LangRust:
 			ignores, err = InitRust(".", force, verbose)
-		case "python":
+		case LangPython:
 			ignores, err = InitPython(".", force, verbose)
-		case "node", "typescript":
+		case LangNode, LangTS:
 			ignores, err = InitNode(".", force, verbose)
-		case "java", "kotlin", "gradle":
+		case LangJava, LangKotlin, LangGradle:
 			ignores, err = InitJava(".", force, verbose)
-		case "archive":
+		case LangArchive:
 			ignores, err = InitArchive(".", force, verbose)
-		case "deb":
+		case LangDeb:
 			ignores, err = InitDeb(".", force, verbose)
-		case "rpm":
+		case LangRpm:
 			ignores, err = InitRpm(".", force, verbose)
-		case "brew":
+		case LangBrew:
 			ignores, err = InitBrew(".", force, verbose)
 		default:
 			return fmt.Errorf("unknown language: %s", langName)

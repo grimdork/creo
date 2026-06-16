@@ -38,7 +38,7 @@ func Push(img v1.Image, cfg PushConfig) error {
 	} else {
 		auth, err = authn.DefaultKeychain.Resolve(ref.Context())
 		if err != nil {
-			return fmt.Errorf("auth: %w", err)
+			return fmt.Errorf(errAuth, err)
 		}
 	}
 

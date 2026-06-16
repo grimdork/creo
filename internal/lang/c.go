@@ -89,7 +89,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 
 func CrossEnv(lang, arch, osval string) []string {
 	switch lang {
-	case "go", "tinygo":
+	case LangGo, LangTinyGo:
 		var env []string
 		if arch != "" {
 			env = append(env, "GOARCH="+arch)
@@ -98,7 +98,7 @@ func CrossEnv(lang, arch, osval string) []string {
 			env = append(env, "GOOS="+osval)
 		}
 		return env
-	case "rust":
+	case LangRust:
 		if triple := rustTriple(arch, osval); triple != "" {
 			return []string{"CARGO_BUILD_TARGET=" + triple}
 		}

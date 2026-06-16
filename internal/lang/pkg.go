@@ -136,19 +136,19 @@ func readNfpmConfig(f *fiat.File, t *fiat.Target) *nfpmPkg {
 	}
 
 	if p.maintainer == "" {
-		p.maintainer = "packager <root@localhost>"
+		p.maintainer = DefMaintainer
 	}
 	if p.vendor == "" {
 		p.vendor = projectName(f)
 	}
 	if p.license == "" {
-		p.license = "MIT"
+		p.license = DefLicense
 	}
 	if p.section == "" {
-		p.section = "contrib"
+		p.section = DefSection
 	}
 	if p.priority == "" {
-		p.priority = "extra"
+		p.priority = DefPriority
 	}
 
 	return p

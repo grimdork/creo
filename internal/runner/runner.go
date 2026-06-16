@@ -188,7 +188,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {
-							fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
+							fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errFailedClean, m, err))
 						}
 					} else if opts.Verbose {
 						fx.Println(`  {cyan}Cleaned {}{@}`, m)
@@ -373,7 +373,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					if t.Sources != "" && multi {
 						comboKey := name + "_" + activeArch + "_" + activeOS
 						if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
-							fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err)
+							fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errCacheWrite, err))
 						}
 					}
 				}
@@ -681,7 +681,7 @@ end
 
 		if needsRun && !opts.DryRun && !t.IsVirtual && !multi && t.Bin != "" && t.Sources != "" {
 			if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose {
-				fmt.Fprintf(os.Stderr, "  Warning: cache write failed: %v\n", err)
+				fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errCacheWrite, err))
 			}
 		}
 
@@ -699,7 +699,7 @@ end
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {
-							fmt.Fprintf(os.Stderr, "  Failed to clean %s: %v\n", m, err)
+							fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errFailedClean, m, err))
 						}
 					} else if opts.Verbose {
 						fx.Println(`  {cyan}Cleaned {}{@}`, m)
