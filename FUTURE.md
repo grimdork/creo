@@ -15,6 +15,8 @@ A shared build cache for teams, using nothing but SSH and rsync on a plain Linux
     server_linux_amd64.oci.tar
 ```
 
+Alternatively, use .creo/cache/ in the user's $HOME.
+
 ### Manifest format
 
 ```json
