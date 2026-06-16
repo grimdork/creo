@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/grimdork/climate/fx"
@@ -213,6 +214,16 @@ func ApplyTemplate(t *Template, destDir string, extraVars map[string]string, for
 		if strings.HasSuffix(file, ".tmpl") {
 			dstName = strings.TrimSuffix(file, ".tmpl")
 			shouldExpand = true
+			// Check for platform variant: file.darwin.tmpl, file.linux.tmpl
+			platformFile := dstName + "." + runtime.GOOS + ".tmpl"
+			platformPath := filepath.Join(t.Dir, platformFile)
+			_, err := os.Stat(platformPath)
+			if os.IsNotExist(err) {
+				_, err = fs.Stat(embeddedTemplates, platformPath)
+			}
+			if err == nil {
+				srcName = platformFile
+			}
 		}
 
 		srcPath := filepath.Join(t.Dir, srcName)
