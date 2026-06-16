@@ -13,6 +13,7 @@ import (
 	"github.com/grimdork/creo/internal/targets"
 )
 
+// RunWatch watches target sources and rebuilds on every change.
 func RunWatch(f *fiat.File, name string, opts RunOpts) {
 	dir := filepath.Dir(f.Path())
 

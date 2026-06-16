@@ -40,6 +40,7 @@ func cachePath(dir, targetName string) string {
 	return filepath.Join(dir, ".creo", "cache", targetName+".json")
 }
 
+// CleanCache removes all cached build artifacts from .creo/cache and the OCI image cache.
 func CleanCache(dir string) error {
 	creoDir := filepath.Join(dir, ".creo")
 	if _, err := os.Stat(creoDir); err == nil {

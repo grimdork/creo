@@ -8,6 +8,7 @@ import (
 	"github.com/grimdork/creo/internal/fiat"
 )
 
+// ProjectName reads the project name from pyproject.toml.
 func ProjectName(dir string) string {
 	data, err := os.ReadFile(filepath.Join(dir, "pyproject.toml"))
 	if err != nil {

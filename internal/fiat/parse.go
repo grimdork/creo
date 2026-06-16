@@ -292,6 +292,7 @@ func Parse(path string) (*File, error) {
 	return f, nil
 }
 
+// FindTarget searches a parsed File for a target by name, returning nil if not found.
 func FindTarget(f *File, name string) *Target {
 	for _, t := range f.Targets {
 		if t.Name == name {

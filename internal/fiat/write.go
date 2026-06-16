@@ -8,6 +8,7 @@ import (
 	"github.com/grimdork/climate/fx"
 )
 
+// Write serialises the file back to disk, preserving existing structure where possible and appending new targets or vars.
 func (f *File) Write() error {
 	var b strings.Builder
 	covered := make(map[int]bool)
@@ -186,10 +187,12 @@ func splitLines(s string) []string {
 	return strings.Split(s, "\n")
 }
 
+// AddTarget appends a target to the file's target list.
 func (f *File) AddTarget(t *Target) {
 	f.Targets = append(f.Targets, t)
 }
 
+// NewFile returns a new File with the given path and an initialised vars map.
 func NewFile(path string) *File {
 	return &File{
 		path: path,
@@ -197,10 +200,12 @@ func NewFile(path string) *File {
 	}
 }
 
+// Path returns the filesystem path of the file.
 func (f *File) Path() string {
 	return f.path
 }
 
+// WriteDefaultFile writes a default "build: go" fiat file to path, skipping or replacing existing files per force.
 func WriteDefaultFile(path string, force, verbose bool) error {
 	if _, err := os.Stat(path); err == nil {
 		if force {

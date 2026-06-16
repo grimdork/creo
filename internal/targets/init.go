@@ -147,6 +147,7 @@ var version string
 	return nil
 }
 
+// Init scaffolds a Go project with a basic main.go and fiat file.
 func Init(dir, ver string, force, verbose bool) ([]string, error) {
 	_, name := absDirName(dir)
 	file, err := ensureFiat(dir)
@@ -195,6 +196,7 @@ func Init(dir, ver string, force, verbose bool) ([]string, error) {
 	return []string{GitignoreBuild, GitignoreCreo}, nil
 }
 
+// InitTinyGo scaffolds a TinyGo project with a basic main.go and fiat file.
 func InitTinyGo(dir string, force, verbose bool) ([]string, error) {
 	_, name := absDirName(dir)
 	file, err := ensureFiat(dir)
@@ -224,6 +226,7 @@ func InitTinyGo(dir string, force, verbose bool) ([]string, error) {
 	return []string{GitignoreBuild, GitignoreCreo}, nil
 }
 
+// InitC scaffolds a C project with a basic main.c and fiat file.
 func InitC(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -258,6 +261,7 @@ int main(int argc, char **argv) {
 	return []string{"/main", "/.creo"}, nil
 }
 
+// InitCxx scaffolds a C++ project with a basic main.cpp and fiat file.
 func InitCxx(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -292,6 +296,7 @@ int main(int argc, char **argv) {
 	return []string{"/main", "/.creo"}, nil
 }
 
+// InitOci scaffolds an OCI image target on top of a Go project.
 func InitOci(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -337,6 +342,7 @@ func InitOci(dir string, force, verbose bool) ([]string, error) {
 	return []string{"/" + filepath.Base(dir), GitignoreBuild, GitignoreCreo}, nil
 }
 
+// InitRust scaffolds a Rust project with a Cargo.toml and fiat file.
 func InitRust(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -385,6 +391,7 @@ func InitRust(dir string, force, verbose bool) ([]string, error) {
 	return []string{"/.creo"}, nil
 }
 
+// InitPython scaffolds a Python project with pyproject.toml and a basic package.
 func InitPython(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -447,6 +454,7 @@ if __name__ == "__main__":
 	return []string{"__pycache__/", "*.pyc", "dist/", "*.egg-info/", ".venv/", "/.creo"}, nil
 }
 
+// InitNode scaffolds a Node/TypeScript project with package.json, tsconfig and a basic source file.
 func InitNode(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -521,6 +529,7 @@ console.log(greeting);
 	return []string{"node_modules/", "dist/", "/.creo"}, nil
 }
 
+// InitJava scaffolds a Java/Kotlin project with Gradle build files and a basic source.
 func InitJava(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -609,6 +618,7 @@ func gitConfigUser() string {
 	return name
 }
 
+// InitArchive adds an archive target to the fiat file.
 func InitArchive(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -634,6 +644,7 @@ func InitArchive(dir string, force, verbose bool) ([]string, error) {
 	return nil, nil
 }
 
+// InitDeb adds a deb packaging target to the fiat file.
 func InitDeb(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -664,6 +675,7 @@ func InitDeb(dir string, force, verbose bool) ([]string, error) {
 	return nil, nil
 }
 
+// InitRpm adds an RPM packaging target to the fiat file.
 func InitRpm(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -694,6 +706,7 @@ func InitRpm(dir string, force, verbose bool) ([]string, error) {
 	return nil, nil
 }
 
+// InitBrew adds a Homebrew formula target to the fiat file.
 func InitBrew(dir string, force, verbose bool) ([]string, error) {
 	file, err := ensureFiat(dir)
 	if err != nil {
@@ -720,6 +733,7 @@ func InitBrew(dir string, force, verbose bool) ([]string, error) {
 	return nil, nil
 }
 
+// InitProject dispatches to the correct Init* function based on the requested language list.
 func InitProject(langs []string, force, verbose bool) error {
 	if force {
 		if _, err := os.Stat(".creo"); err == nil {
@@ -789,6 +803,7 @@ func InitProject(langs []string, force, verbose bool) error {
 	return nil
 }
 
+// WriteIgnores writes or appends unique gitignore lines to .gitignore.
 func WriteIgnores(lines []string, verbose bool) error {
 	lines = util.Unique(lines)
 	if _, err := os.Stat(".gitignore"); err == nil {

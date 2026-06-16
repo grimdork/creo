@@ -20,6 +20,7 @@ type dockerAuthEntry struct {
 
 const dockerIOKey = "https://index.docker.io/v1/"
 
+// Login stores OCI registry credentials in ~/.docker/config.json.
 func Login() error {
 	fmt.Print("Registry (default: docker.io): ")
 	var registry string

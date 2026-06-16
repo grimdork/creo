@@ -8,6 +8,7 @@ import (
 	"github.com/grimdork/creo/internal/fiat"
 )
 
+// JavaProjectName reads the project name from settings.gradle.kts, settings.gradle or pom.xml.
 func JavaProjectName(dir string) string {
 	data, err := os.ReadFile(filepath.Join(dir, "settings.gradle.kts"))
 	if err != nil {

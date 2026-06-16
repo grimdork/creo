@@ -8,6 +8,7 @@ import (
 	"github.com/grimdork/creo/internal/picker"
 )
 
+// FindFiat locates a fiat file by explicit path, or by searching the current directory for "fiat" or "*.fiat" files.
 func FindFiat(explicitPath string) (string, bool) {
 	if explicitPath != "" {
 		if _, err := os.Stat(explicitPath); err == nil {

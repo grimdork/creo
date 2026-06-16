@@ -8,6 +8,7 @@ import (
 	"github.com/grimdork/creo/internal/fiat"
 )
 
+// NodeProjectName reads the project name from package.json.
 func NodeProjectName(dir string) string {
 	data, err := os.ReadFile(filepath.Join(dir, "package.json"))
 	if err != nil {

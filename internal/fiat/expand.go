@@ -9,6 +9,7 @@ import (
 	"github.com/grimdork/creo/internal/util"
 )
 
+// Expand replaces $VAR and $(VAR) references in s with values from vars, recursing up to 10 levels deep.
 func Expand(s string, vars map[string]*Var, depth int) string {
 	if depth > 10 {
 		fmt.Fprintf(os.Stderr, "Warning: variable expansion recursion limit exceeded, unexpended variables may remain: %s\n", s)
@@ -64,6 +65,7 @@ func Expand(s string, vars map[string]*Var, depth int) string {
 	return out.String()
 }
 
+// ExpandWithTarget merges global vars with target vars and built-in variables (arch, os, THIS), then expands s.
 func ExpandWithTarget(s string, global map[string]*Var, t *Target) string {
 	vars := make(map[string]*Var)
 	for k, v := range global {

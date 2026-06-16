@@ -3,7 +3,6 @@ package runner
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,54 +14,6 @@ import (
 	"github.com/grimdork/creo/internal/targets"
 	"github.com/grimdork/creo/internal/util"
 )
-
-type Outputs struct {
-	mu sync.RWMutex
-	m  map[string]string
-}
-
-func (o *Outputs) Store(target, arch, os, bin string) {
-	o.mu.Lock()
-	o.m[target+"/"+arch+"+"+os] = bin
-	o.mu.Unlock()
-}
-
-func (o *Outputs) Load(target, arch, os string) string {
-	o.mu.RLock()
-	defer o.mu.RUnlock()
-	return o.m[target+"/"+arch+"+"+os]
-}
-
-func (o *Outputs) LoadAll(target string) []string {
-	o.mu.RLock()
-	defer o.mu.RUnlock()
-	prefix := target + "/"
-	var out []string
-	for k := range o.m {
-		if strings.HasPrefix(k, prefix) {
-			out = append(out, k[len(prefix):])
-		}
-	}
-	return out
-}
-
-type RunOpts struct {
-	Rebuild        bool
-	Clean          bool
-	Recursive      bool
-	Verbose        bool
-	Jobs           int
-	KeepGoing      bool
-	DryRun         bool
-	RefreshCACerts bool
-	BuildDir       string
-	NoColor        bool
-	Results        *TargetResults
-}
-
-type combo struct {
-	arch, osval, bin string
-}
 
 func RunTarget(f *fiat.File, name string, opts RunOpts) error {
 	if opts.Results == nil {
@@ -126,12 +77,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 			matches, err := util.GlobFiles(expanded, dir)
 			if err != nil && opts.Verbose {
-				fmt.Fprintf(os.Stderr, "  Warning: pattern %q: %v\n", pattern, err)
+				fx.Fprint(os.Stderr, "  {warning}%s: pattern %q: {}%v{@}\n", name, pattern, err)
 			}
 			for _, m := range matches {
 				if err := os.RemoveAll(m); err != nil {
 					if opts.Verbose {
-						fmt.Fprintf(os.Stderr, "  Failed to remove stale %s: %v\n", m, err)
+						fx.Fprint(os.Stderr, "  {red}%s: stale file %q: {}%v{@}\n", name, m, err)
 					}
 				} else if opts.Verbose {
 					fx.Println(`  {cyan}Removed stale {}{@}`, m)
@@ -167,8 +118,8 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					continue
 				}
 				if !hasCombo(ociArchs, ociOSs, parts[0], parts[1]) {
-					fmt.Fprintf(os.Stderr, "Warning: %s: %q built %s but %q only targets subset %s/%s\n",
-						f.Path(), dep, key, t.Name, strings.Join(t.Arch, ","), strings.Join(t.OS, ","))
+					fx.Fprint(os.Stderr, "{warning}%s: dep %q produced %q but target %q restricts to %s/%s{@}\n",
+						name, dep, key, t.Name, strings.Join(t.Arch, ","), strings.Join(t.OS, ","))
 				}
 			}
 		}
@@ -180,7 +131,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				bd := targets.BuildDir(f)
 				if err := os.RemoveAll(bd); err != nil {
 					if opts.Verbose {
-						fmt.Fprintf(os.Stderr, "  Failed to remove build directory %s: %v\n", bd, err)
+						fx.Fprint(os.Stderr, "  {red}%s: build dir %q: {}%v{@}\n", name, bd, err)
 					}
 				} else if opts.Verbose {
 					fx.Println(`  {success}Removed build directory {}{@}`, bd)
@@ -190,12 +141,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 				matches, err := util.GlobFiles(expanded, dir)
 				if err != nil && opts.Verbose {
-					fmt.Fprintf(os.Stderr, "  Warning: pattern %q: %v\n", pattern, err)
+					fx.Fprint(os.Stderr, "  {warning}%s: pattern %q: {}%v{@}\n", name, pattern, err)
 				}
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {
-							fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errFailedClean, m, err))
+							fx.Fprint(os.Stderr, "  {red}%s: clean %q: {}%v{@}\n", name, m, err)
 						}
 					} else if opts.Verbose {
 						fx.Println(`  {cyan}Cleaned {}{@}`, m)
@@ -215,7 +166,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		var err error
 		sources, err = collectFilePaths(t, f, dir)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+			fx.Fprint(os.Stderr, "{warning}%s: source paths: {}%v{@}\n", name, err)
 		}
 	}
 	archs := archOrEmpty(t.Arch)
@@ -345,7 +296,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					comboVars["bin"] = &fiat.Var{Name: "bin", Value: c.bin}
 					if !opts.DryRun && opts.Rebuild && len(t.Cmds) > 0 {
 						if err := os.Remove(c.bin); err != nil && !os.IsNotExist(err) && opts.Verbose {
-							fmt.Fprintf(os.Stderr, "  Failed to remove %s: %v\n", c.bin, err)
+							fx.Fprint(os.Stderr, "  {red}%s: remove binary %q: {}%v{@}\n", name, c.bin, err)
 						}
 					}
 				}
@@ -381,7 +332,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					if t.Sources != "" && multi {
 						comboKey := name + "_" + activeArch + "_" + activeOS
 						if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
-							fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errCacheWrite, err))
+							fx.Fprint(os.Stderr, "  {red}%s: cache write: {}%v{@}\n", name, err)
 						}
 					}
 				}
@@ -408,12 +359,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					}
 				}
 
-				// Homebrew formula generation
 				if t.Brew != nil && !opts.DryRun {
 					handleBrew(f, t, c, comboVars, dir, opts, name, outputs, errCh)
 				}
 
-				// OCI packaging: use $OUTPUT_<dep> to find binary
 				if t.OCI != nil && !opts.DryRun {
 					handleOCI(f, t, c, comboVars, comboEnv, dir, activeArch, activeOS, opts, name, outputs, errCh)
 				}
@@ -439,7 +388,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 		if needsRun && !opts.DryRun && !t.IsVirtual && !multi && t.Bin != "" && t.Sources != "" {
 			if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose {
-				fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errCacheWrite, err))
+				fx.Fprint(os.Stderr, "  {red}%s: cache write: {}%v{@}\n", name, err)
 			}
 		}
 
@@ -455,12 +404,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				expanded := fiat.ExpandWithTarget(pattern, f.Vars, t)
 				matches, err := util.GlobFiles(expanded, dir)
 				if err != nil && opts.Verbose {
-					fmt.Fprintf(os.Stderr, "  Warning: pattern %q: %v\n", pattern, err)
+					fx.Fprint(os.Stderr, "  {warning}%s: pattern %q: {}%v{@}\n", name, pattern, err)
 				}
 				for _, m := range matches {
 					if err := os.RemoveAll(m); err != nil {
 						if opts.Verbose {
-							fmt.Fprintf(os.Stderr, "  %s\n", fmt.Errorf(errFailedClean, m, err))
+							fx.Fprint(os.Stderr, "  {red}%s: clean %q: {}%v{@}\n", name, m, err)
 						}
 					} else if opts.Verbose {
 						fx.Println(`  {cyan}Cleaned {}{@}`, m)
@@ -485,149 +434,4 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 
 	done[name] = true
 	return nil
-}
-
-func findFiatInDir(dir string, verbose bool) (string, bool) {
-	path := filepath.Join(dir, "fiat")
-	if _, err := os.Stat(path); err == nil {
-		return path, true
-	}
-
-	matches, err := filepath.Glob(filepath.Join(dir, "*.fiat"))
-	if err != nil {
-		return "", false
-	}
-
-	if len(matches) == 1 {
-		return matches[0], true
-	}
-
-	if len(matches) > 1 {
-		if verbose {
-			fx.Println(`  {muted}Skipped {} (multiple .fiat files){@}`, dir)
-		}
-	}
-	return "", false
-}
-
-func RunRecursive(dir string, targetName string, opts RunOpts) error {
-	if opts.Results == nil {
-		opts.Results = &TargetResults{}
-	}
-	var walkErr error
-	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if !d.IsDir() {
-			return nil
-		}
-		if strings.HasPrefix(d.Name(), ".") && path != dir {
-			return filepath.SkipDir
-		}
-
-		fiatPath, ok := findFiatInDir(path, opts.Verbose)
-		if !ok {
-			return nil
-		}
-
-		file, err := fiat.Parse(fiatPath)
-		if err != nil {
-			walkErr = fmt.Errorf("parsing %s: %w", fiatPath, err)
-			return nil
-		}
-		if opts.BuildDir != "" {
-			file.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: opts.BuildDir}
-		}
-		if err := targets.Apply(file); err != nil {
-			walkErr = fmt.Errorf("applying defaults to %s: %w", fiatPath, err)
-			return nil
-		}
-
-		if opts.Verbose {
-			fx.Println(`{cyan}Entering {}{@}`, path)
-		}
-		if err := RunTarget(file, targetName, opts); err != nil {
-			walkErr = fmt.Errorf("in %s: %w", path, err)
-		}
-		return nil
-	})
-	return walkErr
-}
-
-func baseComboVars(f *fiat.File, t *fiat.Target, activeArch, activeOS string, outputs *Outputs) map[string]*fiat.Var {
-	comboVars := make(map[string]*fiat.Var)
-	for k, v := range f.Vars {
-		comboVars[k] = v
-	}
-	for _, v := range t.Vars {
-		comboVars[v.Name] = v
-	}
-	comboVars["arch"] = &fiat.Var{Name: "arch", Value: activeArch}
-	comboVars["os"] = &fiat.Var{Name: "os", Value: activeOS}
-	comboVars["THIS"] = &fiat.Var{Name: "THIS", Value: t.Name}
-	for _, dep := range t.Requires {
-		if binPath := outputs.Load(dep, activeArch, activeOS); binPath != "" {
-			comboVars["OUTPUT_"+dep] = &fiat.Var{Name: "OUTPUT_" + dep, Value: binPath}
-		}
-	}
-	return comboVars
-}
-
-func archOrEmpty(a []string) []string {
-	if len(a) == 0 {
-		return []string{""}
-	}
-	return a
-}
-
-func osOrEmpty(o []string) []string {
-	if len(o) == 0 {
-		return []string{""}
-	}
-	return o
-}
-
-func ensureArch(a string) string {
-	if a == "" {
-		return runtime.GOARCH
-	}
-	return a
-}
-
-func ensureOS(o string) string {
-	if o == "" {
-		return runtime.GOOS
-	}
-	return o
-}
-
-func hasCombo(archs, oses []string, arch, os string) bool {
-	for _, a := range archs {
-		for _, o := range oses {
-			if a == arch && o == os {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func execCredHelper(helper, dir string) (user, pass string, err error) {
-	parts := strings.Fields(helper)
-	if len(parts) == 0 {
-		return "", "", fmt.Errorf("empty credential helper")
-	}
-	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Dir = dir
-	out, execErr := cmd.Output()
-	if execErr != nil {
-		return "", "", fmt.Errorf("%s: %w", helper, execErr)
-	}
-	line := strings.TrimSpace(string(out))
-	idx := strings.IndexByte(line, ':')
-	if idx < 0 {
-		return "", line, nil
-	}
-	return line[:idx], line[idx+1:], nil
 }

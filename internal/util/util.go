@@ -2,11 +2,13 @@ package util
 
 import "fmt"
 
+// IsIdent reports whether c is a valid identifier character (letter, digit, or underscore).
 func IsIdent(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		(c >= '0' && c <= '9') || c == '_'
 }
 
+// Unique deduplicates a string slice while preserving order.
 func Unique(s []string) []string {
 	seen := map[string]bool{}
 	r := make([]string, 0, len(s))
@@ -19,6 +21,7 @@ func Unique(s []string) []string {
 	return r
 }
 
+// FmtSize formats a byte count as a human-readable string (B, KiB, MiB, GiB).
 func FmtSize(size int64) string {
 	switch {
 	case size >= 1<<30:

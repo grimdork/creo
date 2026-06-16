@@ -9,6 +9,7 @@ import (
 	"github.com/grimdork/creo/internal/semver"
 )
 
+// BuildDir returns the effective build output directory from $BUILDDIR or the default "build".
 func BuildDir(f *fiat.File) string {
 	if v, ok := f.Vars["BUILDDIR"]; ok && v.Value != "" {
 		return v.Value
@@ -26,6 +27,7 @@ func isDebug(t *fiat.Target) bool {
 	return t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
 }
 
+// Apply runs language/target-type defaults on every target in a parsed fiat file.
 func Apply(f *fiat.File) error {
 	initBuildDir(f)
 	if _, ok := f.Vars["VERSION"]; !ok {

@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// GlobFiles returns files matching a glob pattern, optionally with ** recursive matching.
 func GlobFiles(pattern, dir string) ([]string, error) {
 	if !strings.Contains(pattern, "**") {
 		matches, err := filepath.Glob(filepath.Join(dir, pattern))
@@ -98,6 +99,7 @@ func matchGlob(pattern, name string) bool {
 	return match(0, 0)
 }
 
+// CopyFile copies a file from src to dest, using a temporary file and rename for atomicity.
 func CopyFile(src, dest string) (err error) {
 	absSrc, err := filepath.Abs(src)
 	if err != nil {

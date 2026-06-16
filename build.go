@@ -19,6 +19,7 @@ func injectBuildDir(f *fiat.File, bd string) {
 	f.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: bd}
 }
 
+// runLogin runs the OCI registry login flow, storing credentials locally.
 func runLogin() {
 	if err := oci.Login(); err != nil {
 		fail(err)
@@ -26,18 +27,22 @@ func runLogin() {
 	fx.Println("{success}Credentials stored{@}")
 }
 
+// runInspect inspects an OCI image reference and prints its metadata.
 func runInspect(ref string) {
 	if err := oci.Inspect(ref); err != nil {
 		fail(err)
 	}
 }
 
+// runInit scaffolds a new project with the given target languages.
 func runInit(langs []string, force, verbose bool) {
 	if err := targets.InitProject(langs, force, verbose); err != nil {
 		fail(err)
 	}
 }
 
+// runGitInit initialises a git repository, stages all files, and makes
+// an initial commit with a scaffolding message.
 func runGitInit(verbose bool) {
 	git := func(args ...string) error {
 		cmd := exec.Command("git", args...)
@@ -80,6 +85,8 @@ func runGitInit(verbose bool) {
 	}
 }
 
+// runGraph renders the target dependency graph in the requested format
+// (tree, dot, or svg).
 func runGraph(opt *arg.Options) {
 	format := opt.GetString("graph")
 	if format != "tree" && format != "dot" && format != "svg" {
@@ -110,6 +117,8 @@ func runGraph(opt *arg.Options) {
 	fmt.Print(out)
 }
 
+// runBuild parses the fiat file and runs the requested targets, with
+// support for recursive builds, watching, dry runs, and parallel jobs.
 func runBuild(opt *arg.Options) {
 	if opt.GetBool("no-color") || opt.GetBool("no-colour") {
 		os.Setenv("NO_COLOR", "1")

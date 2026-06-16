@@ -9,6 +9,7 @@ import (
 	"github.com/grimdork/creo/internal/targets"
 )
 
+// RenderGraph produces a dependency graph in the requested format (tree, dot, or svg).
 func RenderGraph(f *fiat.File, dir string, format string, checkStatus bool) (string, error) {
 	switch format {
 	case "tree":

@@ -13,6 +13,7 @@ import (
 	"github.com/grimdork/creo/internal/util"
 )
 
+// Inspect prints the manifest and config details of a container image.
 func Inspect(imageRef string) error {
 	ref, err := name.ParseReference(imageRef)
 	if err != nil {

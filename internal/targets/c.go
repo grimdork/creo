@@ -87,6 +87,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 	}
 }
 
+// CrossEnv returns environment variable overrides for cross-compilation based on the language, architecture and OS.
 func CrossEnv(lang, arch, osval string) []string {
 	switch lang {
 	case LangGo, LangTinyGo:

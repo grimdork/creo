@@ -76,6 +76,7 @@ func main() {
 	}
 }
 
+// generateCompletion builds a bash completion script by embedding helper functions into the arg library's template.
 func generateCompletion(opt *arg.Options) string {
 	base, err := opt.Completions()
 	if err != nil {

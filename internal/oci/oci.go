@@ -57,6 +57,7 @@ func digestPath(path string) string {
 	return path[:len(path)-4] + ".digest"
 }
 
+// Build creates an OCI container image from the given configuration.
 func Build(cfg Config) (v1.Image, error) {
 	var img v1.Image
 	if cfg.BaseImage != "" {
@@ -196,6 +197,7 @@ func pullImage(cfg Config) (v1.Image, error) {
 	return img, nil
 }
 
+// OCICachePath returns the path to the OCI image cache directory.
 func OCICachePath() (string, error) {
 	p, err := paths.New("creo")
 	if err != nil {
@@ -299,6 +301,7 @@ func certsLayer(caCert string) (v1.Layer, error) {
 	return layerFromBytes(caCertPath, data, 0644)
 }
 
+// FetchCACert downloads the Mozilla CA certificate bundle from curl.se.
 func FetchCACert() ([]byte, error) {
 	resp, err := httpClient.Get(caCertURL)
 	if err != nil {
@@ -318,6 +321,7 @@ func FetchCACert() ([]byte, error) {
 	return data, nil
 }
 
+// WriteTarball writes an OCI image to a tar file at the given path with the given tag.
 func WriteTarball(img v1.Image, path, tag string) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {

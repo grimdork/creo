@@ -12,16 +12,19 @@ import (
 
 var version string
 
+// fail prints an error to stderr and exits with code 1.
 func fail(err error) {
 	fx.Fprint(os.Stderr, "{red}Error: {}{}{@}\n", err)
 	os.Exit(1)
 }
 
+// failf formats and prints an error to stderr and exits with code 1.
 func failf(msg string, args ...interface{}) {
 	fx.Fprint(os.Stderr, "{red}Error: {}{}{@}\n", fmt.Errorf(msg, args...))
 	os.Exit(1)
 }
 
+// printVersion prints the creo version to stdout, or "(dev)" if not set at build time.
 func printVersion() {
 	if version == "" {
 		fx.Println("{bold}creo (dev){@}")
@@ -30,6 +33,7 @@ func printVersion() {
 	}
 }
 
+// listTargets finds, parses, and applies defaults to a fiat file, returning a formatted list of available targets.
 func listTargets(explicitPath string) (string, error) {
 	fiatPath, ok := fiat.FindFiat(explicitPath)
 	if !ok {
@@ -60,6 +64,7 @@ func listTargets(explicitPath string) (string, error) {
 	return b.String(), nil
 }
 
+// runList calls listTargets and prints the output, failing on error.
 func runList(filePath string) {
 	out, err := listTargets(filePath)
 	if err != nil {

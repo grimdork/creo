@@ -8,6 +8,7 @@ import (
 	"github.com/grimdork/creo/internal/fiat"
 )
 
+// CrateName reads the crate name from Cargo.toml.
 func CrateName(dir string) string {
 	data, err := os.ReadFile(filepath.Join(dir, "Cargo.toml"))
 	if err != nil {

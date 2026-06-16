@@ -8,6 +8,7 @@ import (
 	"github.com/grimdork/creo/internal/fiat"
 )
 
+// ModuleName extracts the module path from a go.mod file.
 func ModuleName(dir string) string {
 	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	if err != nil {

@@ -16,6 +16,7 @@ type PushConfig struct {
 	Pass string
 }
 
+// Push uploads an OCI image to a remote registry.
 func Push(img v1.Image, cfg PushConfig) error {
 	refStr := cfg.Repo
 	if cfg.Tag != "" {
