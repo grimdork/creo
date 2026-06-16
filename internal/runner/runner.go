@@ -290,6 +290,19 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 							return
 						}
 					}
+					if opts.CacheRemote != "" && t.Sources != "" {
+						comboKey := name + "_" + activeArch + "_" + activeOS
+						if hash, ok := tryRemoteCache(opts.CacheRemote, comboKey, dir, sources, t.Cmds); ok {
+							if pullAndSave(opts.CacheRemote, hash, comboKey, dir, c.bin) {
+								_ = writeCache(dir, comboKey, sources, t.Cmds)
+								outputs.Store(name, activeArch, activeOS, c.bin)
+								if opts.Verbose {
+									fx.Println(`  {warning}{} up to date (remote cache){@}`, c.bin)
+								}
+								return
+							}
+						}
+					}
 				}
 
 				if t.Bin != "" {
@@ -333,6 +346,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 						comboKey := name + "_" + activeArch + "_" + activeOS
 						if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
 							fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
+						}
+						if opts.CacheRemote != "" {
+							key, _ := computeCacheKey(sources, t.Cmds)
+							pushRemote(opts.CacheRemote, key, comboKey, c.bin, sources, t.Cmds)
 						}
 					}
 				}
@@ -389,6 +406,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		if needsRun && !opts.DryRun && !t.IsVirtual && !multi && t.Bin != "" && t.Sources != "" {
 			if err := writeCache(dir, name, sources, t.Cmds); err != nil && opts.Verbose {
 				fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
+			}
+			if opts.CacheRemote != "" {
+				key, _ := computeCacheKey(sources, t.Cmds)
+				pushRemote(opts.CacheRemote, key, name, existsBinPath, sources, t.Cmds)
 			}
 		}
 

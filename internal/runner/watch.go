@@ -3,7 +3,6 @@ package runner
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -19,17 +18,17 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 
 	t := fiat.FindTarget(f, name)
 	if t == nil {
-		fmt.Fprintf(os.Stderr, "Error: target %q not found\n", name)
+		fx.Fprint(os.Stderr, "{red}target {:q} not found{@}\n", name)
 		return
 	}
 
 	if t.IsVirtual || t.Sources == "" {
-		fmt.Fprintf(os.Stderr, "Error: target %q has no sources to watch\n", name)
+		fx.Fprint(os.Stderr, "{red}target {:q} has no sources to watch{@}\n", name)
 		return
 	}
 
 	if err := RunTarget(f, name, opts); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fx.Fprint(os.Stderr, "{red}error: {}{@}\n", err)
 		return
 	}
 
@@ -44,13 +43,13 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 		curFiat, err := fiat.Parse(f.Path())
 		if err != nil {
 			if opts.Verbose {
-				fmt.Fprintf(os.Stderr, "  Re-parse error: %v\n", err)
+				fx.Fprint(os.Stderr, "  {red}re-parse: {}{@}\n", err)
 			}
 			continue
 		}
 		if err := targets.Apply(curFiat); err != nil {
 			if opts.Verbose {
-				fmt.Fprintf(os.Stderr, "  Apply error: %v\n", err)
+				fx.Fprint(os.Stderr, "  {red}apply: {}{@}\n", err)
 			}
 			continue
 		}
@@ -58,7 +57,7 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 		curT := fiat.FindTarget(curFiat, name)
 		if curT == nil {
 			if opts.Verbose {
-				fmt.Fprintf(os.Stderr, "  Target %q no longer exists\n", name)
+				fx.Fprint(os.Stderr, "  {red}target {:q}: no longer exists{@}\n", name)
 			}
 			continue
 		}
@@ -68,7 +67,7 @@ func RunWatch(f *fiat.File, name string, opts RunOpts) {
 		if curHash != prevHash {
 			fx.Println("{warning}  Change detected, rebuilding...{@}")
 			if err := RunTarget(curFiat, name, opts); err != nil {
-				fmt.Fprintf(os.Stderr, "  Error: %v\n", err)
+				fx.Fprint(os.Stderr, "  {red}error: {}{@}\n", err)
 			}
 			prevHash = curHash
 		}

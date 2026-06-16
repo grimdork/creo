@@ -162,6 +162,10 @@ func RunBuild(opt *arg.Options) error {
 	}
 
 	results := &runner.TargetResults{}
+	cacheRemote := opt.GetString("cache-remote")
+	if cacheRemote == "" {
+		cacheRemote = os.Getenv("CREO_CACHE_REMOTE")
+	}
 	opts := runner.RunOpts{
 		Rebuild:        opt.GetBool("F"),
 		Recursive:      opt.GetBool("r"),
@@ -173,6 +177,7 @@ func RunBuild(opt *arg.Options) error {
 		RefreshCACerts: opt.GetBool("refresh-cacerts"),
 		BuildDir:       opt.GetString("output"),
 		NoColor:        opt.GetBool("no-color") || opt.GetBool("no-colour"),
+		CacheRemote:    cacheRemote,
 		Results:        results,
 	}
 

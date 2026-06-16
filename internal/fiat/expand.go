@@ -1,18 +1,18 @@
 package fiat
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 	"strings"
 
+	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/util"
 )
 
 // Expand replaces $VAR and $(VAR) references in s with values from vars, recursing up to 10 levels deep.
 func Expand(s string, vars map[string]*Var, depth int) string {
 	if depth > 10 {
-		fmt.Fprintf(os.Stderr, "Warning: variable expansion recursion limit exceeded, unexpended variables may remain: %s\n", s)
+		fx.Fprint(os.Stderr, "{warning}variable expansion depth limit reached, variables may remain unexpanded: {}{@}\n", s)
 		return s
 	}
 

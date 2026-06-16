@@ -1,69 +1,5 @@
 # Future
 
-## Remote build cache via SSH+rsync
-
-A shared build cache for teams, using nothing but SSH and rsync on a plain Linux/BSD server. No new daemons, no SDK dependencies.
-
-### Storage layout
-
-```
-/var/creo-cache/<project-id>/
-  <sha256-of-inputs>.json              # manifest
-  <sha256-of-inputs>/                  # artifact directory
-    build_linux_amd64.bin
-    build_linux_arm64.bin
-    server_linux_amd64.oci.tar
-```
-
-Alternatively, use .creo/cache/ in the user's $HOME.
-
-### Manifest format
-
-```json
-{
-  "key": "abc123def...",
-  "go_version": "go1.23.4 darwin/arm64",
-  "created": "2026-06-09T12:00:00Z",
-  "artifacts": [
-    {"name": "build_linux_amd64.bin", "sha256": "f00...", "size": 5242880, "type": "binary"},
-    {"name": "server_linux_amd64.oci.tar", "sha256": "baa...", "size": 10485760, "type": "oci"}
-  ]
-}
-```
-
-### Two-level cache flow
-
-- L1: local `.creo/cache/` (same as today, fast, no network)
-- L2: remote SSH path (checked only on L1 miss)
-
-Build loop (in `runner.go`):
-
-1. Compute input hash
-2. Check local manifest -> hit: skip build
-3. Check remote manifest via `rsync -a` -> hit: download artifacts, write local, skip build
-4. Build
-5. Upload artifacts via `rsync -a`, write local + remote manifests
-
-### Configuration
-
-```fiat
-build: go
-    cache-remote=ssh://build-cache.example.com/var/creo-cache/my-project
-```
-
-CLI flag (overrides fiat): `--cache-remote user@host:/path`
-Env var (overrides all): `CREO_CACHE_REMOTE`
-If no path is specified after the address, it uses the home directory of the given user.
-
-SSH key config lives in `~/.ssh/config` -- no code change needed.
-
-**Security:** `root@` connections are **always rejected** for SSH cache
-operations.  Root access is neither needed nor permitted for caching.
-The same `--cache-remote` flag also appears in bootstrap (which allows
-root explicitly), so this rule prevents accidentally reusing a root
-connection for cache reads/writes.
-
-
 ### GC (cron tool)
 
 `creo cache gc` subcommand, run daily via cron:
@@ -241,16 +177,15 @@ build: go
 
 ~300 lines total, zero new Go dependencies.
 
-## Summary of planned cache layers
+## Cache layers
 
 ```
 L1: .creo/cache/<target>.json          (local, always checked first)
-L2: OCI registry (remote, cheap HEAD check)
-L3: SSH+rsync     (remote, for large/incremental artifacts)
+L2: SSH+rsync     (remote, --cache-remote flag or CREO_CACHE_REMOTE env)
 ```
 
-All three share the same input hash computation.  L2 and L3 are
-optional and independent of each other.
+L1 is always active.  L2 is optional and checked only on L1 miss.
+Both share the same input hash computation.
 
 ## Init templates
 

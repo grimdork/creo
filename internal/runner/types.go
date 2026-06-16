@@ -51,6 +51,7 @@ type RunOpts struct {
 	RefreshCACerts bool
 	BuildDir       string
 	NoColor        bool
+	CacheRemote    string
 	Results        *TargetResults
 }
 

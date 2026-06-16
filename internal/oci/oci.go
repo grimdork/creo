@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/climate/paths"
 )
 
@@ -191,7 +192,7 @@ func pullImage(cfg Config) (v1.Image, error) {
 	}
 
 	if err := saveToCache(img, cachePath); err != nil {
-		fmt.Fprintf(os.Stderr, "  Warning: OCI cache write failed: %v ", err)
+		fx.Fprint(os.Stderr, "  {warning}OCI cache write: {}{@}\n", err)
 	}
 
 	return img, nil

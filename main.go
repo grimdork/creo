@@ -37,6 +37,7 @@ func main() {
 	opt.SetOption(arg.GroupDefault, "o", "output", "Build output directory", "", false, arg.VarString, nil)
 	opt.SetFlag(arg.GroupDefault, "", "no-color", "Disable coloured terminal output")
 	opt.SetFlag(arg.GroupDefault, "", "no-colour", "Disable coloured terminal output")
+	opt.SetOption(arg.GroupDefault, "", "cache-remote", "SSH remote cache URL (user@host:path)", "", false, arg.VarString, nil)
 	opt.SetPositional("targets", "Targets to run or clean", nil, false, arg.VarStringSlice)
 
 	if err := opt.Parse(os.Args[1:]); err != nil {
