@@ -51,6 +51,7 @@ build: go
 
 CLI flag (overrides fiat): `--cache-remote user@host:/path`
 Env var (overrides all): `CREO_CACHE_REMOTE`
+If no path is specified after the address, it uses the home directory of the given user.
 
 SSH key config lives in `~/.ssh/config` -- no code change needed.
 
@@ -59,6 +60,7 @@ operations.  Root access is neither needed nor permitted for caching.
 The same `--cache-remote` flag also appears in bootstrap (which allows
 root explicitly), so this rule prevents accidentally reusing a root
 connection for cache reads/writes.
+
 
 ### GC (cron tool)
 
