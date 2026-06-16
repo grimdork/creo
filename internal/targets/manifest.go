@@ -121,7 +121,7 @@ func parseManifest(path string) (*PackageManifest, error) {
 		case "download":
 			for _, k := range sec.order {
 				for _, v := range sec.fields[k] {
-					m.Downloads = append(m.Downloads, fiat.ManifestFile{Dst: v, Src: k})
+					m.Downloads = append(m.Downloads, fiat.ManifestFile{Dst: k, Src: v})
 				}
 			}
 
