@@ -50,7 +50,7 @@ func RunListTemplates(lang string) error {
 	}
 	fx.Println("{bold}Available templates:{@}")
 	for _, t := range list {
-		fx.Println("  {cyan}{}{@}", t.Name+"\t"+t.Description)
+		fx.Println("  {cyan}{}/{}  {}{@}", t.Language, t.Name, t.Description)
 	}
 	return nil
 }
