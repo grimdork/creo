@@ -97,11 +97,32 @@ func ListTemplates(lang string) ([]Template, error) {
 
 	ud, err := userTemplateDir()
 	if err == nil {
-		userLangDir := filepath.Join(ud, lang)
-		addFromDir(userLangDir)
+		if lang == "" {
+			langs, rerr := os.ReadDir(ud)
+			if rerr == nil {
+				for _, l := range langs {
+					if l.IsDir() {
+						addFromDir(filepath.Join(ud, l.Name()))
+					}
+				}
+			}
+		} else {
+			addFromDir(filepath.Join(ud, lang))
+		}
 	}
 
-	addFromEmbed(filepath.Join("embedded", lang))
+	if lang == "" {
+		langs, rerr := fs.ReadDir(embeddedTemplates, "embedded")
+		if rerr == nil {
+			for _, l := range langs {
+				if l.IsDir() {
+					addFromEmbed(filepath.Join("embedded", l.Name()))
+				}
+			}
+		}
+	} else {
+		addFromEmbed(filepath.Join("embedded", lang))
+	}
 
 	return list, nil
 }
