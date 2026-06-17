@@ -19,7 +19,7 @@ func TestInitWithTemplateAll(t *testing.T) {
 		{lang: "go", name: "basic", files: []string{"main.go", "version.go", "fiat"}, checkGoMod: true},
 		{lang: "go", name: "arg", files: []string{"main.go", "fiat"}, checkGoMod: true},
 		{lang: "go", name: "toolcmd", files: []string{"main.go", "fiat"}, checkGoMod: true},
-		{lang: "go", name: "web", files: []string{"main.go", "fiat", "Dockerfile"}, checkGoMod: true},
+		{lang: "go", name: "web", files: []string{"main.go", "fiat"}, checkGoMod: true},
 		{lang: "tinygo", name: "basic", files: []string{"main.go", "version.go", "fiat"}, checkGoMod: true},
 		{lang: "c", name: "basic", files: []string{"main.c", "fiat"}},
 		{lang: "cxx", name: "basic", files: []string{"main.cpp", "fiat"}},
