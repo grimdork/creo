@@ -67,13 +67,7 @@ func Expand(s string, vars map[string]*Var, depth int) string {
 
 // ExpandWithTarget merges global vars with target vars and built-in variables (arch, os, THIS), then expands s.
 func ExpandWithTarget(s string, global map[string]*Var, t *Target) string {
-	vars := make(map[string]*Var)
-	for k, v := range global {
-		vars[k] = v
-	}
-	for _, v := range t.Vars {
-		vars[v.Name] = v
-	}
+	vars := MergeVars(global, t.Vars)
 	arch := runtime.GOARCH
 	if len(t.Arch) > 0 {
 		arch = t.Arch[0]
