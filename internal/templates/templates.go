@@ -11,6 +11,7 @@ import (
 	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/climate/paths"
 	"github.com/grimdork/creo/internal/fiat"
+	"github.com/grimdork/creo/internal/util"
 )
 
 type Template struct {
@@ -64,7 +65,7 @@ func ResolveTemplate(lang, name string) (*Template, error) {
 
 func ListTemplates(lang string) ([]Template, error) {
 	var list []Template
-	seen := map[string]bool{}
+	seen := util.NewSet[string]()
 
 	seenKey := func(t *Template) string {
 		return t.Language + "/" + t.Name
@@ -83,10 +84,10 @@ func ListTemplates(lang string) ([]Template, error) {
 			if err != nil {
 				continue
 			}
-			if seen[seenKey(t)] {
+			if seen.Has(seenKey(t)) {
 				continue
 			}
-			seen[seenKey(t)] = true
+			seen.Add(seenKey(t))
 			list = append(list, *t)
 		}
 		return nil
@@ -105,10 +106,10 @@ func ListTemplates(lang string) ([]Template, error) {
 			if err != nil {
 				continue
 			}
-			if seen[seenKey(t)] {
+			if seen.Has(seenKey(t)) {
 				continue
 			}
-			seen[seenKey(t)] = true
+			seen.Add(seenKey(t))
 			list = append(list, *t)
 		}
 	}
@@ -213,12 +214,12 @@ func SaveTemplate(spec string, force, verbose bool) error {
 		}
 	}
 
-	seen := map[string]bool{}
+	seen := util.NewSet[string]()
 	for _, file := range toCopy {
-		if seen[file] {
+		if seen.Has(file) {
 			continue
 		}
-		seen[file] = true
+		seen.Add(file)
 		srcPath := filepath.Join(embedPrefix, file)
 		dstPath := filepath.Join(destDir, file)
 

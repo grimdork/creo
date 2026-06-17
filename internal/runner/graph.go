@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/grimdork/creo/internal/fiat"
+	"github.com/grimdork/creo/internal/util"
 )
 
 const (
@@ -55,15 +56,15 @@ func targetStatus(f *fiat.File, t *fiat.Target, dir string) string {
 }
 
 func findRoots(f *fiat.File) []*fiat.Target {
-	required := map[string]bool{}
+	required := util.NewSet[string]()
 	for _, t := range f.Targets {
 		for _, dep := range t.Requires {
-			required[dep] = true
+			required.Add(dep)
 		}
 	}
 	var roots []*fiat.Target
 	for _, t := range f.Targets {
-		if !required[t.Name] {
+		if !required.Has(t.Name) {
 			roots = append(roots, t)
 		}
 	}

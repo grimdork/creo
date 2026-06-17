@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/grimdork/climate/fx"
+	"github.com/grimdork/creo/internal/util"
 )
 
 // Write serialises the file back to disk, preserving existing structure where possible and appending new targets or vars.
 func (f *File) Write() error {
 	var b strings.Builder
-	covered := make(map[int]bool)
-	coveredVars := make(map[string]bool)
+	covered := util.NewSet[int]()
+	coveredVars := util.NewSet[string]()
 
 	for _, seg := range f.segs {
 		switch seg.kind {
@@ -23,7 +24,7 @@ func (f *File) Write() error {
 			}
 
 		case segVar:
-			coveredVars[seg.varName] = true
+			coveredVars.Add(seg.varName)
 			// Write reconstructed var line if the var still exists
 			if v, ok := f.Vars[seg.varName]; ok {
 				sep := "="
@@ -44,7 +45,7 @@ func (f *File) Write() error {
 			}
 
 		case segTarget:
-			covered[seg.targetIdx] = true
+			covered.Add(seg.targetIdx)
 			// Write raw lines verbatim
 			for _, line := range seg.raw {
 				b.WriteString(line)
@@ -55,7 +56,7 @@ func (f *File) Write() error {
 
 	// Append new targets (no matching segment)
 	for i, t := range f.Targets {
-		if covered[i] {
+		if covered.Has(i) {
 			continue
 		}
 		serialiseTarget(&b, t)
@@ -63,7 +64,7 @@ func (f *File) Write() error {
 
 	// Append vars not covered by any segment
 	for _, v := range f.Vars {
-		if coveredVars[v.Name] {
+		if coveredVars.Has(v.Name) {
 			continue
 		}
 		if v.Name == "DIR" {

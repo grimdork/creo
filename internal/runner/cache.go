@@ -116,15 +116,15 @@ func writeCache(dir, targetName string, sources []string, cmds []string) error {
 }
 
 func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) ([]string, error) {
-	visited := map[string]bool{}
+	visited := util.NewSet[string]()
 	var paths []string
 	var errs []error
 	var walk func(t *fiat.Target)
 	walk = func(t *fiat.Target) {
-		if visited[t.Name] {
+		if visited.Has(t.Name) {
 			return
 		}
-		visited[t.Name] = true
+		visited.Add(t.Name)
 		if t.Sources != "" {
 			srcPatterns := strings.Fields(fiat.ExpandWithTarget(t.Sources, f.Vars, t))
 			for _, pat := range srcPatterns {

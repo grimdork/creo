@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/grimdork/creo/internal/fiat"
+	"github.com/grimdork/creo/internal/util"
 )
 
 func renderTree(f *fiat.File, dir string, checkStatus bool) (string, error) {
@@ -18,18 +19,18 @@ func renderTree(f *fiat.File, dir string, checkStatus bool) (string, error) {
 		if i > 0 {
 			b.WriteByte('\n')
 		}
-		renderTreeNode(f, dir, root, &b, "", "", "", checkStatus, map[string]bool{})
+		renderTreeNode(f, dir, root, &b, "", "", "", checkStatus, util.NewSet[string]())
 	}
 	return b.String(), nil
 }
 
-func renderTreeNode(f *fiat.File, dir string, t *fiat.Target, b *strings.Builder, indent, connector, childIndent string, checkStatus bool, ancestors map[string]bool) {
-	if ancestors[t.Name] {
+func renderTreeNode(f *fiat.File, dir string, t *fiat.Target, b *strings.Builder, indent, connector, childIndent string, checkStatus bool, ancestors util.Set[string]) {
+	if ancestors.Has(t.Name) {
 		fmt.Fprintf(b, "%s%s%s [circular]\n", indent, connector, targetLabel(t))
 		return
 	}
-	ancestors[t.Name] = true
-	defer delete(ancestors, t.Name)
+	ancestors.Add(t.Name)
+	defer ancestors.Remove(t.Name)
 
 	label := targetLabel(t)
 	if checkStatus {

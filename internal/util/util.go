@@ -8,13 +8,13 @@ func IsIdent(c byte) bool {
 		(c >= '0' && c <= '9') || c == '_'
 }
 
-// Unique deduplicates a string slice while preserving order.
-func Unique(s []string) []string {
-	seen := map[string]bool{}
-	r := make([]string, 0, len(s))
+// Unique deduplicates a slice while preserving order.
+func Unique[T comparable](s []T) []T {
+	seen := NewSet[T]()
+	r := make([]T, 0, len(s))
 	for _, v := range s {
-		if !seen[v] {
-			seen[v] = true
+		if !seen.Has(v) {
+			seen.Add(v)
 			r = append(r, v)
 		}
 	}

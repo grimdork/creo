@@ -20,10 +20,10 @@ func RunTarget(f *fiat.File, name string, opts RunOpts) error {
 	if opts.Results == nil {
 		opts.Results = &TargetResults{}
 	}
-	return runTargetWithDeps(f, name, opts, map[string]bool{}, map[string]bool{}, &Outputs{m: make(map[string]string)})
+	return runTargetWithDeps(f, name, opts, util.NewSet[string](), util.NewSet[string](), &Outputs{m: make(map[string]string)})
 }
 
-func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done map[string]bool, outputs *Outputs) error {
+func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done util.Set[string], outputs *Outputs) error {
 	if name == "all" {
 		var allErrs []error
 		report := func(err error) {
@@ -31,7 +31,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				allErrs = append(allErrs, err)
 			}
 		}
-		allVisited := map[string]bool{}
+		allVisited := util.NewSet[string]()
 		if bt := fiat.FindTarget(f, "build"); bt != nil {
 			if err := runTargetWithDeps(f, "build", opts, allVisited, done, outputs); err != nil {
 				report(err)
@@ -53,11 +53,11 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		return nil
 	}
 
-	if done[name] {
+	if done.Has(name) {
 		return nil
 	}
 
-	if visited[name] {
+	if visited.Has(name) {
 		return fmt.Errorf("%s: circular dependency for target %q", f.Path(), name)
 	}
 
@@ -66,7 +66,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		return fmt.Errorf("%s: target %q not found", f.Path(), name)
 	}
 
-	visited[name] = true
+	visited.Add(name)
 	dir := filepath.Dir(f.Path())
 
 	if opts.Verbose {
@@ -155,11 +155,11 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				}
 			}
 		}
-		done[name] = true
-		return nil
-	}
+		done.Add(name)
+			return nil
+		}
 
-	needsRun := true
+		needsRun := true
 	var existsBinPath string
 	var sources []string
 	var buildStart time.Time
@@ -277,7 +277,7 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			if opts.Results != nil {
 				opts.Results.Add(t.Name, "SKIPPED", 0, nil)
 			}
-			done[name] = true
+			done.Add(name)
 			return nil
 		}
 
@@ -386,6 +386,6 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 		}
 	}
 
-	done[name] = true
+	done.Add(name)
 	return nil
 }
