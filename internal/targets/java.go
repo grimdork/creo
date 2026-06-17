@@ -68,19 +68,12 @@ func applyJava(f *fiat.File, t *fiat.Target) {
 	absDir := absDir(f)
 
 	proj := JavaProjectName(absDir)
-	if _, ok := f.Vars["PROJECT"]; !ok {
-		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
-	}
-	if _, ok := f.Vars["JAVA"]; !ok {
-		f.Vars["JAVA"] = &fiat.Var{Name: "JAVA", Value: "java"}
-	}
+	setDefaultVar(f.Vars, "PROJECT", proj)
+	setDefaultVar(f.Vars, "JAVA", "java")
 
 	bt := detectBuildTool(absDir)
 	if strings.Contains(bt, "gradle") || bt == "./gradlew" {
-		btVar := "GRADLE"
-		if _, ok := f.Vars[btVar]; !ok {
-			f.Vars[btVar] = &fiat.Var{Name: btVar, Value: bt}
-		}
+		setDefaultVar(f.Vars, "GRADLE", bt)
 		if t.Sources == "" {
 			t.Sources = "*.java *.kt build.gradle.kts build.gradle settings.gradle.kts settings.gradle"
 		}
@@ -89,9 +82,7 @@ func applyJava(f *fiat.File, t *fiat.Target) {
 			t.Cmds = append(t.Cmds, "$GRADLE build")
 		}
 	} else {
-		if _, ok := f.Vars["MVN"]; !ok {
-			f.Vars["MVN"] = &fiat.Var{Name: "MVN", Value: bt}
-		}
+		setDefaultVar(f.Vars, "MVN", bt)
 		if t.Sources == "" {
 			t.Sources = "*.java *.kt pom.xml"
 		}

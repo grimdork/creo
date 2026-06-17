@@ -31,16 +31,9 @@ func applyGo(f *fiat.File, t *fiat.Target) {
 	absDir := absDir(f)
 
 	proj := ModuleName(absDir)
-	if _, ok := f.Vars["PROJECT"]; !ok {
-		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
-	}
-
-	if _, ok := f.Vars["GO"]; !ok {
-		f.Vars["GO"] = &fiat.Var{Name: "GO", Value: "go build"}
-	}
-	if _, ok := f.Vars["GODEBUGFLAGS"]; !ok {
-		f.Vars["GODEBUGFLAGS"] = &fiat.Var{Name: "GODEBUGFLAGS", Value: `-gcflags="all=-N -l"`}
-	}
+	setDefaultVar(f.Vars, "PROJECT", proj)
+	setDefaultVar(f.Vars, "GO", "go build")
+	setDefaultVar(f.Vars, "GODEBUGFLAGS", `-gcflags="all=-N -l"`)
 
 	_, hasGoFlags := f.Vars["GOFLAGS"]
 

@@ -7,20 +7,14 @@ import (
 )
 
 func setCVarDefaults(f *fiat.File) {
-	if _, ok := f.Vars["CC"]; !ok {
-		f.Vars["CC"] = &fiat.Var{Name: "CC", Value: "cc"}
-	}
-	if _, ok := f.Vars["CFLAGS"]; !ok {
-		f.Vars["CFLAGS"] = &fiat.Var{Name: "CFLAGS", Value: "-O2 -Wall"}
-	}
-	if _, ok := f.Vars["CDEBUGFLAGS"]; !ok {
-		f.Vars["CDEBUGFLAGS"] = &fiat.Var{Name: "CDEBUGFLAGS", Value: "-O0 -g -Wall"}
-	}
+	setDefaultVar(f.Vars, "CC", "cc")
+	setDefaultVar(f.Vars, "CFLAGS", "-O2 -Wall")
+	setDefaultVar(f.Vars, "CDEBUGFLAGS", "-O0 -g -Wall")
 	if _, ok := f.Vars["CXX"]; !ok {
 		if _, ok2 := f.Vars["CPP"]; ok2 {
 			f.Vars["CXX"] = f.Vars["CPP"]
 		} else {
-			f.Vars["CXX"] = &fiat.Var{Name: "CXX", Value: "c++"}
+			setDefaultVar(f.Vars, "CXX", "c++")
 		}
 	}
 	if _, ok := f.Vars["CPP"]; !ok {
@@ -30,7 +24,7 @@ func setCVarDefaults(f *fiat.File) {
 		if _, ok2 := f.Vars["CPPFLAGS"]; ok2 {
 			f.Vars["CXXFLAGS"] = f.Vars["CPPFLAGS"]
 		} else {
-			f.Vars["CXXFLAGS"] = &fiat.Var{Name: "CXXFLAGS", Value: "-O2 -Wall"}
+			setDefaultVar(f.Vars, "CXXFLAGS", "-O2 -Wall")
 		}
 	}
 	if _, ok := f.Vars["CPPFLAGS"]; !ok {
@@ -40,18 +34,14 @@ func setCVarDefaults(f *fiat.File) {
 		if _, ok2 := f.Vars["CPPDEBUGFLAGS"]; ok2 {
 			f.Vars["CXXDEBUGFLAGS"] = f.Vars["CPPDEBUGFLAGS"]
 		} else {
-			f.Vars["CXXDEBUGFLAGS"] = &fiat.Var{Name: "CXXDEBUGFLAGS", Value: "-O0 -g -Wall"}
+			setDefaultVar(f.Vars, "CXXDEBUGFLAGS", "-O0 -g -Wall")
 		}
 	}
 	if _, ok := f.Vars["CPPDEBUGFLAGS"]; !ok {
 		f.Vars["CPPDEBUGFLAGS"] = f.Vars["CXXDEBUGFLAGS"]
 	}
-	if _, ok := f.Vars["LDFLAGS"]; !ok {
-		f.Vars["LDFLAGS"] = &fiat.Var{Name: "LDFLAGS", Value: ""}
-	}
-	if _, ok := f.Vars["LIBS"]; !ok {
-		f.Vars["LIBS"] = &fiat.Var{Name: "LIBS", Value: ""}
-	}
+	setDefaultVar(f.Vars, "LDFLAGS", "")
+	setDefaultVar(f.Vars, "LIBS", "")
 }
 
 func applyC(f *fiat.File, t *fiat.Target) {
@@ -60,9 +50,7 @@ func applyC(f *fiat.File, t *fiat.Target) {
 	absDir := absDir(f)
 
 	proj := filepath.Base(absDir)
-	if _, ok := f.Vars["PROJECT"]; !ok {
-		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
-	}
+	setDefaultVar(f.Vars, "PROJECT", proj)
 
 	bd := BuildDir(f)
 	defBin := bd + "/" + proj
@@ -111,9 +99,7 @@ func applyCxx(f *fiat.File, t *fiat.Target) {
 	absDir := absDir(f)
 
 	proj := filepath.Base(absDir)
-	if _, ok := f.Vars["PROJECT"]; !ok {
-		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
-	}
+	setDefaultVar(f.Vars, "PROJECT", proj)
 
 	bd := BuildDir(f)
 	defBin := bd + "/" + proj

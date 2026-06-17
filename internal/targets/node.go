@@ -54,15 +54,11 @@ func applyNode(f *fiat.File, t *fiat.Target) {
 	absDir := absDir(f)
 
 	proj := NodeProjectName(absDir)
-	if _, ok := f.Vars["PROJECT"]; !ok {
-		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
-	}
+	setDefaultVar(f.Vars, "PROJECT", proj)
 
 	pm := detectPackageManager(absDir)
 	pmVar := strings.ToUpper(pm)
-	if _, ok := f.Vars[pmVar]; !ok {
-		f.Vars[pmVar] = &fiat.Var{Name: pmVar, Value: pm}
-	}
+	setDefaultVar(f.Vars, pmVar, pm)
 
 	if t.Sources == "" {
 		t.Sources = "*.js *.jsx *.ts *.tsx package.json tsconfig.json"

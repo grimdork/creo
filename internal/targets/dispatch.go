@@ -19,9 +19,7 @@ func BuildDir(f *fiat.File) string {
 }
 
 func initBuildDir(f *fiat.File) {
-	if _, ok := f.Vars["BUILDDIR"]; !ok {
-		f.Vars["BUILDDIR"] = &fiat.Var{Name: "BUILDDIR", Value: "build"}
-	}
+	setDefaultVar(f.Vars, "BUILDDIR", "build")
 }
 
 func isDebug(t *fiat.Target) bool {
@@ -37,18 +35,18 @@ func absDir(f *fiat.File) string {
 	return absDir
 }
 
+func setDefaultVar(vars map[string]*fiat.Var, name, value string) {
+	if _, ok := vars[name]; !ok {
+		vars[name] = &fiat.Var{Name: name, Value: value}
+	}
+}
+
 // Apply runs language/target-type defaults on every target in a parsed fiat file.
 func Apply(f *fiat.File) error {
 	initBuildDir(f)
-	if _, ok := f.Vars["VERSION"]; !ok {
-		f.Vars["VERSION"] = &fiat.Var{Name: "VERSION", Value: semver.String()}
-	}
-	if _, ok := f.Vars["COMMIT"]; !ok {
-		f.Vars["COMMIT"] = &fiat.Var{Name: "COMMIT", Value: semver.CommitString()}
-	}
-	if _, ok := f.Vars["DATE"]; !ok {
-		f.Vars["DATE"] = &fiat.Var{Name: "DATE", Value: semver.DateString()}
-	}
+	setDefaultVar(f.Vars, "VERSION", semver.String())
+	setDefaultVar(f.Vars, "COMMIT", semver.CommitString())
+	setDefaultVar(f.Vars, "DATE", semver.DateString())
 
 	for _, t := range f.Targets {
 		if t.IsVirtual {

@@ -79,13 +79,8 @@ func applyRust(f *fiat.File, t *fiat.Target) {
 
 	crateName := CrateName(absDir)
 
-	if _, ok := f.Vars["CARGO"]; !ok {
-		f.Vars["CARGO"] = &fiat.Var{Name: "CARGO", Value: "cargo"}
-	}
-
-	if _, ok := f.Vars["PROJECT"]; !ok {
-		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: crateName}
-	}
+	setDefaultVar(f.Vars, "CARGO", "cargo")
+	setDefaultVar(f.Vars, "PROJECT", crateName)
 
 	bd := BuildDir(f)
 	defBin := bd + "/release/" + crateName

@@ -42,15 +42,9 @@ func applyPython(f *fiat.File, t *fiat.Target) {
 	absDir := absDir(f)
 
 	proj := ProjectName(absDir)
-	if _, ok := f.Vars["PROJECT"]; !ok {
-		f.Vars["PROJECT"] = &fiat.Var{Name: "PROJECT", Value: proj}
-	}
-	if _, ok := f.Vars["PYTHON"]; !ok {
-		f.Vars["PYTHON"] = &fiat.Var{Name: "PYTHON", Value: "python3"}
-	}
-	if _, ok := f.Vars["UV"]; !ok {
-		f.Vars["UV"] = &fiat.Var{Name: "UV", Value: "uv"}
-	}
+	setDefaultVar(f.Vars, "PROJECT", proj)
+	setDefaultVar(f.Vars, "PYTHON", "python3")
+	setDefaultVar(f.Vars, "UV", "uv")
 
 	if t.Sources == "" {
 		t.Sources = "*.py pyproject.toml setup.py setup.cfg"
