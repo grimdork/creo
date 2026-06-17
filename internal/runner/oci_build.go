@@ -11,7 +11,8 @@ import (
 	"github.com/grimdork/creo/internal/oci"
 )
 
-func handleOCI(f *fiat.File, t *fiat.Target, c combo, comboVars map[string]*fiat.Var, comboEnv []string, dir string, activeArch, activeOS string, opts RunOpts, name string, outputs *Outputs, errCh chan<- error) {
+func handleOCI(bt *buildTask) {
+	f, t, c, comboVars, activeArch, opts, errCh, dir := bt.f, bt.t, bt.c, bt.comboVars, bt.activeArch, bt.opts, bt.errCh, bt.dir
 	binSrc := ""
 	for _, dep := range t.Requires {
 		outVar := "OUTPUT_" + dep

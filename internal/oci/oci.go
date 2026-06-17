@@ -2,7 +2,6 @@ package oci
 
 import (
 	"archive/tar"
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -351,10 +350,15 @@ func directoryLayer(srcDir, appDir string) (v1.Layer, error) {
 		appDir = "/app"
 	}
 
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
+	tmp, err := os.CreateTemp("", "creo-layer-*.tar")
+	if err != nil {
+		return nil, fmt.Errorf("creating temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
 
-	err := filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
+	tw := tar.NewWriter(tmp)
+
+	walkErr := filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -397,16 +401,15 @@ func directoryLayer(srcDir, appDir string) (v1.Layer, error) {
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, fmt.Errorf("taring %q: %w", srcDir, err)
-	}
-
-	if err := tw.Close(); err != nil {
-		return nil, err
+	tw.Close()
+	tmp.Close()
+	if walkErr != nil {
+		os.Remove(tmpPath)
+		return nil, fmt.Errorf("taring %q: %w", srcDir, walkErr)
 	}
 
 	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+		return os.Open(tmpPath)
 	})
 }
 

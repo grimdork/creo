@@ -95,7 +95,7 @@ func parseProperty(line string, t *Target) string {
 func Parse(path string) (*File, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 
 	f := &File{

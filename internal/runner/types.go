@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/grimdork/climate/fx"
+	"github.com/grimdork/creo/internal/fiat"
 )
 
 // CacheStats collects L1 (local) and L2 (remote) cache hit/miss counters
@@ -109,4 +110,21 @@ type RunOpts struct {
 // combo pairs an architecture, OS and binary path for iterating target permutations.
 type combo struct {
 	arch, osval, bin string
+}
+
+// buildTask bundles all parameters for a single build combination,
+// keeping function signatures manageable and avoiding deep parameter lists.
+type buildTask struct {
+	f          *fiat.File
+	t          *fiat.Target
+	c          combo
+	comboVars  map[string]*fiat.Var
+	comboEnv   []string
+	dir        string
+	activeArch string
+	activeOS   string
+	opts       RunOpts
+	name       string
+	outputs    *Outputs
+	errCh      chan<- error
 }

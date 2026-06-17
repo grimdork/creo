@@ -13,7 +13,8 @@ import (
 	"github.com/grimdork/creo/internal/fiat"
 )
 
-func handleBrew(f *fiat.File, t *fiat.Target, c combo, comboVars map[string]*fiat.Var, dir string, opts RunOpts, name string, outputs *Outputs, errCh chan<- error) {
+func handleBrew(bt *buildTask) {
+	f, t, c, comboVars, errCh, dir := bt.f, bt.t, bt.c, bt.comboVars, bt.errCh, bt.dir
 	archivePath := ""
 	for _, dep := range t.Requires {
 		outVar := "OUTPUT_" + dep
@@ -99,13 +100,27 @@ end
 			return
 		}
 
+		askPass, err := os.CreateTemp("", "creo-git-askpass-*")
+		if err != nil {
+			errCh <- fmt.Errorf("%s: creating askpass script: %w", f.Path(), err)
+			return
+		}
+		askPassPath := askPass.Name()
+		askPass.Close()
+		defer os.Remove(askPassPath)
+		if err := os.WriteFile(askPassPath, []byte("#!/bin/sh\necho \"${GIT_TOKEN}\"\n"), 0755); err != nil {
+			errCh <- fmt.Errorf("%s: writing askpass script: %w", f.Path(), err)
+			return
+		}
+
 		brewTap := fiat.Expand(t.Brew.Tap, comboVars, 0)
 		tapDir := filepath.Join(filepath.Dir(f.Path()), ".creo", t.Name+"-tap")
-		cloneURL := fmt.Sprintf("https://x-access-token:%s@github.com/%s.git", token, brewTap)
+		cloneURL := fmt.Sprintf("https://github.com/%s.git", brewTap)
 
-		if out, err := exec.Command("git", "clone", cloneURL, tapDir).CombinedOutput(); err != nil {
-			errOutput := strings.ReplaceAll(string(out), token, "***")
-			errCh <- fmt.Errorf("%s: cloning tap %s: %s", f.Path(), brewTap, strings.TrimSpace(errOutput))
+		cmd := exec.Command("git", "clone", cloneURL, tapDir)
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS="+askPassPath, "GIT_TOKEN="+token)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			errCh <- fmt.Errorf("%s: cloning tap %s: %w\n%s", f.Path(), brewTap, err, strings.TrimSpace(string(out)))
 			return
 		}
 
@@ -129,7 +144,7 @@ end
 		}
 		for _, args := range gitCmds {
 			if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
-				errCh <- fmt.Errorf("%s: git %s: %s", f.Path(), args[0], strings.TrimSpace(string(out)))
+				errCh <- fmt.Errorf("%s: git %s: %w\n%s", f.Path(), args[0], err, strings.TrimSpace(string(out)))
 				return
 			}
 		}
@@ -140,7 +155,7 @@ end
 func computeSHA256(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("reading %s: %w", path, err)
 	}
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:]), nil

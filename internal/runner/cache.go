@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -45,7 +46,7 @@ func CleanCache(dir string) error {
 	creoDir := filepath.Join(dir, ".creo")
 	if _, err := os.Stat(creoDir); err == nil {
 		if err := os.RemoveAll(creoDir); err != nil {
-			return err
+			return fmt.Errorf("cleaning %s: %w", creoDir, err)
 		}
 	}
 	if p, err := oci.OCICachePath(); err == nil {
@@ -117,7 +118,7 @@ func writeCache(dir, targetName string, sources []string, cmds []string) error {
 func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) ([]string, error) {
 	visited := map[string]bool{}
 	var paths []string
-	var errs []string
+	var errs []error
 	var walk func(t *fiat.Target)
 	walk = func(t *fiat.Target) {
 		if visited[t.Name] {
@@ -129,7 +130,7 @@ func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) ([]string, error
 			for _, pat := range srcPatterns {
 				files, err := util.GlobFiles(fiat.ExpandWithTarget(pat, f.Vars, t), dir)
 				if err != nil {
-					errs = append(errs, fmt.Sprintf("pattern %q: %v", pat, err))
+					errs = append(errs, fmt.Errorf("pattern %q: %w", pat, err))
 					continue
 				}
 				paths = append(paths, files...)
@@ -145,7 +146,7 @@ func collectFilePaths(t *fiat.Target, f *fiat.File, dir string) ([]string, error
 	walk(t)
 	paths = append(paths, f.Path())
 	if len(errs) > 0 {
-		return paths, fmt.Errorf("collecting source paths: %s", strings.Join(errs, "; "))
+		return paths, errors.Join(errs...)
 	}
 	return paths, nil
 }

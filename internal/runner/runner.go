@@ -425,12 +425,26 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 					}
 				}
 
+				bt := &buildTask{
+					f:          f,
+					t:          t,
+					c:          c,
+					comboVars:  comboVars,
+					comboEnv:   comboEnv,
+					dir:        dir,
+					activeArch: activeArch,
+					activeOS:   activeOS,
+					opts:       opts,
+					name:       name,
+					outputs:    outputs,
+					errCh:      errCh,
+				}
 				if t.Brew != nil && !opts.DryRun {
-					handleBrew(f, t, c, comboVars, dir, opts, name, outputs, errCh)
+					handleBrew(bt)
 				}
 
 				if t.OCI != nil && !opts.DryRun {
-					handleOCI(f, t, c, comboVars, comboEnv, dir, activeArch, activeOS, opts, name, outputs, errCh)
+					handleOCI(bt)
 				}
 			}(c)
 		}
