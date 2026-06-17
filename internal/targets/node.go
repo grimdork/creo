@@ -51,11 +51,7 @@ func detectPackageManager(dir string) string {
 }
 
 func applyNode(f *fiat.File, t *fiat.Target) {
-	dir := filepath.Dir(f.Path())
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
+	absDir := absDir(f)
 
 	proj := NodeProjectName(absDir)
 	if _, ok := f.Vars["PROJECT"]; !ok {

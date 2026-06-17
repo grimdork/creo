@@ -65,11 +65,7 @@ func detectBuildTool(dir string) string {
 }
 
 func applyJava(f *fiat.File, t *fiat.Target) {
-	dir := filepath.Dir(f.Path())
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
+	absDir := absDir(f)
 
 	proj := JavaProjectName(absDir)
 	if _, ok := f.Vars["PROJECT"]; !ok {

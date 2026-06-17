@@ -28,11 +28,7 @@ func ModuleName(dir string) string {
 }
 
 func applyGo(f *fiat.File, t *fiat.Target) {
-	dir := filepath.Dir(f.Path())
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
+	absDir := absDir(f)
 
 	proj := ModuleName(absDir)
 	if _, ok := f.Vars["PROJECT"]; !ok {

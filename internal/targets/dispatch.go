@@ -2,6 +2,7 @@ package targets
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -25,6 +26,15 @@ func initBuildDir(f *fiat.File) {
 
 func isDebug(t *fiat.Target) bool {
 	return t.Name == "debug" || strings.HasSuffix(t.Name, "-debug")
+}
+
+func absDir(f *fiat.File) string {
+	dir := filepath.Dir(f.Path())
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	return absDir
 }
 
 // Apply runs language/target-type defaults on every target in a parsed fiat file.

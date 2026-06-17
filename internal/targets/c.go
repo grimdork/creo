@@ -57,11 +57,7 @@ func setCVarDefaults(f *fiat.File) {
 func applyC(f *fiat.File, t *fiat.Target) {
 	setCVarDefaults(f)
 
-	dir := filepath.Dir(f.Path())
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
+	absDir := absDir(f)
 
 	proj := filepath.Base(absDir)
 	if _, ok := f.Vars["PROJECT"]; !ok {
@@ -112,11 +108,7 @@ func CrossEnv(lang, arch, osval string) []string {
 func applyCxx(f *fiat.File, t *fiat.Target) {
 	setCVarDefaults(f)
 
-	dir := filepath.Dir(f.Path())
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		absDir = dir
-	}
+	absDir := absDir(f)
 
 	proj := filepath.Base(absDir)
 	if _, ok := f.Vars["PROJECT"]; !ok {
