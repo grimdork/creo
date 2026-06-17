@@ -321,8 +321,14 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 				fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
 			}
 			if opts.CacheRemote != "" {
-				key, _ := computeCacheKey(sources, t.Cmds)
-				pushRemote(opts.CacheRemote, key, name, existsBinPath, dir, sources, t.Cmds)
+				key, err := computeCacheKey(sources, t.Cmds)
+				if err != nil {
+					if opts.Verbose {
+						fx.Fprint(os.Stderr, "  {red}{}: cache key: {}{@}\n", name, err)
+					}
+				} else {
+					pushRemote(opts.CacheRemote, key, name, existsBinPath, dir, sources, t.Cmds)
+				}
 			}
 		}
 

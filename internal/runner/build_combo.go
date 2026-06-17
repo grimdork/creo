@@ -111,12 +111,18 @@ func runCombo(f *fiat.File, t *fiat.Target, c combo, dir string, opts RunOpts, n
 				fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
 			}
 			if opts.CacheRemote != "" {
-				key, _ := computeCacheKey(sources, t.Cmds)
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
-				}()
+				key, err := computeCacheKey(sources, t.Cmds)
+				if err != nil {
+					if opts.Verbose {
+						fx.Fprint(os.Stderr, "  {red}{}: cache key: {}{@}\n", name, err)
+					}
+				} else {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
+					}()
+				}
 			}
 		}
 	}
