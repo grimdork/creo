@@ -1313,3 +1313,204 @@ version = "0.1.0"
 		t.Fatalf("expected bin './target/release/mycrate', got %q", trg.Bin)
 	}
 }
+
+func TestApplyArchive(t *testing.T) {
+	content := []byte("$PROJECT=testapp\narchive: archive\n\tformat=tar.gz\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.Language != "archive" {
+		t.Fatalf("expected language archive, got %q", trg.Language)
+	}
+	if !strings.Contains(trg.Bin, "testapp") || !strings.Contains(trg.Bin, "tar.gz") {
+		t.Errorf("expected bin to contain testapp and .tar.gz, got %q", trg.Bin)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected cmds to be set")
+	}
+	hasTar := false
+	for _, cmd := range trg.Cmds {
+		if strings.Contains(cmd, "tar -czf") {
+			hasTar = true
+			break
+		}
+	}
+	if !hasTar {
+		t.Errorf("expected tar command in cmds, got %v", trg.Cmds)
+	}
+}
+
+func TestApplyArchiveZip(t *testing.T) {
+	content := []byte("$PROJECT=testapp\narchive: archive\n\tformat=zip\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if !strings.Contains(trg.Bin, ".zip") {
+		t.Errorf("expected zip format, got bin %q", trg.Bin)
+	}
+	hasZip := false
+	for _, cmd := range trg.Cmds {
+		if strings.Contains(cmd, "zip -r") {
+			hasZip = true
+			break
+		}
+	}
+	if !hasZip {
+		t.Errorf("expected zip command in cmds, got %v", trg.Cmds)
+	}
+}
+
+func TestApplyDeb(t *testing.T) {
+	content := []byte("$PROJECT=testapp\n$BUILDDIR=output\ndeb: deb\n\treq:build\n\tmaintainer=Test User <test@example.com>\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.Language != "deb" {
+		t.Fatalf("expected language deb, got %q", trg.Language)
+	}
+	if !strings.Contains(trg.Bin, "testapp") || !strings.Contains(trg.Bin, ".deb") {
+		t.Errorf("expected bin to contain testapp and .deb, got %q", trg.Bin)
+	}
+	if len(trg.Cmds) == 0 {
+		t.Fatal("expected cmds to be set")
+	}
+	hasNfpm := false
+	for _, cmd := range trg.Cmds {
+		if strings.Contains(cmd, "nfpm") && strings.Contains(cmd, "--packager deb") {
+			hasNfpm = true
+			break
+		}
+	}
+	if !hasNfpm {
+		t.Errorf("expected nfpm deb command in cmds, got %v", trg.Cmds)
+	}
+}
+
+func TestApplyRpm(t *testing.T) {
+	content := []byte("$PROJECT=testapp\ndeb: rpm\n\treq:build\n\tmaintainer=Test User <test@example.com>\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.Language != "rpm" {
+		t.Fatalf("expected language rpm, got %q", trg.Language)
+	}
+	if !strings.Contains(trg.Bin, ".rpm") {
+		t.Errorf("expected .rpm extension, got bin %q", trg.Bin)
+	}
+	hasNfpm := false
+	for _, cmd := range trg.Cmds {
+		if strings.Contains(cmd, "nfpm") && strings.Contains(cmd, "--packager rpm") {
+			hasNfpm = true
+			break
+		}
+	}
+	if !hasNfpm {
+		t.Errorf("expected nfpm rpm command in cmds, got %v", trg.Cmds)
+	}
+}
+
+func TestApplyBrew(t *testing.T) {
+	content := []byte("$PROJECT=testapp\nrelease: brew\n\trepo=user/testapp\n\thomepage=https://example.com\n\tlicense=MIT\n\tdesc=TestApp\n")
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fpath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(f); err != nil {
+		t.Fatal(err)
+	}
+	trg := f.Targets[0]
+	if trg.Language != "brew" {
+		t.Fatalf("expected language brew, got %q", trg.Language)
+	}
+	if trg.Brew == nil {
+		t.Fatal("expected Brew config")
+	}
+	if trg.Brew.Repo != "user/testapp" {
+		t.Errorf("expected repo 'user/testapp', got %q", trg.Brew.Repo)
+	}
+	if trg.Brew.Homepage != "https://example.com" {
+		t.Errorf("expected homepage 'https://example.com', got %q", trg.Brew.Homepage)
+	}
+	if trg.Brew.License != "MIT" {
+		t.Errorf("expected license MIT, got %q", trg.Brew.License)
+	}
+	if trg.Brew.ClassName != "Testapp" {
+		t.Errorf("expected ClassName 'Testapp', got %q", trg.Brew.ClassName)
+	}
+	if trg.Brew.Desc != "TestApp" {
+		t.Errorf("expected Desc 'TestApp', got %q", trg.Brew.Desc)
+	}
+	if !strings.Contains(trg.Bin, "testapp.rb") {
+		t.Errorf("expected bin to contain testapp.rb, got %q", trg.Bin)
+	}
+	if len(trg.Arch) != 1 || trg.Arch[0] != "arm64" {
+		t.Errorf("expected Arch [arm64], got %v", trg.Arch)
+	}
+	if len(trg.OS) != 1 || trg.OS[0] != "darwin" {
+		t.Errorf("expected OS [darwin], got %v", trg.OS)
+	}
+}
+
+func TestFormulaClassName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"simple", "Simple"},
+		{"with-dashes", "WithDashes"},
+		{"with_underscores", "WithUnderscores"},
+		{"multiple.dots", "MultipleDots"},
+		{"test-app_1.0", "TestApp10"},
+	}
+	for _, tc := range tests {
+		got := formulaClassName(tc.input)
+		if got != tc.want {
+			t.Errorf("formulaClassName(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}

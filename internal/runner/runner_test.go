@@ -3,6 +3,7 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/grimdork/creo/internal/fiat"
@@ -659,5 +660,101 @@ func TestExecCredHelperError(t *testing.T) {
 	}
 	if user != "" || pass != "" {
 		t.Fatal("expected empty user/pass on error")
+	}
+}
+
+func TestHandleBrewFormula(t *testing.T) {
+	dir := t.TempDir()
+
+	archiveContent := []byte("test archive data for sha256")
+	archivePath := filepath.Join(dir, "testapp-1.0.0.tar.gz")
+	if err := os.WriteFile(archivePath, archiveContent, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fiatPath := filepath.Join(dir, "fiat")
+	if err := os.WriteFile(fiatPath, []byte("$PROJECT=testapp\n$VERSION=v1.0.0\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fiat.Parse(fiatPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	target := &fiat.Target{
+		Name: "release",
+		Brew: &fiat.BrewConfig{
+			Repo:      "user/testapp",
+			Desc:      "Test application",
+			Homepage:  "https://example.com",
+			License:   "MIT",
+			ClassName: "Testapp",
+			Output:    filepath.Join(dir, "testapp.rb"),
+		},
+	}
+
+	comboVars := make(map[string]*fiat.Var)
+	for k, v := range f.Vars {
+		comboVars[k] = v
+	}
+	comboVars["bin"] = &fiat.Var{Name: "bin", Value: "testapp-1.0.0.tar.gz"}
+	comboVars["arch"] = &fiat.Var{Name: "arch", Value: "arm64"}
+	comboVars["os"] = &fiat.Var{Name: "os", Value: "darwin"}
+	comboVars["THIS"] = &fiat.Var{Name: "THIS", Value: "release"}
+
+	errCh := make(chan error, 2)
+	bt := &buildTask{
+		f:         f,
+		t:         target,
+		c:         combo{arch: "arm64", osval: "darwin", bin: archivePath},
+		comboVars: comboVars,
+		dir:       dir,
+		opts:      RunOpts{},
+		name:      "release",
+		outputs:   &Outputs{m: make(map[string]string)},
+		errCh:     errCh,
+	}
+	handleBrew(bt)
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("handleBrew failed: %v", err)
+	default:
+	}
+
+	data, err := os.ReadFile(target.Brew.Output)
+	if err != nil {
+		t.Fatalf("reading formula: %v", err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, "class Testapp < Formula") {
+		t.Errorf("formula missing class declaration")
+	}
+	if !strings.Contains(content, `desc "Test application"`) {
+		t.Errorf("formula missing desc")
+	}
+	if !strings.Contains(content, `homepage "https://example.com"`) {
+		t.Errorf("formula missing homepage")
+	}
+	if !strings.Contains(content, `license "MIT"`) {
+		t.Errorf("formula missing license")
+	}
+	if !strings.Contains(content, `version "1.0.0"`) {
+		t.Errorf("formula missing version")
+	}
+	if !strings.Contains(content, `url "https://github.com/user/testapp/releases/download/v1.0.0/`) {
+		t.Errorf("formula missing url")
+	}
+
+	shaHex, _ := computeSHA256(archivePath)
+	if !strings.Contains(content, `sha256 "`+shaHex+`"`) {
+		t.Errorf("formula missing correct sha256 %q", shaHex)
+	}
+
+	select {
+	case <-errCh:
+		t.Error("unexpected error from handleBrew")
+	default:
 	}
 }

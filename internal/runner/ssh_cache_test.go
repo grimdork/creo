@@ -164,3 +164,50 @@ func TestValidGraphFormat(t *testing.T) {
 		t.Error("expected empty to be invalid")
 	}
 }
+
+func TestSanitisePathComponent(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"simple", "simple"},
+		{"with-dashes", "with-dashes"},
+		{"with_underscore", "with_underscore"},
+		{"with.dots", "with.dots"},
+		{"with spaces", "with_spaces"},
+		{"special!@#chars", "special___chars"},
+		{"UPPERCASE", "UPPERCASE"},
+		{"mix3d", "mix3d"},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		got := sanitisePathComponent(tc.input)
+		if got != tc.want {
+			t.Errorf("sanitisePathComponent(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestRemotePathSanitisesComponents(t *testing.T) {
+	r, err := parseRemoteCacheURL("jenkins@ci.example.com:/var/lib/creo/cache")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := r.remotePath("build_linux_amd64+abc123", "file name with spaces.tar.gz")
+	want := "jenkins@ci.example.com:/var/lib/creo/cache/build_linux_amd64_abc123/file_name_with_spaces.tar.gz"
+	if got != want {
+		t.Fatalf("remotePath: got %q, want %q", got, want)
+	}
+}
+
+func TestRemotePathSingleComponent(t *testing.T) {
+	r, err := parseRemoteCacheURL("ssh://alice@cache/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := r.remotePath("manifest.json")
+	want := "alice@cache:.creo/cache/manifest.json"
+	if got != want {
+		t.Fatalf("remotePath: got %q, want %q", got, want)
+	}
+}
