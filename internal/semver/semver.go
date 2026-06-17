@@ -24,10 +24,10 @@ func String() string {
 	if exec.Command("git", "diff-index", "--quiet", "HEAD").Run() != nil {
 		ver += "-dirty"
 	}
-	return sanitize(ver)
+	return sanitise(ver)
 }
 
-func sanitize(s string) string {
+func sanitise(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '-' || r == '_' || r == '+' {

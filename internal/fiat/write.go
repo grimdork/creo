@@ -58,7 +58,7 @@ func (f *File) Write() error {
 		if covered[i] {
 			continue
 		}
-		serializeTarget(&b, t)
+		serialiseTarget(&b, t)
 	}
 
 	// Append vars not covered by any segment
@@ -88,7 +88,7 @@ func (f *File) Write() error {
 	return os.WriteFile(f.path, []byte(data), 0644)
 }
 
-func serializeTarget(b *strings.Builder, t *Target) {
+func serialiseTarget(b *strings.Builder, t *Target) {
 	if t.IsVirtual && !strings.HasPrefix(t.Name, ".") {
 		b.WriteByte('.')
 	}
