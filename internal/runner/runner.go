@@ -15,6 +15,7 @@ import (
 	"github.com/grimdork/creo/internal/util"
 )
 
+// RunTarget runs a named target from a parsed fiat configuration with the given options.
 func RunTarget(f *fiat.File, name string, opts RunOpts) error {
 	if opts.Results == nil {
 		opts.Results = &TargetResults{}

@@ -77,6 +77,7 @@ const completionFunc = `_creo() {
 	return 0
 }`
 
+// GenerateCompletion returns a shell completion script for the given argument parser options.
 func GenerateCompletion(opt *arg.Options) string {
 	base, err := opt.Completions()
 	if err != nil {

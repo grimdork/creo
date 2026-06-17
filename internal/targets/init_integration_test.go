@@ -11,7 +11,6 @@ type tmplTest struct {
 	lang       string
 	name       string
 	files      []string
-	gitignore  []string
 	checkGoMod bool
 }
 

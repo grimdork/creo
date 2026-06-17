@@ -151,6 +151,7 @@ func InitProject(langs []string, extraVars map[string]string, force, verbose boo
 	return nil
 }
 
+// InitProjectWithTemplate initialises a new project from a named template for the given language.
 func InitProjectWithTemplate(lang, tmplName string, extraVars map[string]string, force, verbose bool) error {
 	tmpl, err := templates.ResolveTemplate(lang, tmplName)
 	if err != nil {
