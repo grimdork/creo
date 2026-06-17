@@ -84,13 +84,7 @@ func expandBin(f *fiat.File, t *fiat.Target, defBin string) string {
 	if t.Bin == "" {
 		return defBin
 	}
-	ev := make(map[string]*fiat.Var)
-	for k, v := range f.Vars {
-		ev[k] = v
-	}
-	for _, v := range t.Vars {
-		ev[v.Name] = v
-	}
+	ev := fiat.MergeVars(f.Vars, t.Vars)
 	ev["bin"] = &fiat.Var{Name: "bin", Value: defBin}
 	if !(len(t.Arch) > 1 || len(t.OS) > 1) {
 		if len(t.OS) > 0 {

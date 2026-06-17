@@ -117,8 +117,10 @@ end
 		tapDir := filepath.Join(filepath.Dir(f.Path()), ".creo", t.Name+"-tap")
 		cloneURL := fmt.Sprintf("https://github.com/%s.git", brewTap)
 
+		gitEnv := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS="+askPassPath, "GIT_TOKEN="+token)
+
 		cmd := exec.Command("git", "clone", cloneURL, tapDir)
-		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS="+askPassPath, "GIT_TOKEN="+token)
+		cmd.Env = gitEnv
 		if out, err := cmd.CombinedOutput(); err != nil {
 			errCh <- fmt.Errorf("%s: cloning tap %s: %w\n%s", f.Path(), brewTap, err, strings.TrimSpace(string(out)))
 			return
@@ -143,7 +145,9 @@ end
 			{"-C", tapDir, "push"},
 		}
 		for _, args := range gitCmds {
-			if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			c := exec.Command("git", args...)
+			c.Env = gitEnv
+			if out, err := c.CombinedOutput(); err != nil {
 				errCh <- fmt.Errorf("%s: git %s: %w\n%s", f.Path(), args[0], err, strings.TrimSpace(string(out)))
 				return
 			}

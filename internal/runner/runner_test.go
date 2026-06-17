@@ -693,10 +693,7 @@ func TestHandleBrewFormula(t *testing.T) {
 		},
 	}
 
-	comboVars := make(map[string]*fiat.Var)
-	for k, v := range f.Vars {
-		comboVars[k] = v
-	}
+	comboVars := fiat.MergeVars(f.Vars, nil)
 	comboVars["bin"] = &fiat.Var{Name: "bin", Value: "testapp-1.0.0.tar.gz"}
 	comboVars["arch"] = &fiat.Var{Name: "arch", Value: "arm64"}
 	comboVars["os"] = &fiat.Var{Name: "os", Value: "darwin"}

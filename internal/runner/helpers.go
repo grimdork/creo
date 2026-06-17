@@ -16,7 +16,7 @@ func execCredHelper(helper, dir string) (user, pass string, err error) {
 	cmd.Dir = dir
 	out, execErr := cmd.Output()
 	if execErr != nil {
-		return "", "", fmt.Errorf("%s: %w", helper, execErr)
+		return "", "", fmt.Errorf("credential helper %q failed: %w", parts[0], execErr)
 	}
 	line := strings.TrimSpace(string(out))
 	idx := strings.IndexByte(line, ':')

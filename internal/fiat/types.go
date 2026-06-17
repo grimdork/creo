@@ -64,6 +64,19 @@ type BrewConfig struct {
 	ClassName string
 }
 
+// MergeVars combines file-level and target-level variables into a new map.
+// Target vars take precedence over file vars when names collide.
+func MergeVars(fileVars map[string]*Var, targetVars []*Var) map[string]*Var {
+	m := make(map[string]*Var, len(fileVars)+len(targetVars))
+	for k, v := range fileVars {
+		m[k] = v
+	}
+	for _, v := range targetVars {
+		m[v.Name] = v
+	}
+	return m
+}
+
 // File represents a parsed fiat configuration file.
 type File struct {
 	path    string
