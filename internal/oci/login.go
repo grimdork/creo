@@ -27,9 +27,9 @@ func Login() error {
 	fmt.Print("Registry (default: docker.io): ")
 	var registry string
 	if _, err := fmt.Scanln(&registry); err != nil && registry == "" {
-		registry = DefaultDockerHub
+		registry = DefDockerHub
 	}
-	if registry == DefaultDockerHub || registry == "index.docker.io" {
+	if registry == DefDockerHub || registry == "index.docker.io" {
 		registry = dockerIOKey
 	}
 

@@ -101,7 +101,7 @@ func generateSBOM(binaryPath, name string) ([]byte, error) {
 		},
 		Files: []spdxFile{
 			{
-				FileName:         filepath.Join(DefaultAppDir, name),
+				FileName:         filepath.Join(DefAppDir, name),
 				SPDXID:           "SPDXRef-File-binary",
 				Checksums:        []spdxChecksum{{Algorithm: "SHA256", Value: hex.EncodeToString(h[:])}},
 				LicenseConcluded: "NOASSERTION",
