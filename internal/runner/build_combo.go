@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/grimdork/climate/fx"
 	"github.com/grimdork/creo/internal/fiat"
@@ -13,54 +12,54 @@ import (
 	"github.com/grimdork/creo/internal/util"
 )
 
-func runCombo(f *fiat.File, t *fiat.Target, c combo, dir string, opts RunOpts, name string, outputs *Outputs, sources []string, multi bool, errCh chan<- error, wg *sync.WaitGroup) {
-	comboEnv := os.Environ()
-	activeArch := ensureArch(c.arch)
-	activeOS := ensureOS(c.osval)
-	comboEnv = append(comboEnv, targets.CrossEnv(t.Language, c.arch, c.osval)...)
+func runCombo(bt *buildTask) {
+	bt.comboEnv = os.Environ()
+	bt.activeArch = ensureArch(bt.c.arch)
+	bt.activeOS = ensureOS(bt.c.osval)
+	bt.comboEnv = append(bt.comboEnv, targets.CrossEnv(bt.t.Language, bt.c.arch, bt.c.osval)...)
 
-	comboVars := baseComboVars(f, t, activeArch, activeOS, outputs)
+	bt.comboVars = baseComboVars(bt.f, bt.t, bt.activeArch, bt.activeOS, bt.outputs)
 
-	if !opts.Rebuild && !t.IsVirtual && c.bin != "" && (t.Sources != "" || t.OCI != nil) {
-		if _, err := os.Stat(c.bin); err == nil {
-			cached := t.Sources == ""
-			if t.Sources != "" {
-				comboKey := name + "_" + activeArch + "_" + activeOS
-				cached = checkCache(dir, comboKey, sources, t.Cmds)
-				if opts.CacheStats != nil {
+	if !bt.opts.Rebuild && !bt.t.IsVirtual && bt.c.bin != "" && (bt.t.Sources != "" || bt.t.OCI != nil) {
+		if _, err := os.Stat(bt.c.bin); err == nil {
+			cached := bt.t.Sources == ""
+			if bt.t.Sources != "" {
+				comboKey := bt.name + "_" + bt.activeArch + "_" + bt.activeOS
+				cached = checkCache(bt.dir, comboKey, bt.sources, bt.t.Cmds)
+				if bt.opts.CacheStats != nil {
 					if cached {
-						opts.CacheStats.L1Hit()
+						bt.opts.CacheStats.L1Hit()
 					} else {
-						opts.CacheStats.L1Miss()
+						bt.opts.CacheStats.L1Miss()
 					}
 				}
 			}
 			if cached {
-				if opts.Verbose {
-					fx.Println(`  {warning}{} up to date (cached){@}`, c.bin)
+				if bt.opts.Verbose {
+					fx.Println(`  {warning}{} up to date (cached){@}`, bt.c.bin)
 				}
-				outputs.Store(name, activeArch, activeOS, c.bin)
+				bt.outputs.Store(bt.name, bt.activeArch, bt.activeOS, bt.c.bin)
 				return
 			}
 		}
-		if opts.CacheRemote != "" && t.Sources != "" {
-			comboKey := name + "_" + activeArch + "_" + activeOS
-			hash, ok := tryRemoteCache(opts.CacheRemote, comboKey, sources, t.Cmds)
-			if opts.CacheStats != nil {
+		if bt.opts.CacheRemote != "" && bt.t.Sources != "" {
+			comboKey := bt.name + "_" + bt.activeArch + "_" + bt.activeOS
+			hash, ok := tryRemoteCache(bt.opts.CacheRemote, comboKey, bt.sources, bt.t.Cmds)
+			if bt.opts.CacheStats != nil {
 				if ok {
-					opts.CacheStats.L2Hit()
+					bt.opts.CacheStats.L2Hit()
 				} else {
-					opts.CacheStats.L2Miss()
+					bt.opts.CacheStats.L2Miss()
 				}
 			}
 			if ok {
-				if pullAndSave(opts.CacheRemote, hash, comboKey, c.bin) {
-					if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
+				if pullAndSave(bt.opts.CacheRemote, hash, comboKey, bt.c.bin) {
+					if err := writeCache(bt.dir, comboKey, bt.sources, bt.t.Cmds); err != nil && bt.opts.Verbose {
 						fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", comboKey, err)
 					}
-					outputs.Store(name, activeArch, activeOS, c.bin)
-					if opts.Verbose {
-						fx.Println(`  {warning}{} up to date (remote cache){@}`, c.bin)
+					bt.outputs.Store(bt.name, bt.activeArch, bt.activeOS, bt.c.bin)
+					if bt.opts.Verbose {
+						fx.Println(`  {warning}{} up to date (remote cache){@}`, bt.c.bin)
 					}
 					return
 				}
@@ -68,69 +67,69 @@ func runCombo(f *fiat.File, t *fiat.Target, c combo, dir string, opts RunOpts, n
 		}
 	}
 
-	if t.Bin != "" {
-		comboVars["bin"] = &fiat.Var{Name: "bin", Value: c.bin}
-		if !opts.DryRun && opts.Rebuild && len(t.Cmds) > 0 {
-			if err := os.Remove(c.bin); err != nil && !os.IsNotExist(err) && opts.Verbose {
-				fx.Fprint(os.Stderr, "  {red}{}: remove binary {:q}: {}{@}\n", name, c.bin, err)
+	if bt.t.Bin != "" {
+		bt.comboVars["bin"] = &fiat.Var{Name: "bin", Value: bt.c.bin}
+		if !bt.opts.DryRun && bt.opts.Rebuild && len(bt.t.Cmds) > 0 {
+			if err := os.Remove(bt.c.bin); err != nil && !os.IsNotExist(err) && bt.opts.Verbose {
+				fx.Fprint(os.Stderr, "  {red}{}: remove binary {:q}: {}{@}\n", bt.name, bt.c.bin, err)
 			}
 		}
 	}
-	if t.Sources != "" {
-		comboVars["sources"] = &fiat.Var{Name: "sources", Value: fiat.Expand(t.Sources, comboVars, 0)}
+	if bt.t.Sources != "" {
+		bt.comboVars["sources"] = &fiat.Var{Name: "sources", Value: fiat.Expand(bt.t.Sources, bt.comboVars, 0)}
 	}
 
-	if len(t.Cmds) > 0 && (opts.DryRun || opts.Verbose) {
-		if t.Bin != "" {
-			fx.Println(`  {cyan}Building {} ...{@}`, c.bin)
+	if len(bt.t.Cmds) > 0 && (bt.opts.DryRun || bt.opts.Verbose) {
+		if bt.t.Bin != "" {
+			fx.Println(`  {cyan}Building {} ...{@}`, bt.c.bin)
 		}
 	}
-	for _, cmd := range t.Cmds {
-		expanded := fiat.Expand(cmd, comboVars, 0)
-		if opts.DryRun || opts.Verbose {
+	for _, cmd := range bt.t.Cmds {
+		expanded := fiat.Expand(cmd, bt.comboVars, 0)
+		if bt.opts.DryRun || bt.opts.Verbose {
 			fx.Println(`  {cyan}{}{@}`, expanded)
 		}
-		if opts.DryRun {
+		if bt.opts.DryRun {
 			continue
 		}
-		if err := execCmd(expanded, dir, comboEnv); err != nil {
-			errCh <- fmt.Errorf("%s: command failed: %w", f.Path(), err)
+		if err := execCmd(expanded, bt.dir, bt.comboEnv); err != nil {
+			bt.errCh <- fmt.Errorf("%s: command failed: %w", bt.f.Path(), err)
 			return
 		}
 	}
 
-	if !opts.DryRun && len(t.Cmds) > 0 && t.Bin != "" {
-		if _, err := os.Stat(c.bin); os.IsNotExist(err) {
-			errCh <- fmt.Errorf("%s: binary %q was not created by target %q", f.Path(), c.bin, name)
+	if !bt.opts.DryRun && len(bt.t.Cmds) > 0 && bt.t.Bin != "" {
+		if _, err := os.Stat(bt.c.bin); os.IsNotExist(err) {
+			bt.errCh <- fmt.Errorf("%s: binary %q was not created by target %q", bt.f.Path(), bt.c.bin, bt.name)
 			return
 		}
-		outputs.Store(name, activeArch, activeOS, c.bin)
-		if t.Sources != "" && multi {
-			comboKey := name + "_" + activeArch + "_" + activeOS
-			if err := writeCache(dir, comboKey, sources, t.Cmds); err != nil && opts.Verbose {
-				fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", name, err)
+		bt.outputs.Store(bt.name, bt.activeArch, bt.activeOS, bt.c.bin)
+		if bt.t.Sources != "" && bt.multi {
+			comboKey := bt.name + "_" + bt.activeArch + "_" + bt.activeOS
+			if err := writeCache(bt.dir, comboKey, bt.sources, bt.t.Cmds); err != nil && bt.opts.Verbose {
+				fx.Fprint(os.Stderr, "  {red}{}: cache write: {}{@}\n", bt.name, err)
 			}
-			if opts.CacheRemote != "" {
-				key, err := computeCacheKey(sources, t.Cmds)
+			if bt.opts.CacheRemote != "" {
+				key, err := computeCacheKey(bt.sources, bt.t.Cmds)
 				if err != nil {
-					if opts.Verbose {
-						fx.Fprint(os.Stderr, "  {red}{}: cache key: {}{@}\n", name, err)
+					if bt.opts.Verbose {
+						fx.Fprint(os.Stderr, "  {red}{}: cache key: {}{@}\n", bt.name, err)
 					}
 				} else {
-					wg.Add(1)
+					bt.wg.Add(1)
 					go func() {
-						defer wg.Done()
-						pushRemote(opts.CacheRemote, key, comboKey, c.bin, dir, sources, t.Cmds)
+						defer bt.wg.Done()
+						pushRemote(bt.opts.CacheRemote, key, comboKey, bt.c.bin, bt.dir, bt.sources, bt.t.Cmds)
 					}()
 				}
 			}
 		}
 	}
 
-	for _, inst := range t.Install {
-		expanded := fiat.Expand(inst, comboVars, 0)
+	for _, inst := range bt.t.Install {
+		expanded := fiat.Expand(inst, bt.comboVars, 0)
 		expanded = os.ExpandEnv(expanded)
-		src := c.bin
+		src := bt.c.bin
 		dest := expanded
 		if idx := strings.IndexByte(expanded, ':'); idx >= 0 {
 			src = expanded[:idx]
@@ -140,34 +139,20 @@ func runCombo(f *fiat.File, t *fiat.Target, c combo, dir string, opts RunOpts, n
 			dest = filepath.Join(dest, filepath.Base(src))
 		}
 		fx.Println(`  {cyan}Installed {} -> {}{@}`, src, dest)
-		if opts.DryRun {
+		if bt.opts.DryRun {
 			continue
 		}
 		if err := util.CopyFile(src, dest); err != nil {
-			errCh <- fmt.Errorf("%s: install of %s: %w", f.Path(), src, err)
+			bt.errCh <- fmt.Errorf("%s: install of %s: %w", bt.f.Path(), src, err)
 			return
 		}
 	}
 
-	bt := &buildTask{
-		f:          f,
-		t:          t,
-		c:          c,
-		comboVars:  comboVars,
-		comboEnv:   comboEnv,
-		dir:        dir,
-		activeArch: activeArch,
-		activeOS:   activeOS,
-		opts:       opts,
-		name:       name,
-		outputs:    outputs,
-		errCh:      errCh,
-	}
-	if t.Brew != nil && !opts.DryRun {
+	if bt.t.Brew != nil && !bt.opts.DryRun {
 		handleBrew(bt)
 	}
 
-	if t.OCI != nil && !opts.DryRun {
+	if bt.t.OCI != nil && !bt.opts.DryRun {
 		handleOCI(bt)
 	}
 }

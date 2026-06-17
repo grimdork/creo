@@ -127,4 +127,7 @@ type buildTask struct {
 	name       string
 	outputs    *Outputs
 	errCh      chan<- error
+	sources    []string
+	multi      bool
+	wg         *sync.WaitGroup
 }

@@ -293,9 +293,22 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ma
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(c combo) {
+				bt := &buildTask{
+					f:       f,
+					t:       t,
+					c:       c,
+					dir:     dir,
+					opts:    opts,
+					name:    name,
+					outputs: outputs,
+					sources: sources,
+					multi:   multi,
+					errCh:   errCh,
+					wg:      &wg,
+				}
 				defer wg.Done()
 				defer func() { <-sem }()
-				runCombo(f, t, c, dir, opts, name, outputs, sources, multi, errCh, &wg)
+				runCombo(bt)
 			}(c)
 		}
 
