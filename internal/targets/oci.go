@@ -10,11 +10,6 @@ import (
 )
 
 func applyOci(f *fiat.File, t *fiat.Target) {
-	for _, v := range t.Vars {
-		if v.Name == "alias" && t.LangAlias == "" {
-			t.LangAlias = v.Value
-		}
-	}
 	m := lookupManifest(f, t)
 
 	cfg := &fiat.OCIConfig{
