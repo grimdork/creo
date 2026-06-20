@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/grimdork/climate/arg"
+	"github.com/grimdork/climate/fx"
 )
 
 func main() {
@@ -18,7 +18,7 @@ func main() {
 
 	if err := opt.Parse(os.Args[1:]); err != nil {
 		if !errors.Is(err, arg.ErrNonFatal) {
-			fmt.Fprintln(os.Stderr, err)
+			fx.Fprintln(os.Stderr, "{}", err)
 			os.Exit(1)
 		}
 	}
@@ -29,17 +29,17 @@ func main() {
 	verbose := opt.GetBool("v")
 	shout := opt.GetBool("shout")
 
-	greeting := fmt.Sprintf("Hello, %s!", name)
+	greeting := fx.Render("Hello, {}!", name)
 	if shout {
-		greeting = fmt.Sprintf("HELLO, %s!", name)
+		greeting = fx.Render("HELLO, {}!", name)
 	}
 
 	for i := 0; i < count; i++ {
-		fmt.Println(greeting)
+		fx.Println(greeting)
 	}
 
 	if verbose {
-		fmt.Printf("Count: %d\n", count)
-		fmt.Printf("Files: %v\n", files)
+		fx.Println("Count: {}", count)
+		fx.Println("Files: {}", files)
 	}
 }
