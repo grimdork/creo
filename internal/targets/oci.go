@@ -92,6 +92,13 @@ func applyRegistryAlias(f *fiat.File, t *fiat.Target, cfg *fiat.OCIConfig) {
 			}
 			cfg.CredHelper = "aws ecr get-login-password --region " + r
 		}
+	case "scw":
+		if cfg.User == "" {
+			cfg.User = os.Getenv("SCW_ACCESS_KEY")
+		}
+		if cfg.Pass == "" {
+			cfg.Pass = os.Getenv("SCW_SECRET_KEY")
+		}
 	}
 }
 
