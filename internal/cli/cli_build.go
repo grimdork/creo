@@ -79,7 +79,7 @@ func RunBuild(opt *arg.Options) error {
 	var errCount int
 	for _, name := range names {
 		if err := runner.RunTarget(file, name, opts); err != nil {
-			fx.Fprint(os.Stderr, "{red}Error: {}{}{@}\n", err)
+			fx.Fprint(os.Stderr, "{red}Error: {}{@}\n", err)
 			errCount++
 			if !opts.KeepGoing {
 				break
