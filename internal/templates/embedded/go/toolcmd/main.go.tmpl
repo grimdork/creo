@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/grimdork/climate/arg"
+	"github.com/grimdork/climate/fx"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 		if tls {
 			proto = "https"
 		}
-		fmt.Printf("Server listening on %s://%s:%d\n", proto, host, port)
+		fx.Println("Server listening on {}://{}:{}", proto, host, port)
 		return nil
 	}, []string{"s"})
 
@@ -36,22 +36,22 @@ func main() {
 			return err
 		}
 		if sub.GetBool("show") {
-			fmt.Println("Config: port=8080, host=127.0.0.1")
+			fx.Println("Config: port=8080, host=127.0.0.1")
 		}
 		if kv := sub.GetString("set"); kv != "" {
-			fmt.Printf("Set: %s\n", kv)
+			fx.Println("Set: {}", kv)
 		}
 		return nil
 	}, []string{"cfg", "c"})
 
 	opt.SetCommand("version", "Print version", arg.GroupDefault, func(sub *arg.Options) error {
-		fmt.Println("$PROJECT v1.0.0")
+		fx.Println("$PROJECT v1.0.0")
 		return nil
 	}, []string{"v", "ver"})
 
 	if err := opt.Parse(os.Args[1:]); err != nil {
 		if !errors.Is(err, arg.ErrNonFatal) {
-			fmt.Fprintln(os.Stderr, err)
+			fx.Fprintln(os.Stderr, "{}", err)
 			os.Exit(1)
 		}
 	}
