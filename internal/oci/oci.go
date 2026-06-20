@@ -137,9 +137,18 @@ func Build(cfg Config) (v1.Image, error) {
 		entrypoint = []string{filepath.Join(cfg.AppDir, cfg.Name)}
 	}
 
-	img, err = mutate.Config(img, v1.Config{
-		Entrypoint: entrypoint,
-	})
+	cf, err := img.ConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	cf.Config.Entrypoint = entrypoint
+	if cfg.Arch != "" {
+		cf.Architecture = cfg.Arch
+	}
+	if cfg.OS != "" {
+		cf.OS = cfg.OS
+	}
+	img, err = mutate.ConfigFile(img, cf)
 	if err != nil {
 		return nil, err
 	}
