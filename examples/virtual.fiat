@@ -13,18 +13,18 @@
 #         creo -k .test .lint       # keep-going: run all, report errors
 
 build: go
-    desc=Build the project binary
+desc=Build the project binary
 
 .test:
-    desc=Run all tests
-    cmd=go test ./...
-    require=build
+desc=Run all tests
+cmd=go test ./...
+require=build
 
 .lint:
-    desc=Run linter
-    cmd=golangci-lint run
+desc=Run linter
+cmd=golangci-lint run
 
 .release:
-    desc=Tag and push a release
-    cmd=git tag v$VERSION && git push --tags
-    require=.test .lint
+desc=Tag and push a release
+cmd=git tag v$VERSION && git push --tags
+require=.test .lint

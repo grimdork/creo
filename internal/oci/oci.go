@@ -336,5 +336,3 @@ func WriteTarball(img v1.Image, path, tag string) error {
 
 	return tarball.WriteToFile(path, ref, img)
 }
-
-

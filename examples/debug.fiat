@@ -8,7 +8,7 @@
 #         creo debug    # debug
 
 build: go
-    desc=Release build (stripped)
+desc=Release build (stripped)
 
 debug: go
-    desc=Debug build with symbols
+desc=Debug build with symbols

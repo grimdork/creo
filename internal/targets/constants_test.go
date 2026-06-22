@@ -10,7 +10,7 @@ import (
 )
 
 func TestCommentStripping(t *testing.T) {
-	content := []byte("# comment\nbuild: go\n\tcmd=echo hi\n# another\n")
+	content := []byte("# comment\nbuild: go\ncmd=echo hi\n# another\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -29,7 +29,7 @@ func TestCommentStripping(t *testing.T) {
 }
 
 func TestInlineCommentStripping(t *testing.T) {
-	content := []byte("build: go\n\tcmd=echo hi # inline comment\n")
+	content := []byte("build: go\ncmd=echo hi # inline comment\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -52,7 +52,7 @@ func TestInlineCommentStripping(t *testing.T) {
 }
 
 func TestCommentLineStripping(t *testing.T) {
-	content := []byte("build: go\n\t# this is a comment-only line\n\tcmd=echo hi\n")
+	content := []byte("build: go\n# this is a comment-only line\ncmd=echo hi\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -99,7 +99,7 @@ func TestPlainVarStillWorks(t *testing.T) {
 }
 
 func TestInstallProperty(t *testing.T) {
-	content := []byte("install: go\n\tinstall=$HOME/bin\n")
+	content := []byte("install: go\ninstall=$HOME/bin\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -125,7 +125,7 @@ func TestInstallProperty(t *testing.T) {
 }
 
 func TestInstallPropertyWithSource(t *testing.T) {
-	content := []byte("install: go\n\tinstall=$bin:$HOME/bin\n")
+	content := []byte("install: go\ninstall=$bin:$HOME/bin\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -145,7 +145,7 @@ func TestInstallPropertyWithSource(t *testing.T) {
 }
 
 func TestMultipleInstallLines(t *testing.T) {
-	content := []byte("install: go\n\tinstall=$bin:$HOME/bin/\n\tinstall=$(bin)-debug:$HOME/bin/\n\trequire=build debug\n")
+	content := []byte("install: go\ninstall=$bin:$HOME/bin/\ninstall=$(bin)-debug:$HOME/bin/\nrequire=build debug\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -382,7 +382,7 @@ func TestApplyCpp(t *testing.T) {
 }
 
 func TestApplyOci(t *testing.T) {
-	content := []byte("image: oci\n\trepo=ghcr.io/u/r\n\ttag=v1\n\tappdir=/srv\n")
+	content := []byte("image: oci\nrepo=ghcr.io/u/r\ntag=v1\nappdir=/srv\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -417,7 +417,7 @@ func TestApplyOci(t *testing.T) {
 }
 
 func TestApplyOciCacert(t *testing.T) {
-	content := []byte("image: oci\n\tcacert=auto\n")
+	content := []byte("image: oci\ncacert=auto\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -472,7 +472,7 @@ func TestApplyOciDefaultTarball(t *testing.T) {
 }
 
 func TestApplyOciFrom(t *testing.T) {
-	content := []byte("img: oci\n\tfrom=alpine:latest\n")
+	content := []byte("img: oci\nfrom=alpine:latest\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -498,7 +498,7 @@ func TestApplyOciFrom(t *testing.T) {
 }
 
 func TestApplyOciSBOM(t *testing.T) {
-	content := []byte("img: oci\n\tsbom=true\n")
+	content := []byte("img: oci\nsbom=true\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -739,7 +739,7 @@ func TestApplyGoDebug(t *testing.T) {
 }
 
 func TestOciGhcrAlias(t *testing.T) {
-	content := []byte("deploy: oci:ghcr OWNER=myorg\n\ttag=latest\n")
+	content := []byte("deploy: oci:ghcr OWNER=myorg\ntag=latest\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -768,7 +768,7 @@ func TestOciGhcrAlias(t *testing.T) {
 }
 
 func TestOciGhcrAliasOverride(t *testing.T) {
-	content := []byte("deploy: oci:ghcr\n\trepo=ghcr.io/custom/repo\n\ttag=v1\n")
+	content := []byte("deploy: oci:ghcr\nrepo=ghcr.io/custom/repo\ntag=v1\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -835,7 +835,7 @@ func TestOciEcrAlias(t *testing.T) {
 }
 
 func TestOciScwAlias(t *testing.T) {
-	content := []byte("deploy: oci:scw OWNER=myorg\n\tregion=nl-ams\n")
+	content := []byte("deploy: oci:scw OWNER=myorg\nregion=nl-ams\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -856,7 +856,7 @@ func TestOciScwAlias(t *testing.T) {
 }
 
 func TestOciScwCountryAlias(t *testing.T) {
-	content := []byte("deploy: oci:scw OWNER=myorg\n\tregion=it\n")
+	content := []byte("deploy: oci:scw OWNER=myorg\nregion=it\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -957,7 +957,7 @@ func TestOwnerFromFileVar(t *testing.T) {
 }
 
 func TestTestAliasWithRegionAndTag(t *testing.T) {
-	content := []byte("deploy: oci:scw OWNER=myorg\n\ttag=latest\n\tos=linux\n\tarch=amd64\n\tregion=nl-ams\n")
+	content := []byte("deploy: oci:scw OWNER=myorg\ntag=latest\nos=linux\narch=amd64\nregion=nl-ams\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -1121,7 +1121,7 @@ func TestRustTriple(t *testing.T) {
 }
 
 func TestApplyRustCustomBin(t *testing.T) {
-	content := []byte("build: rust\n\tbin=./target/release/$PROJECT\n")
+	content := []byte("build: rust\nbin=./target/release/$PROJECT\n")
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(`[package]
 name = "myapp"
@@ -1212,7 +1212,7 @@ version = "0.1.0"
 }
 
 func TestProjectVarGo(t *testing.T) {
-	content := []byte("build: go\n\tbin=./$PROJECT\n")
+	content := []byte("build: go\nbin=./$PROJECT\n")
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/foo/myapp\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -1239,7 +1239,7 @@ func TestProjectVarGo(t *testing.T) {
 
 func TestProjectVarC(t *testing.T) {
 	dir := t.TempDir()
-	content := []byte("build: c\n\tbin=./$PROJECT\n")
+	content := []byte("build: c\nbin=./$PROJECT\n")
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
@@ -1263,7 +1263,7 @@ func TestProjectVarC(t *testing.T) {
 
 func TestProjectVarCxx(t *testing.T) {
 	dir := t.TempDir()
-	content := []byte("build: cxx\n\tbin=./$PROJECT\n")
+	content := []byte("build: cxx\nbin=./$PROJECT\n")
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
 		t.Fatal(err)
@@ -1286,7 +1286,7 @@ func TestProjectVarCxx(t *testing.T) {
 }
 
 func TestProjectVarRust(t *testing.T) {
-	content := []byte("build: rust\n\tbin=./target/release/$PROJECT\n")
+	content := []byte("build: rust\nbin=./target/release/$PROJECT\n")
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "Cargo.toml"), []byte(`[package]
 name = "mycrate"
@@ -1315,7 +1315,7 @@ version = "0.1.0"
 }
 
 func TestApplyArchive(t *testing.T) {
-	content := []byte("$PROJECT=testapp\narchive: archive\n\tformat=tar.gz\n")
+	content := []byte("$PROJECT=testapp\narchive: archive\nformat=tar.gz\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -1351,7 +1351,7 @@ func TestApplyArchive(t *testing.T) {
 }
 
 func TestApplyArchiveZip(t *testing.T) {
-	content := []byte("$PROJECT=testapp\narchive: archive\n\tformat=zip\n")
+	content := []byte("$PROJECT=testapp\narchive: archive\nformat=zip\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -1381,7 +1381,7 @@ func TestApplyArchiveZip(t *testing.T) {
 }
 
 func TestApplyDeb(t *testing.T) {
-	content := []byte("$PROJECT=testapp\n$BUILDDIR=output\ndeb: deb\n\treq:build\n\tmaintainer=Test User <test@example.com>\n")
+	content := []byte("$PROJECT=testapp\n$BUILDDIR=output\ndeb: deb\nrequire=build\nmaintainer=Test User <test@example.com>\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -1417,7 +1417,7 @@ func TestApplyDeb(t *testing.T) {
 }
 
 func TestApplyRpm(t *testing.T) {
-	content := []byte("$PROJECT=testapp\ndeb: rpm\n\treq:build\n\tmaintainer=Test User <test@example.com>\n")
+	content := []byte("$PROJECT=testapp\ndeb: rpm\nrequire=build\nmaintainer=Test User <test@example.com>\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {
@@ -1450,7 +1450,7 @@ func TestApplyRpm(t *testing.T) {
 }
 
 func TestApplyBrew(t *testing.T) {
-	content := []byte("$PROJECT=testapp\nrelease: brew\n\trepo=user/testapp\n\thomepage=https://example.com\n\tlicense=MIT\n\tdesc=TestApp\n")
+	content := []byte("$PROJECT=testapp\nrelease: brew\nrepo=user/testapp\nhomepage=https://example.com\nlicense=MIT\ndesc=TestApp\n")
 	dir := t.TempDir()
 	fpath := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(fpath, content, 0644); err != nil {

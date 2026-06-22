@@ -19,6 +19,6 @@
 build: go
 
 image: oci
-    desc=Build OCI image tarball
-    require=build
-    tarball=build/image.tar
+desc=Build OCI image tarball
+require=build
+tarball=build/image.tar

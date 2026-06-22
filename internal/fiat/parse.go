@@ -24,10 +24,6 @@ type segment struct {
 	targetIdx int
 }
 
-func isIndented(line string) bool {
-	return len(line) > 0 && (line[0] == ' ' || line[0] == '\t')
-}
-
 func parseVarLine(line string, f *File, t *Target) error {
 	rest := line[1:]
 	eager := false
@@ -117,10 +113,10 @@ func Parse(path string) (*File, error) {
 
 	// State-machine: classify each line and dispatch.
 	for _, raw := range rawLines {
-		// Strip inline comments: a hash preceded by whitespace or at the start.
+		// Strip inline comments.
 		stripped := raw
 		for i := 0; i < len(stripped); i++ {
-			if stripped[i] == '#' && (i == 0 || stripped[i-1] == ' ' || stripped[i-1] == '\t') {
+			if stripped[i] == '#' && i > 0 && (stripped[i-1] == ' ' || stripped[i-1] == '\t') {
 				stripped = stripped[:i]
 				break
 			}
@@ -129,8 +125,28 @@ func Parse(path string) (*File, error) {
 
 		isBlank := line == ""
 		isHash := len(raw) > 0 && raw[0] == '#'
-		isVar := strings.HasPrefix(line, "$")
-		isTarget := !isIndented(raw) && strings.Contains(line, ":") && strings.IndexByte(line, ':') > 0
+		isVar := strings.HasPrefix(line, "$") && strings.Contains(line, "=")
+		hasEquals := strings.Contains(line, "=")
+		colonIdx := strings.IndexByte(line, ':')
+		isTarget := colonIdx > 0 && !strings.Contains(line[:colonIdx], "=")
+
+		// Comment lines: file-level comments.
+		if isHash && curTarget == nil {
+			if curSeg == nil || curSeg.kind != segComment {
+				flushSeg()
+				curSeg = &segment{kind: segComment}
+			}
+			curSeg.raw = append(curSeg.raw, raw)
+			continue
+		}
+
+		// Comment inside a target block — preserve in raw, no semantic effect.
+		if isHash && curTarget != nil {
+			if curSeg != nil && curSeg.kind == segTarget {
+				curSeg.raw = append(curSeg.raw, raw)
+			}
+			continue
+		}
 
 		// Blank lines: coalesce consecutive blanks into one segment.
 		if isBlank {
@@ -142,18 +158,7 @@ func Parse(path string) (*File, error) {
 			continue
 		}
 
-		// Comment lines: preserve for re-serialisation, no semantic effect.
-		if isHash {
-			// Fallback: treat unrecognised lines as comments for preservation.
-			if curSeg == nil || curSeg.kind != segComment {
-				flushSeg()
-				curSeg = &segment{kind: segComment}
-			}
-			curSeg.raw = append(curSeg.raw, raw)
-			continue
-		}
-
-		// Variable assignment ($NAME=value or $NAME:=eager-value): file-level unless inside a target.
+		// Variable assignment ($NAME=value or $NAME:=eager-value): file-level.
 		if isVar {
 			flushSeg()
 			curTarget = nil
@@ -172,7 +177,6 @@ func Parse(path string) (*File, error) {
 		}
 
 		// Target declaration: name: language optkey=optval
-		// Properties follow on indented lines below.
 		if isTarget {
 			flushSeg()
 			parts := strings.SplitN(line, ":", 2)
@@ -208,12 +212,16 @@ func Parse(path string) (*File, error) {
 			continue
 		}
 
-		// Indented lines inside a target: property key=value or continuation (tab+tab).
-		if curTarget != nil && isIndented(raw) {
+		// Property or continuation inside a target block (no indentation required).
+		if curTarget != nil {
 			if curSeg != nil && curSeg.kind == segTarget {
-				curSeg.raw = append(curSeg.raw, raw)
+				curSeg.raw = append(curSeg.raw, strings.TrimLeft(raw, " \t"))
 			}
-			if strings.HasPrefix(raw, "\t\t") {
+			if strings.HasPrefix(strings.TrimLeft(raw, " \t"), "#") {
+				lastKey = ""
+			} else if hasEquals {
+				lastKey = parseProperty(line, curTarget)
+			} else if lastKey != "" {
 				switch lastKey {
 				case "cmd":
 					curTarget.Cmds = append(curTarget.Cmds, line)
@@ -250,8 +258,6 @@ func Parse(path string) (*File, error) {
 						}
 					}
 				}
-			} else {
-				lastKey = parseProperty(line, curTarget)
 			}
 			continue
 		}

@@ -11,32 +11,32 @@ $LDFLAGS=-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DAT
 # -- Build targets --
 
 build: go
-    desc=Release binary
-    cmd=go build -ldflags="$LDFLAGS" -o $bin
+desc=Release binary
+cmd=go build -ldflags="$LDFLAGS" -o $bin
 
 debug: go
-    desc=Debug binary with symbols
-    cmd=go build -gcflags="all=-N -l" -o $bin-debug
+desc=Debug binary with symbols
+cmd=go build -gcflags="all=-N -l" -o $bin-debug
 
 nix: go
-    desc=Cross-compile for linux on amd64/arm64
-    os=linux
-    arch=amd64 arm64
-	bin=$bin-$os-$arch
+desc=Cross-compile for linux on amd64/arm64
+os=linux
+arch=amd64 arm64
+bin=$bin-$os-$arch
 
 # -- Container image --
 
 image: oci
-    desc=Build OCI image tarball
-    require=build
-    tarball=build/image.tar
+desc=Build OCI image tarball
+require=build
+tarball=build/image.tar
 
 # -- Install --
 
 install: go
-    desc=Install binary to ~/bin
-    install=$bin:$HOME/bin/
-    require=build
+desc=Install binary to ~/bin
+install=$bin:$HOME/bin/
+require=build
 
 # -- Package targets --
 #
@@ -46,35 +46,35 @@ install: go
 # makes a best-effort package containing the binary + README + LICENSE.
 
 archive: archive
-    desc=Create release tarball
-    require=build
+desc=Create release tarball
+require=build
 
 deb: deb
-    desc=Create .deb package
-    require=build
+desc=Create .deb package
+require=build
 
 rpm: rpm
-    desc=Create .rpm package
-    require=build
+desc=Create .rpm package
+require=build
 
 brew: brew
-    desc=Create Homebrew formula
-    require=archive
-    tap=user/homebrew-tools
+desc=Create Homebrew formula
+require=archive
+tap=user/homebrew-tools
 
 # -- Test and lint (virtual targets) --
 
 .test:
-    desc=Run tests
-    cmd=go test ./...
-    require=build
+desc=Run tests
+cmd=go test ./...
+require=build
 
 .lint:
-    desc=Run linter
-    cmd=golangci-lint run
+desc=Run linter
+cmd=golangci-lint run
 
 # -- Release pipeline --
 
 .release:
-    desc=Test, lint, build, package
-    require=.test .lint image install archive deb rpm brew
+desc=Test, lint, build, package
+require=.test .lint image install archive deb rpm brew

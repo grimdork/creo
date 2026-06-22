@@ -156,10 +156,10 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ut
 			}
 		}
 		done.Add(name)
-			return nil
-		}
+		return nil
+	}
 
-		needsRun := true
+	needsRun := true
 	var existsBinPath string
 	var sources []string
 	var buildStart time.Time
@@ -242,6 +242,12 @@ func runTargetWithDeps(f *fiat.File, name string, opts RunOpts, visited, done ut
 		}
 
 		allExist := !t.IsVirtual && !opts.Rebuild && t.Bin != "" && len(t.Install) == 0
+		if allExist && t.Sources == "" && t.OCI == nil {
+			existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)
+			if _, err := os.Stat(existsBinPath); os.IsNotExist(err) {
+				allExist = false
+			}
+		}
 		if allExist && t.Sources != "" {
 			allExist = false
 			existsBinPath = fiat.ExpandWithTarget(t.Bin, f.Vars, t)

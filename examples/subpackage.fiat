@@ -7,4 +7,4 @@
 # Usage:  creo
 
 build: go SRCDIR=./cmd/server
-    desc=Build server binary from ./cmd/server
+desc=Build server binary from ./cmd/server

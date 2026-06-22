@@ -82,15 +82,15 @@ func TestParseGlobalVars(t *testing.T) {
 
 func TestParseTargetAllProperties(t *testing.T) {
 	content := "build: go\n" +
-		"\tcmd=echo hello\n" +
-		"\tbin=myapp\n" +
-		"\tsources=*.go\n" +
-		"\ttmp=/tmp/build\n" +
-		"\trequire=dep1\n" +
-		"\tarch=amd64\n" +
-		"\tos=linux\n" +
-		"\tdesc=My app\n" +
-		"\tinstall=cp myapp /usr/bin\n"
+		"cmd=echo hello\n" +
+		"bin=myapp\n" +
+		"sources=*.go\n" +
+		"tmp=/tmp/build\n" +
+		"require=dep1\n" +
+		"arch=amd64\n" +
+		"os=linux\n" +
+		"desc=My app\n" +
+		"install=cp myapp /usr/bin\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -141,12 +141,12 @@ func TestParseTargetAllProperties(t *testing.T) {
 
 func TestParseMultiLineContinuation(t *testing.T) {
 	content := "build: go\n" +
-		"\tcmd=echo first\n" +
-		"\t\tsecond\n" +
-		"\tbin=myapp-\n" +
-		"\t\tdebug\n" +
-		"\tsources=*.go\n" +
-		"\t\textra.go\n"
+		"cmd=echo first\n" +
+		"second\n" +
+		"bin=myapp-\n" +
+		"debug\n" +
+		"sources=*.go\n" +
+		"extra.go\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -173,8 +173,8 @@ func TestParseMultiLineContinuation(t *testing.T) {
 
 func TestParseInlineComment(t *testing.T) {
 	content := "build: go\n" +
-		"\tcmd=echo hi # inline comment\n" +
-		"\tdesc=useful # end\n"
+		"cmd=echo hi # inline comment\n" +
+		"desc=useful # end\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -198,7 +198,7 @@ func TestParseInlineComment(t *testing.T) {
 
 func TestParseTargetLocalVars(t *testing.T) {
 	content := "build: go NAME=myapp VERSION=1.0\n" +
-		"\tcmd=echo $NAME\n"
+		"cmd=echo $NAME\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -270,8 +270,8 @@ func TestParseDIRVariable(t *testing.T) {
 
 func TestParseUnknownPropertyAsVar(t *testing.T) {
 	content := "build: go\n" +
-		"\tMY_KEY=myvalue\n" +
-		"\tOTHER=otherval\n"
+		"MY_KEY=myvalue\n" +
+		"OTHER=otherval\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -301,7 +301,7 @@ func TestParseUnknownPropertyAsVar(t *testing.T) {
 
 func TestParseVirtualTarget(t *testing.T) {
 	content := ".phony: \n" +
-		"\tcmd=echo virtual\n"
+		"cmd=echo virtual\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -325,7 +325,7 @@ func TestParseVirtualTarget(t *testing.T) {
 
 func TestParseTargetWithNoLanguage(t *testing.T) {
 	content := "install:\n" +
-		"\tcmd=cp myapp /usr/bin\n"
+		"cmd=cp myapp /usr/bin\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -509,7 +509,7 @@ func TestExpandWithTargetLocalVars(t *testing.T) {
 }
 
 func TestWriteRoundTrip(t *testing.T) {
-	content := "$name=testapp\n$eager:=immediate\n\nbuild: go\n\tcmd=echo hi\n\tbin=myapp\n\tsources=*.go\n\tdesc=Test app\n\tarch=amd64\n\tos=linux\n"
+	content := "$name=testapp\n$eager:=immediate\n\nbuild: go\ncmd=echo hi\nbin=myapp\nsources=*.go\ndesc=Test app\narch=amd64\nos=linux\n"
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
@@ -860,23 +860,26 @@ func TestPath(t *testing.T) {
 	}
 }
 
-func TestParseMalformedVar(t *testing.T) {
+func TestParseNoEqualsLine(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
-	content := "$NOEQUALS\nbuild: go\n\tcmd=go build\n"
+	content := "$NOEQUALS\nbuild: go\ncmd=go build\n"
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := Parse(path)
-	if err == nil {
-		t.Fatal("expected error for malformed variable (no = sign)")
+	f, err := Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Targets) != 1 || f.Targets[0].Name != "build" {
+		t.Fatal("expected one target named 'build'")
 	}
 }
 
 func TestParseDeepNesting(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
-	content := "$a=$b\n$b=$c\n$c=$d\n$d=$e\n$e=$f\n$f=$g\n$g=$h\n$h=$i\n$i=$j\n$j=deep\nbuild: go\n\tcmd=go build\n"
+	content := "$a=$b\n$b=$c\n$c=$d\n$d=$e\n$e=$f\n$f=$g\n$g=$h\n$h=$i\n$i=$j\n$j=deep\nbuild: go\ncmd=go build\n"
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -897,7 +900,7 @@ func TestParseDeepNesting(t *testing.T) {
 func TestParseUnicodeIdent(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
-	content := "$café=yes\nbuild: go\n\tcmd=go build\n"
+	content := "$café=yes\nbuild: go\ncmd=go build\n"
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -917,7 +920,7 @@ func TestParseUnicodeIdent(t *testing.T) {
 func TestParseNumberedVar(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fiat")
-	content := "$VER=1.0\nbuild: go\n\tcmd=go build\n"
+	content := "$VER=1.0\nbuild: go\ncmd=go build\n"
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}

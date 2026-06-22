@@ -90,6 +90,7 @@ func (f *File) Write() error {
 }
 
 func serialiseTarget(b *strings.Builder, t *Target) {
+	b.WriteByte('\n')
 	if t.IsVirtual && !strings.HasPrefix(t.Name, ".") {
 		b.WriteByte('.')
 	}
@@ -167,13 +168,7 @@ func targetProps(t *Target) []prop {
 
 func writeProp(b *strings.Builder, key, value string) {
 	lines := splitLines(value)
-	for i, line := range lines {
-		if i == 0 {
-			b.WriteByte('\t')
-		} else {
-			b.WriteByte('\t')
-			b.WriteByte('\t')
-		}
+	for _, line := range lines {
 		b.WriteString(key)
 		b.WriteByte('=')
 		b.WriteString(line)

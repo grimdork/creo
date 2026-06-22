@@ -13,11 +13,11 @@
 $LDFLAGS=-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE
 
 build: go
-    desc=Build release binary
-    cmd=go build -ldflags="$LDFLAGS" -o $bin
+desc=Build release binary
+cmd=go build -ldflags="$LDFLAGS" -o $bin
 
 # Install to ~/bin
 install: go
-    desc=Build and install to ~/bin
-    install=$bin:$HOME/bin/
-    require=build
+desc=Build and install to ~/bin
+install=$bin:$HOME/bin/
+require=build

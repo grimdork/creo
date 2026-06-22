@@ -1,13 +1,13 @@
 $LDFLAGS=-s -w -X main.version=$VERSION
 
 build: go
-    desc=Build the $PROJECT binary
-    cmd=go build -ldflags="$LDFLAGS" -o $bin
+desc=Build the $PROJECT binary
+cmd=go build -ldflags="$LDFLAGS" -o $bin
 
 image: oci
-    desc=Build OCI image
-    require=build
-    repo=$OCI_REPO
-    tag=latest
-    cacert=auto
-    entrypoint=/app/$PROJECT
+desc=Build OCI image
+require=build
+repo=$OCI_REPO
+tag=latest
+cacert=auto
+entrypoint=/app/$PROJECT

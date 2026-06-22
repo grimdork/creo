@@ -10,7 +10,7 @@
 #         creo debug
 
 build: c
-    desc=Build release binary
+desc=Build release binary
 
 debug: c
-    desc=Debug build with symbols
+desc=Debug build with symbols

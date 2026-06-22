@@ -47,7 +47,7 @@ func TestListTargets(t *testing.T) {
 	}
 	defer os.Chdir(wd)
 
-	fiatContent := "build: go\n\tdesc=Build the binary\n"
+	fiatContent := "build: go\ndesc=Build the binary\n"
 	if err := os.WriteFile("fiat", []byte(fiatContent), 0644); err != nil {
 		t.Fatal(err)
 	}

@@ -73,7 +73,7 @@ func TestSimpleGoBuild(t *testing.T) {
 
 func TestVirtualTargetAlwaysRuns(t *testing.T) {
 	dir := t.TempDir()
-	writeFiat(t, dir, ".test:\n\tcmd=echo ran\n")
+	writeFiat(t, dir, ".test:\ncmd=echo ran\n")
 	f := parseAndApply(t, dir)
 
 	if err := RunTarget(f, ".test", RunOpts{}); err != nil {
@@ -87,7 +87,7 @@ func TestVirtualTargetAlwaysRuns(t *testing.T) {
 
 func TestKeepGoing(t *testing.T) {
 	dir := t.TempDir()
-	writeFiat(t, dir, "build: go\n\tcmd=exit 1\n")
+	writeFiat(t, dir, "build: go\ncmd=exit 1\n")
 	writeFile(t, dir, "go.mod", "module test\n")
 	writeFile(t, dir, "main.go", "package main; func main() {}\n")
 	f := parseAndApply(t, dir)
@@ -121,7 +121,7 @@ func TestInstall(t *testing.T) {
 	dir := t.TempDir()
 	defer runInDir(t, dir)()
 	dest := filepath.Join(dir, "dest", "test")
-	writeFiat(t, dir, "build: go\n\tinstall=$bin:"+dest+"\n")
+	writeFiat(t, dir, "build: go\ninstall=$bin:"+dest+"\n")
 	writeFile(t, dir, "go.mod", "module test\n")
 	writeFile(t, dir, "main.go", "package main; func main() {}\n")
 	f := parseAndApply(t, dir)
@@ -300,7 +300,7 @@ func TestGlobFiles(t *testing.T) {
 func TestAllTarget(t *testing.T) {
 	dir := t.TempDir()
 	defer runInDir(t, dir)()
-	writeFiat(t, dir, "build: go\n\ntest:\n\tcmd=touch marker\n")
+	writeFiat(t, dir, "build: go\n\ntest:\ncmd=touch marker\n")
 	writeFile(t, dir, "go.mod", "module test\n")
 	writeFile(t, dir, "main.go", "package main; func main() {}\n")
 	f := parseAndApply(t, dir)
@@ -320,7 +320,7 @@ func TestAllTarget(t *testing.T) {
 
 func TestCircularDependency(t *testing.T) {
 	dir := t.TempDir()
-	writeFiat(t, dir, ".a:\n\trequire=.b\n\n.b:\n\trequire=.a\n")
+	writeFiat(t, dir, ".a:\nrequire=.b\n\n.b:\nrequire=.a\n")
 	f := parseAndApply(t, dir)
 
 	err := RunTarget(f, ".a", RunOpts{})
@@ -331,7 +331,7 @@ func TestCircularDependency(t *testing.T) {
 
 func TestDependencyNotFound(t *testing.T) {
 	dir := t.TempDir()
-	writeFiat(t, dir, ".a:\n\trequire=nonexistent\n")
+	writeFiat(t, dir, ".a:\nrequire=nonexistent\n")
 	f := parseAndApply(t, dir)
 
 	err := RunTarget(f, ".a", RunOpts{})
@@ -528,7 +528,7 @@ func TestCheckCacheHitAndMiss(t *testing.T) {
 func TestCollectFilePaths(t *testing.T) {
 	dir := t.TempDir()
 	runInDir(t, dir)
-	writeFiat(t, dir, "build: go\n\tsources=*.go\n")
+	writeFiat(t, dir, "build: go\nsources=*.go\n")
 	writeFile(t, dir, "main.go", "package main\n")
 	writeFile(t, dir, "helper.go", "package main\n")
 	f := parseAndApply(t, dir)
@@ -548,7 +548,7 @@ func TestCollectFilePaths(t *testing.T) {
 func TestCachedBuildSkips(t *testing.T) {
 	dir := t.TempDir()
 	runInDir(t, dir)
-	writeFiat(t, dir, "build: go\n\tsources=*.go\n")
+	writeFiat(t, dir, "build: go\nsources=*.go\n")
 	writeFile(t, dir, "go.mod", "module test\n")
 	writeFile(t, dir, "main.go", "package main; func main() {}\n")
 	f := parseAndApply(t, dir)
@@ -573,7 +573,7 @@ func TestCachedBuildSkips(t *testing.T) {
 func TestCachedBuildRebuildsAfterChange(t *testing.T) {
 	dir := t.TempDir()
 	runInDir(t, dir)
-	writeFiat(t, dir, "build: go\n\tsources=*.go\n")
+	writeFiat(t, dir, "build: go\nsources=*.go\n")
 	writeFile(t, dir, "go.mod", "module test\n")
 	writeFile(t, dir, "main.go", "package main; func main() {}\n")
 	f := parseAndApply(t, dir)
@@ -594,7 +594,7 @@ func TestCachedBuildRebuildsAfterChange(t *testing.T) {
 func TestMultiArchBuild(t *testing.T) {
 	dir := t.TempDir()
 	defer runInDir(t, dir)()
-	writeFiat(t, dir, "build: go\n\tos=linux\n\tarch=amd64 arm64\n\tbin=$bin-$os-$arch\n")
+	writeFiat(t, dir, "build: go\nos=linux\narch=amd64 arm64\nbin=$bin-$os-$arch\n")
 	writeFile(t, dir, "go.mod", "module test\n")
 	writeFile(t, dir, "main.go", "package main; func main() {}\n")
 	f := parseAndApply(t, dir)

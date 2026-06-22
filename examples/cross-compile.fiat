@@ -15,7 +15,7 @@
 #         creo -c nix           # remove all 4 binaries
 
 nix: go
-    desc=Cross-compile for linux/freebsd on amd64/arm64
-    os=linux freebsd
-    arch=amd64 arm64
-    bin=$bin-$os-$arch
+desc=Cross-compile for linux/freebsd on amd64/arm64
+os=linux freebsd
+arch=amd64 arm64
+bin=$bin-$os-$arch
