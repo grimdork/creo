@@ -33,12 +33,13 @@ strips debug symbols, and only rebuilds when sources change.
 $GO=go build
 
 build: go
-    sources=*.go
-    cmd=$GO $args $GOFLAGS -o $bin $sources
+desc=Build the binary
+cmd=$GO $args $GOFLAGS -o $bin
 ```
 
 Variables start with `$`; `=` is lazy, `:=` is eager.  Targets list a
-name, an optional language keyword, and indented properties.
+name, an optional language keyword, and properties below.  Blocks are
+separated by blank lines — no indentation required.
 
 ## Documentation
 
