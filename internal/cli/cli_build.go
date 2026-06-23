@@ -45,12 +45,15 @@ func RunBuild(opt *arg.Options) error {
 	}
 
 	if opts.Recursive {
-		if err := runner.RunRecursive(".", names[0], opts); err != nil {
-			return fmt.Errorf("recursive build: %w", err)
+		err := runner.RunRecursive(".", names[0], opts)
+		if opts.Verbose || err != nil {
+			results.Print()
 		}
-		results.Print()
 		if opt.GetBool("cache-stats") {
 			cacheStats.Print()
+		}
+		if err != nil {
+			return fmt.Errorf("recursive build: %w", err)
 		}
 		return nil
 	}
@@ -86,7 +89,9 @@ func RunBuild(opt *arg.Options) error {
 			}
 		}
 	}
-	results.Print()
+	if opts.Verbose || errCount > 0 {
+		results.Print()
+	}
 	if opt.GetBool("cache-stats") {
 		cacheStats.Print()
 	}
