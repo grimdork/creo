@@ -31,6 +31,8 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 			cfg.Tarball = val
 		case "repo":
 			cfg.Repo = val
+		case "image":
+			cfg.Image = val
 		case "tag":
 			cfg.Tag = val
 		case "appdir":
@@ -61,9 +63,14 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 		applyRegistryAlias(f, t, cfg)
 	}
 
+	imgName := t.Name
+	if cfg.Image != "" {
+		imgName = cfg.Image
+	}
+
 	if cfg.Tarball == "" && cfg.Repo == "" {
 		bd := BuildDir(f)
-		cfg.Tarball = bd + "/" + t.Name + ".tar"
+		cfg.Tarball = bd + "/" + imgName + ".tar"
 	}
 
 	t.OCI = cfg
@@ -75,7 +82,11 @@ func applyOci(f *fiat.File, t *fiat.Target) {
 func applyRegistryAlias(f *fiat.File, t *fiat.Target, cfg *fiat.OCIConfig) {
 	if cfg.Repo == "" {
 		owner := resolveOwner(f, t)
-		cfg.Repo = aliasRepo(t.LangAlias, owner, cfg.Region, t.Name)
+		imgName := t.Name
+		if cfg.Image != "" {
+			imgName = cfg.Image
+		}
+		cfg.Repo = aliasRepo(t.LangAlias, owner, cfg.Region, imgName)
 	}
 	switch t.LangAlias {
 	case "ecr":

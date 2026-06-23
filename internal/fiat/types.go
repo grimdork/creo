@@ -18,6 +18,7 @@ type ManifestFile struct {
 type OCIConfig struct {
 	Repo       string
 	Tag        string
+	Image      string
 	Tarball    string
 	AppDir     string
 	User       string
